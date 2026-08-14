@@ -1,10 +1,3 @@
-/**
- * LUXORA — Centralized Theme Tokens
- * 
- * This file defines the complete design system for the frontend.
- * All components should consume CSS variables generated from these tokens.
- */
-
 export const themeTokens = {
   brand: {
     name: 'LUXORA',
@@ -33,9 +26,11 @@ export const themeTokens = {
   },
 
   fonts: {
-    heading: "'Playfair Display', Georgia, serif",
-    body: "'Inter', 'Vazirmatn', system-ui, sans-serif",
-    ui: "'Inter', 'Vazirmatn', system-ui, sans-serif",
+    persian: "'Vazirmatn', Tahoma, Arial, sans-serif",
+    persianHeading: "'Vazirmatn', Tahoma, Arial, sans-serif",
+    englishHeading: "'Playfair Display', Georgia, serif",
+    englishBody: "'Inter', system-ui, sans-serif",
+    ui: "'Vazirmatn', Tahoma, Arial, sans-serif",
   },
 
   fontSizes: {
@@ -64,14 +59,14 @@ export const themeTokens = {
 
   lineHeights: {
     tight: 1.05,
-    heading: 1.4,
+    heading: 1.5,
     normal: 1.55,
     relaxed: 1.7,
     body: 1.7,
   },
 
   letterSpacing: {
-    tight: '-0.02em',
+    tight: '0',
     normal: '0',
     wide: '0.01em',
     uppercase: '0.08em',

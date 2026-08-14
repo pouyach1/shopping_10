@@ -1,8 +1,14 @@
 :root {
-  --font-serif: 'Playfair Display', 'Vazirmatn', Georgia, serif;
-  --font-sans: 'Vazirmatn', 'Inter', system-ui, -apple-system, sans-serif;
-  --font-header: 'Vazirmatn', 'Inter', system-ui, sans-serif;
-  --font-logo: 'Playfair Display', 'Vazirmatn', Georgia, serif;
+  --font-persian: 'Vazirmatn', Tahoma, Arial, sans-serif;
+  --font-persian-heading: 'Vazirmatn', Tahoma, Arial, sans-serif;
+  --font-english-heading: 'Playfair Display', Georgia, serif;
+  --font-english-body: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --font-ui: 'Vazirmatn', Tahoma, Arial, sans-serif;
+  
+  --font-serif: var(--font-english-heading);
+  --font-sans: var(--font-persian);
+  --font-header: var(--font-persian);
+  --font-logo: var(--font-english-heading);
   
   --font-size-display: clamp(2rem, 4vw, 3.5rem);
   --font-size-hero: clamp(1.75rem, 3.5vw, 3.25rem);
@@ -22,7 +28,7 @@
   --font-weight-semibold: 600;
   --font-weight-bold: 700;
   
-  --line-height-heading: 1.4;
+  --line-height-heading: 1.5;
   --line-height-body: 1.7;
   
   --letter-spacing-tight: 0;
