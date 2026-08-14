@@ -1,0 +1,1 @@
+export { CustomerFavorites } from './CustomerFavorites';

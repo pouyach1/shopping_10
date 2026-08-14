@@ -1,0 +1,30 @@
+.placeholder {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: var(--color-cream-200);
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+  width: 100%;
+}
+
+.image {
+  background-color: var(--color-cream-200);
+}
+
+.avatar {
+  border-radius: var(--radius-full);
+  background-color: var(--color-cream-300);
+}
+
+.default {
+  background-color: var(--color-cream-100);
+  border: 1px dashed var(--color-cream-300);
+}
+
+.label {
+  font-size: var(--font-size-caption);
+  color: var(--color-charcoal-400);
+  text-align: center;
+  padding: var(--spacing-sm);
+}

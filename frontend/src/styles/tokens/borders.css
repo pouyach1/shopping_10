@@ -1,0 +1,6 @@
+:root {
+  --border-width: 1px;
+  --border-style: solid;
+  --border-color: var(--color-charcoal-200);
+  --border-color-strong: var(--color-charcoal-300);
+}

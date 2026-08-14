@@ -1,0 +1,33 @@
+import type { Product } from '../../pages/Home/types';
+import { ProductCard } from './ProductCard';
+import styles from './ProductGrid.module.css';
+
+interface ProductGridProps {
+  products: Product[];
+  columns?: 2 | 3 | 4 | 5 | 6;
+  gap?: 'sm' | 'md' | 'lg';
+}
+
+export function ProductGrid({ products, columns = 5, gap = 'md' }: ProductGridProps) {
+  const columnClass = {
+    2: styles.columns2,
+    3: styles.columns3,
+    4: styles.columns4,
+    5: styles.columns5,
+    6: styles.columns6,
+  }[columns];
+
+  const gapClass = {
+    sm: styles.gapSm,
+    md: styles.gapMd,
+    lg: styles.gapLg,
+  }[gap];
+
+  return (
+    <div className={`${styles.grid} ${columnClass} ${gapClass}`}>
+      {products.map((product) => (
+        <ProductCard key={product.id} product={product} />
+      ))}
+    </div>
+  );
+}

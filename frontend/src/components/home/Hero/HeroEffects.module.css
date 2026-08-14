@@ -1,0 +1,212 @@
+/* ============================================
+   HERO EFFECTS — Editorial Typography Overlay
+   ============================================ */
+
+/* Giant Background Number */
+.giantNumber {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  font-family: 'Playfair Display', Georgia, serif;
+  font-size: clamp(180px, 25vw, 420px);
+  font-weight: 700;
+  color: rgba(255, 255, 255, 0.18);
+  z-index: 1;
+  pointer-events: none;
+  user-select: none;
+  line-height: 1;
+  letter-spacing: -0.02em;
+}
+
+/* Outline Brand Typography */
+.outlineBrand {
+  position: absolute;
+  bottom: 10%;
+  left: 5%;
+  font-family: 'Playfair Display', Georgia, serif;
+  font-size: clamp(3rem, 10vw, 8rem);
+  font-weight: 400;
+  letter-spacing: 0.05em;
+  -webkit-text-fill-color: transparent;
+  -webkit-text-stroke: 1px rgba(255, 255, 255, 0.65);
+  text-transform: uppercase;
+  z-index: 2;
+  pointer-events: none;
+  user-select: none;
+  white-space: nowrap;
+  line-height: 1;
+}
+
+/* Brand — Upper Left */
+.brandLabel {
+  position: absolute;
+  top: 24px;
+  left: 24px;
+  font-family: 'Inter', 'Vazirmatn', sans-serif;
+  font-size: 0.75rem;
+  font-weight: 500;
+  letter-spacing: 0.25em;
+  color: rgba(255, 255, 255, 0.85);
+  text-transform: uppercase;
+  z-index: 3;
+  pointer-events: none;
+  user-select: none;
+}
+
+/* Editorial Micro Labels */
+.eyebrowLabel {
+  position: absolute;
+  top: 24px;
+  right: 24px;
+  font-family: 'Inter', 'Vazirmatn', sans-serif;
+  font-size: 0.625rem;
+  font-weight: 400;
+  letter-spacing: 0.2em;
+  color: rgba(255, 255, 255, 0.75);
+  text-transform: uppercase;
+  z-index: 3;
+  pointer-events: none;
+  user-select: none;
+}
+
+.collectionLabel {
+  position: absolute;
+  top: 50%;
+  left: 5%;
+  transform: translateY(-50%);
+  font-family: 'Inter', 'Vazirmatn', sans-serif;
+  font-size: 0.625rem;
+  font-weight: 400;
+  letter-spacing: 0.2em;
+  color: rgba(255, 255, 255, 0.75);
+  text-transform: uppercase;
+  z-index: 3;
+  pointer-events: none;
+  user-select: none;
+}
+
+.onlineLabel {
+  position: absolute;
+  top: 60%;
+  right: 4%;
+  font-family: 'Inter', 'Vazirmatn', sans-serif;
+  font-size: 0.625rem;
+  font-weight: 400;
+  letter-spacing: 0.2em;
+  color: rgba(255, 255, 255, 0.75);
+  text-transform: uppercase;
+  z-index: 3;
+  pointer-events: none;
+  user-select: none;
+}
+
+.paginationLabel {
+  position: absolute;
+  bottom: 24px;
+  right: 24px;
+  font-family: 'Inter', 'Vazirmatn', sans-serif;
+  font-size: 0.625rem;
+  font-weight: 400;
+  letter-spacing: 0.15em;
+  color: rgba(255, 255, 255, 0.75);
+  z-index: 3;
+  pointer-events: none;
+  user-select: none;
+}
+
+/* Vertical Typography */
+.verticalLabel {
+  position: absolute;
+  top: 50%;
+  right: 16px;
+  transform: translateY(-50%) rotate(-90deg);
+  transform-origin: center;
+  font-family: 'Inter', 'Vazirmatn', sans-serif;
+  font-size: 0.625rem;
+  font-weight: 500;
+  letter-spacing: 0.25em;
+  color: rgba(255, 255, 255, 0.7);
+  text-transform: uppercase;
+  z-index: 3;
+  pointer-events: none;
+  user-select: none;
+  white-space: nowrap;
+}
+
+/* Script Element */
+.scriptLabel {
+  position: absolute;
+  top: 35%;
+  left: 45%;
+  font-family: 'Georgia', cursive, serif;
+  font-size: 1.125rem;
+  font-style: italic;
+  font-weight: 400;
+  color: rgba(255, 255, 255, 0.8);
+  transform: rotate(-8deg);
+  z-index: 3;
+  pointer-events: none;
+  user-select: none;
+}
+
+/* ============================================
+   RESPONSIVE — MOBILE
+   ============================================ */
+
+@media (max-width: 767px) {
+  .brandLabel {
+    top: 16px;
+    left: 16px;
+    font-size: 0.625rem;
+    letter-spacing: 0.2em;
+  }
+
+  .eyebrowLabel {
+    top: 16px;
+    right: 16px;
+    font-size: 0.5625rem;
+    letter-spacing: 0.15em;
+  }
+
+  .giantNumber {
+    font-size: clamp(120px, 35vw, 250px);
+  }
+
+  .outlineBrand {
+    bottom: 8%;
+    left: 4%;
+    font-size: 2.5rem;
+    -webkit-text-stroke: 0.5px rgba(255, 255, 255, 0.65);
+  }
+
+  .collectionLabel {
+    left: 4%;
+    font-size: 0.5625rem;
+    letter-spacing: 0.15em;
+  }
+
+  .onlineLabel {
+    right: 3%;
+    top: 55%;
+    font-size: 0.5625rem;
+  }
+
+  .paginationLabel {
+    bottom: 16px;
+    right: 16px;
+    font-size: 0.5625rem;
+  }
+
+  .verticalLabel {
+    right: 8px;
+    font-size: 0.5625rem;
+    letter-spacing: 0.2em;
+  }
+
+  .scriptLabel {
+    top: 30%;
+    left: 40%;
+    font-size: 1rem;
+  }
+}
