@@ -1,4 +1,4 @@
-import { useState, type FormEvent } from 'react';
+import { useState, type CSSProperties, type FormEvent } from 'react';
 import { useScrollReveal } from '../../../hooks/useScrollReveal';
 import { SocialIcon } from '../../ui/SocialIcon';
 import type { FooterColumn } from '../../../pages/Home/types';
@@ -45,7 +45,7 @@ export function Footer({ brandName, brandTagline, columns }: FooterProps) {
             </p>
           </div>
 
-          <form onSubmit={handleSubscribe} className={styles.newsletterForm} noValidate={false}>
+          <form onSubmit={handleSubscribe} className={styles.newsletterForm}>
             <label htmlFor="footer-email" className="sr-only">
               ایمیل شما
             </label>
@@ -92,7 +92,7 @@ export function Footer({ brandName, brandTagline, columns }: FooterProps) {
             <div
               key={column.id}
               className={`${styles.column} ${styles.revealItem}`}
-              style={{ '--reveal-delay': `${120 + index * 80}ms` } as React.CSSProperties}
+              style={{ '--reveal-delay': `${120 + index * 80}ms` } as CSSProperties}
             >
               <div className={styles.titleRow}>
                 <span className={styles.titleAccent} aria-hidden="true" />
