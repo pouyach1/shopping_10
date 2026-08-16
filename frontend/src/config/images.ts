@@ -1,21 +1,55 @@
 /**
- * Centralized Image Asset Configuration
- * 
- * To replace category images:
- * 1. Place new image files in src/assets/images/categories/
- * 2. Keep the same filenames as imported below
- * 3. No code changes required
+ * LUXORA — CENTRAL IMAGE CONFIG
+ *
+ * تمام تصاویر سایت از این فایل مدیریت می‌شوند.
+ * برای تغییر تصاویر، فقط import و مقدار مربوطه را تغییر بده.
  */
+
+import hero from '../assets/hero.png';
 
 import women from '../assets/images/categories/women.webp';
 import men from '../assets/images/categories/men.webp';
-import bags from '../assets/images/categories/bag.webp';
+import bag from '../assets/images/categories/bag.webp';
 import shoes from '../assets/images/categories/Shoes.webp';
 
-export const categoryImages = {
-  women,
-  men,
-  bags,
-  shoes,
-  accessories: 'https://images.unsplash.com/photo-1611652022419-a9419f74343d?auto=format&fit=crop&w=600&h=750&q=80',
+import silkBlouse from '../assets/images/products/silk-blouse.webp';
+import woolCoat from '../assets/images/products/wool-coat.webp';
+import linenTrousers from '../assets/images/products/linen-trousers.webp';
+import cashmereSweater from '../assets/images/products/cashmere-sweater.webp';
+import pleatedSkirt from '../assets/images/products/pleated-skirt.webp';
+import classicShirt from '../assets/images/products/classic-shirt.webp';
+import accessories from '../assets/images/categories/accessories.webp';
+import promo from '../assets/images/banners/luxora-promo-woman.webp';
+
+export const siteImages = {
+  hero: {
+    main: hero,
+  },
+
+  categories: {
+    women,
+    men,
+    bags: bag,
+    shoes,
+    accessories
+  },
+
+  products: {
+    silkBlouse,
+    woolCoat,
+    linenTrousers,
+    cashmereSweater,
+    pleatedSkirt,
+    classicShirt,
+  },
+
+  banners: {
+    promo,
+  },
 } as const;
+
+/**
+ * Backwards compatibility
+ * بعضی فایل‌های قدیمی پروژه هنوز از categoryImages استفاده می‌کنند.
+ */
+export const categoryImages = siteImages.categories;

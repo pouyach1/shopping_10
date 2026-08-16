@@ -1,0 +1,21 @@
+.page {
+  min-height: 100vh;
+  background: #FAF8F4;
+}
+
+.container {
+  max-width: 800px;
+  margin: 0 auto;
+  padding: 0 16px 80px;
+}
+
+.list {
+  display: flex;
+  flex-direction: column;
+}
+
+@media (max-width: 767px) {
+  .container {
+    padding: 0 12px 60px;
+  }
+}

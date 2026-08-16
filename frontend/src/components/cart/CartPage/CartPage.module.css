@@ -1,0 +1,180 @@
+.page {
+  min-height: 100vh;
+  background: #ECECE9;
+  font-family: 'Inter', 'Vazirmatn', sans-serif;
+}
+
+.container {
+  max-width: 1280px;
+  margin: 0 auto;
+  padding: 48px 32px 100px;
+}
+
+.card {
+  background: #FBFBF9;
+  border: 1px solid #DCD8D0;
+  padding: 48px;
+  border-radius: 0;
+  box-shadow: none;
+  transition: border-color 250ms ease;
+}
+
+.card:hover {
+  border-color: #C5C0B8;
+}
+
+.breadcrumb {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin-bottom: 32px;
+  font-family: 'Inter', 'Vazirmatn', sans-serif;
+  font-size: 10px;
+  letter-spacing: 0.28em;
+  text-transform: uppercase;
+  flex-wrap: wrap;
+}
+
+.breadcrumbActive {
+  color: #1C1C1C;
+  text-decoration: underline;
+  text-underline-offset: 5px;
+  text-decoration-thickness: 1px;
+}
+
+.breadcrumbInactive {
+  color: #9E9E9E;
+}
+
+.breadcrumbSeparator {
+  color: #DCD8D0;
+}
+
+.title {
+  margin: 0 0 48px;
+  font-family: 'Cormorant Garamond', 'Playfair Display', Georgia, serif;
+  font-size: clamp(32px, 3.5vw, 44px);
+  font-weight: 400;
+  line-height: 1.15;
+  color: #1C1C1C;
+  letter-spacing: 0.01em;
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.15fr) minmax(380px, 0.85fr);
+  gap: 40px;
+  align-items: start;
+}
+
+.leftColumn {
+  display: flex;
+  flex-direction: column;
+  gap: 32px;
+}
+
+.rightColumn {
+  display: flex;
+  flex-direction: column;
+  gap: 32px;
+}
+
+.sectionTitle {
+  margin: 0 0 24px;
+  font-family: 'Cormorant Garamond', 'Playfair Display', Georgia, serif;
+  font-size: 26px;
+  font-weight: 400;
+  color: #1C1C1C;
+  letter-spacing: 0.02em;
+}
+
+.orderCard {
+  position: relative;
+}
+
+.orderToggle {
+  display: none;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  padding: 0;
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-family: 'Cormorant Garamond', 'Playfair Display', Georgia, serif;
+  font-size: 22px;
+  font-weight: 400;
+  color: #1C1C1C;
+}
+
+.chevron {
+  transition: transform 300ms ease;
+}
+
+.chevronOpen {
+  transform: rotate(180deg);
+}
+
+.orderContent {
+  display: flex;
+  flex-direction: column;
+}
+
+.itemsList {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+@media (max-width: 1024px) {
+  .grid {
+    grid-template-columns: 1fr;
+    gap: 32px;
+  }
+
+  .card {
+    padding: 36px;
+  }
+}
+
+@media (max-width: 768px) {
+  .container {
+    padding: 24px 14px 80px;
+  }
+
+  .card {
+    padding: 20px 16px;
+  }
+
+  .title {
+    font-size: 26px;
+    margin-bottom: 28px;
+  }
+
+  .breadcrumb {
+    font-size: 8px;
+    gap: 6px;
+    letter-spacing: 0.18em;
+  }
+
+  .grid {
+    gap: 20px;
+  }
+
+  .leftColumn,
+  .rightColumn {
+    gap: 20px;
+  }
+
+  .orderToggle {
+    display: flex;
+  }
+
+  .orderContent {
+    margin-top: 16px;
+  }
+
+  .sectionTitle {
+    font-size: 20px;
+  }
+}

@@ -1,0 +1,165 @@
+.preview {
+  width: 100%;
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 42px 17px;
+}
+
+.item {
+  display: block;
+  min-width: 0;
+  color: inherit;
+  text-decoration: none;
+  animation: productReveal 500ms cubic-bezier(.22,.61,.36,1) both;
+}
+
+@keyframes productReveal {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.imageWrapper {
+  position: relative;
+  aspect-ratio: 0.78;
+  overflow: hidden;
+  background: #eeebe6;
+}
+
+.image {
+  width: 100%;
+  height: 100%;
+  display: block;
+  object-fit: cover;
+  transition: transform 700ms cubic-bezier(.22,.61,.36,1);
+}
+
+.imageOverlay {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    180deg,
+    transparent 55%,
+    rgba(20, 18, 16, 0.08)
+  );
+  opacity: 0;
+  transition: opacity 350ms ease;
+}
+
+.item:hover .image {
+  transform: scale(1.035);
+}
+
+.item:hover .imageOverlay {
+  opacity: 1;
+}
+
+.badge {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  padding: 5px 8px;
+  background: rgba(26, 25, 23, 0.9);
+  color: #fff;
+  font-family: 'Vazirmatn', sans-serif;
+  font-size: 0.5rem;
+  letter-spacing: 0.04em;
+}
+
+.viewProduct {
+  position: absolute;
+  right: 50%;
+  bottom: 18px;
+  transform: translate(50%, 8px);
+  padding: 8px 15px;
+  background: rgba(255, 253, 250, 0.94);
+  color: #252320;
+  font-family: 'Vazirmatn', sans-serif;
+  font-size: 0.56rem;
+  opacity: 0;
+  transition:
+    opacity 250ms ease,
+    transform 250ms ease;
+}
+
+.item:hover .viewProduct {
+  opacity: 1;
+  transform: translate(50%, 0);
+}
+
+.info {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  padding-top: 11px;
+}
+
+.nameRow {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.name {
+  color: #24221f;
+  font-family: 'Vazirmatn', sans-serif;
+  font-size: 0.7rem;
+  line-height: 1.7;
+}
+
+.brand {
+  flex-shrink: 0;
+  color: #aaa39a;
+  font-family: 'Vazirmatn', sans-serif;
+  font-size: 0.48rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.price {
+  color: #77716a;
+  font-family: 'Vazirmatn', sans-serif;
+  font-size: 0.62rem;
+}
+
+@media (max-width: 900px) {
+  .grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 30px 11px;
+  }
+}
+
+@media (max-width: 500px) {
+  .grid {
+    gap: 25px 8px;
+  }
+
+  .nameRow {
+    flex-direction: column;
+    gap: 2px;
+  }
+
+  .viewProduct {
+    display: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .item,
+  .image,
+  .imageOverlay,
+  .viewProduct {
+    animation: none;
+    transition: none;
+  }
+}

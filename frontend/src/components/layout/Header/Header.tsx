@@ -1,11 +1,11 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
 import { Search, Heart, ShoppingBag, Menu, X, User, ChevronDown, LogOut, Package, UserCircle } from 'lucide-react';
 import type { NavItem } from '../../../pages/Home/types';
+import { SearchOverlay } from '../../search/SearchOverlay/SearchOverlay';
 import styles from './Header.module.css';
 
 interface HeaderProps {
   navItems: NavItem[];
-  onWishlist?: () => void;
   onCart?: () => void;
   logo?: string;
   logoLatin?: string;
@@ -95,15 +95,14 @@ const megaMenuData: Record<string, MegaMenuColumn[]> = {
   ],
 };
 
-export function Header({ navItems, onWishlist, onCart, logo = 'لوکسورا', logoLatin = 'LUXORA' }: HeaderProps) {
+export function Header({ navItems, onCart, logo = 'لوکسورا', logoLatin = 'LUXORA' }: HeaderProps) {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const [searchOpen, setSearchOpen] = useState(false);
-  const [searchQuery, setSearchQuery] = useState('');
+  const [searchOpen, setSearchOpen] = useState(() => {
+    return sessionStorage.getItem('luxora-search-open') === 'true';
+  });
   const [accountDropdownOpen, setAccountDropdownOpen] = useState(false);
   const [megaMenuOpen, setMegaMenuOpen] = useState<string | null>(null);
   const [isSticky, setIsSticky] = useState(false);
-  const [cartCount, setCartCount] = useState(0);
-  const [cartPulse, setCartPulse] = useState(false);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const megaMenuTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -118,12 +117,13 @@ export function Header({ navItems, onWishlist, onCart, logo = 'لوکسورا', 
   }, []);
 
   const openSearch = useCallback(() => {
+    sessionStorage.setItem('luxora-search-open', 'true');
     setSearchOpen(true);
   }, []);
 
   const closeSearch = useCallback(() => {
+    sessionStorage.removeItem('luxora-search-open');
     setSearchOpen(false);
-    setSearchQuery('');
   }, []);
 
   const toggleAccountDropdown = useCallback(() => {
@@ -145,17 +145,6 @@ export function Header({ navItems, onWishlist, onCart, logo = 'لوکسورا', 
       setMegaMenuOpen(null);
     }, 150);
   }, []);
-
-  useEffect(() => {
-    if (mobileMenuOpen || searchOpen) {
-      document.body.style.overflow = 'hidden';
-    } else {
-      document.body.style.overflow = '';
-    }
-    return () => {
-      document.body.style.overflow = '';
-    };
-  }, [mobileMenuOpen, searchOpen]);
 
   useEffect(() => {
     const handleEscape = (e: KeyboardEvent) => {
@@ -198,10 +187,12 @@ export function Header({ navItems, onWishlist, onCart, logo = 'لوکسورا', 
     };
   }, []);
 
+  const handleWishlistClick = useCallback(() => {
+    window.location.href = '/wishlist';
+  }, []);
+
   const handleCartClick = useCallback(() => {
-    setCartCount((prev) => prev + 1);
-    setCartPulse(true);
-    setTimeout(() => setCartPulse(false), 400);
+    window.location.href = '/cart';
     if (onCart) {
       onCart();
     }
@@ -260,16 +251,15 @@ export function Header({ navItems, onWishlist, onCart, logo = 'لوکسورا', 
             <button className={styles.iconButton} onClick={openSearch} aria-label="جستجو">
               <Search size={20} strokeWidth={1.5} />
             </button>
-            <button className={styles.iconButton} onClick={onWishlist} aria-label="علاقه‌مندی‌ها">
+            <button
+              className={styles.iconButton}
+              onClick={handleWishlistClick}
+              aria-label="علاقه‌مندی‌ها"
+            >
               <Heart size={20} strokeWidth={1.5} />
             </button>
             <button className={styles.iconButton} onClick={handleCartClick} aria-label="سبد خرید">
               <ShoppingBag size={20} strokeWidth={1.5} />
-              {cartCount > 0 && (
-                <span className={`${styles.cartBadge} ${cartPulse ? styles.cartPulse : ''}`}>
-                  {cartCount}
-                </span>
-              )}
             </button>
             <button
               className={styles.iconButton}
@@ -368,28 +358,7 @@ export function Header({ navItems, onWishlist, onCart, logo = 'لوکسورا', 
         </nav>
       </div>
 
-      {searchOpen && (
-        <div className={styles.searchOverlay} role="dialog" aria-modal="true" aria-label="جستجو">
-          <button
-            className={styles.searchCloseButton}
-            onClick={closeSearch}
-            aria-label="بستن جستجو"
-          >
-            <X size={24} strokeWidth={1.5} />
-          </button>
-          <div className={styles.searchContainer}>
-            <Search size={28} strokeWidth={1} className={styles.searchIcon} aria-hidden="true" />
-            <input
-              type="text"
-              className={styles.searchInput}
-              placeholder="دنبال چه چیزی می‌گردید؟"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              autoFocus
-            />
-          </div>
-        </div>
-      )}
+      <SearchOverlay open={searchOpen} onClose={closeSearch} />
     </>
   );
 }

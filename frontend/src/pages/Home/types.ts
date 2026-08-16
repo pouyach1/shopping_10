@@ -66,3 +66,34 @@ export interface CtaButton {
   variant?: 'primary' | 'secondary' | 'outline' | 'ghost' | 'danger';
   href?: string;
 }
+
+export type CategoryId =
+  | 'women'
+  | 'men'
+  | 'bags'
+  | 'shoes'
+  | 'accessories';
+
+export type CategoryBannerType =
+  | 'image'
+  | 'video'
+  | 'editorial'
+  | 'quote';
+
+export interface CategoryBannerItem {
+  id: string;
+  category: CategoryId;
+  type: CategoryBannerType;
+  src: string;
+  poster?: string;
+  eyebrow?: string;
+  title: string;
+  description?: string;
+  href?: string;
+  objectPosition?: string;
+}
+
+export interface CategoryBannerProps {
+  category: CategoryId;
+  banners?: CategoryBannerItem[];
+}

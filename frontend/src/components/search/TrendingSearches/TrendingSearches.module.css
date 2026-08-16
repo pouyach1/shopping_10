@@ -1,0 +1,36 @@
+.trending {
+  direction: rtl;
+}
+
+.title {
+  margin: 0 0 14px;
+  font-family: 'Vazirmatn', sans-serif;
+  font-size: 0.75rem;
+  font-weight: 500;
+  letter-spacing: 0.06em;
+  color: #9A9A96;
+  text-transform: uppercase;
+}
+
+.list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.item {
+  padding: 8px 16px;
+  background: transparent;
+  border: 1px solid #E5E0D8;
+  border-radius: 20px;
+  font-family: 'Vazirmatn', sans-serif;
+  font-size: 0.78rem;
+  color: #2B2B2B;
+  cursor: pointer;
+  transition: all 200ms ease;
+}
+
+.item:hover {
+  border-color: #C5A880;
+  color: #C5A880;
+}

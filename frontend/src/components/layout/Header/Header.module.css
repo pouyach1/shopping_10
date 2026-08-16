@@ -498,3 +498,22 @@
     animation: none;
   }
 }
+
+
+/* Remove browser focus ring from header icon buttons */
+.iconButton:focus,
+.iconButton:focus-visible {
+  outline: none;
+  box-shadow: none;
+}
+
+
+.iconButton,
+.iconButton:hover,
+.iconButton:active,
+.iconButton:focus,
+.iconButton:focus-visible {
+  outline: none !important;
+  box-shadow: none !important;
+  border-color: transparent !important;
+}
