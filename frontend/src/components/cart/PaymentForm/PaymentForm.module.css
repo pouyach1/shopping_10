@@ -6,7 +6,10 @@
 
 .section h2 {
   margin: 0;
-  font-family: 'Cormorant Garamond', 'Playfair Display', Georgia, serif;
+  :root {
+  --font-persian: 'Vazirmatn', sans-serif;
+  --font-persian-heading: 'Vazirmatn', sans-serif;
+  }
   font-size: 24px;
   font-weight: 400;
   color: #1C1C1C;

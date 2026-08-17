@@ -10,6 +10,8 @@ import { PaymentForm } from '../PaymentForm/PaymentForm';
 import { LuxuryHeader } from '../LuxuryHeader/LuxuryHeader';
 import { EmptyCart } from '../EmptyCart/EmptyCart';
 import styles from './CartPage.module.css';
+import { EMPTY_CUSTOMER, type CustomerData } from '../types';
+
 
 function loadCart(): CartItem[] {
   try {
@@ -35,6 +37,9 @@ export function CartPage() {
   const [items, setItems] = useState<CartItem[]>(loadCart);
   const [orderAccordionOpen, setOrderAccordionOpen] = useState(false);
 
+  const [customer, setCustomer] = useState<CustomerData>(
+    EMPTY_CUSTOMER
+  );
   const removeItem = (id: string) => {
     const updated = items.filter((item) => item.id !== id);
     setItems(updated);
@@ -75,13 +80,26 @@ export function CartPage() {
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.8, ease: easeLuxury, delay: 0.1 }}
           >
-            <div className={styles.breadcrumb}>
-              <span className={styles.breadcrumbActive}>SHOPPING CART</span>
-              <span className={styles.breadcrumbSeparator}>—</span>
-              <span className={styles.breadcrumbActive}>CHECKOUT</span>
-              <span className={styles.breadcrumbSeparator}>—</span>
-              <span className={styles.breadcrumbInactive}>CONFIRMATION</span>
+            <div className={styles.checkoutSteps}>
+              <div className={styles.step}>
+                <span className={styles.circle}>1</span>
+                <span>سبد خرید</span>
+              </div>
+
+              <div className={styles.line}></div>
+
+              <div className={`${styles.step} ${styles.active}`}>
+                <span className={styles.circle}>2</span>
+                <span>تکمیل سفارش</span>
+              </div>
+
+            <div className={styles.line}></div>
+
+            <div className={styles.step}>
+              <span className={styles.circle}>3</span>
+              <span>تایید نهایی</span>
             </div>
+          </div>
 
             <h1 className={styles.title}>پرداخت و ثبت سفارش</h1>
           </motion.div>
@@ -94,7 +112,10 @@ export function CartPage() {
               transition={{ duration: 0.8, ease: easeLuxury, delay: 0.25 }}
             >
               <div className={styles.card}>
-                <CustomerForm />
+                <CustomerForm
+                  data={customer}
+                  onChange={setCustomer}
+                />
               </div>
 
               <div className={styles.card}>
@@ -156,10 +177,11 @@ export function CartPage() {
 
               <div className={styles.card}>
                 <OrderSummary
-                  subtotal={subtotal}
-                  shipping={0}
-                  total={subtotal}
-                />
+                subtotal={subtotal}
+                shipping={0}
+                total={subtotal}
+                customer={customer}
+              />
               </div>
             </motion.aside>
           </div>

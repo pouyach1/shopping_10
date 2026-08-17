@@ -1,91 +1,129 @@
 .page {
   min-height: 100vh;
-  background: #ECECE9;
-  font-family: 'Inter', 'Vazirmatn', sans-serif;
+  background: #dab871;
+  :root {
+  --font-persian: 'Vazirmatn', sans-serif;
+  --font-persian-heading: 'Vazirmatn', sans-serif;
+  }
+  color: #1C1C1C;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
 .container {
   max-width: 1280px;
   margin: 0 auto;
-  padding: 48px 32px 100px;
+  padding: 64px 40px 120px;
 }
 
 .card {
   background: #FBFBF9;
   border: 1px solid #DCD8D0;
   padding: 48px;
-  border-radius: 0;
-  box-shadow: none;
-  transition: border-color 250ms ease;
+  border-radius: 16px;
+  box-shadow: 0 4px 20px -2px rgba(28, 28, 28, 0.02);
+  transition: border-color 400ms cubic-bezier(0.16, 1, 0.3, 1), 
+              box-shadow 400ms cubic-bezier(0.16, 1, 0.3, 1),
+              transform 400ms cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .card:hover {
-  border-color: #C5C0B8;
+  border-color: #B8B3A8;
+  box-shadow: 0 12px 32px -4px rgba(28, 28, 28, 0.04);
+  transform: translateY(-1px);
 }
 
 .breadcrumb {
   display: flex;
   align-items: center;
-  gap: 14px;
-  margin-bottom: 32px;
-  font-family: 'Inter', 'Vazirmatn', sans-serif;
-  font-size: 10px;
-  letter-spacing: 0.28em;
+  gap: 16px;
+  margin-bottom: 40px;
+  :root {
+  --font-persian: 'Vazirmatn', sans-serif;
+  --font-persian-heading: 'Vazirmatn', sans-serif;
+  }
+  font-size: 11px;
+  letter-spacing: 0.22em;
   text-transform: uppercase;
   flex-wrap: wrap;
 }
 
 .breadcrumbActive {
   color: #1C1C1C;
-  text-decoration: underline;
-  text-underline-offset: 5px;
-  text-decoration-thickness: 1px;
+  font-weight: 500;
+  text-decoration: none;
+  position: relative;
+  padding-bottom: 2px;
+}
+
+.breadcrumbActive::after {
+  content: "";
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 1px;
+  background-color: #1C1C1C;
 }
 
 .breadcrumbInactive {
-  color: #9E9E9E;
+  color: #8C8880;
+  transition: color 300ms ease;
+}
+
+.breadcrumbInactive:hover {
+  color: #1C1C1C;
 }
 
 .breadcrumbSeparator {
-  color: #DCD8D0;
+  color: #C5C0B8;
+  font-size: 10px;
+  user-select: none;
 }
 
 .title {
-  margin: 0 0 48px;
-  font-family: 'Cormorant Garamond', 'Playfair Display', Georgia, serif;
-  font-size: clamp(32px, 3.5vw, 44px);
-  font-weight: 400;
-  line-height: 1.15;
+  margin: 0 0 56px;
+  :root {
+  --font-persian: 'Vazirmatn', sans-serif;
+  --font-persian-heading: 'Vazirmatn', sans-serif;
+  }
+  font-size: clamp(34px, 4vw, 48px);
+  font-weight: 300;
+  line-height: 1.2;
   color: #1C1C1C;
-  letter-spacing: 0.01em;
+  letter-spacing: -0.01em;
 }
 
 .grid {
   display: grid;
-  grid-template-columns: minmax(0, 1.15fr) minmax(380px, 0.85fr);
-  gap: 40px;
+  grid-template-columns: minmax(0, 1.18fr) minmax(380px, 0.82fr);
+  gap: 48px;
   align-items: start;
 }
 
 .leftColumn {
   display: flex;
   flex-direction: column;
-  gap: 32px;
+  gap: 40px;
 }
 
 .rightColumn {
   display: flex;
   flex-direction: column;
-  gap: 32px;
+  gap: 40px;
 }
 
 .sectionTitle {
-  margin: 0 0 24px;
-  font-family: 'Cormorant Garamond', 'Playfair Display', Georgia, serif;
-  font-size: 26px;
+  margin: 0 0 32px;
+  :root {
+  --font-persian: 'Vazirmatn', sans-serif;
+  --font-persian-heading: 'Vazirmatn', sans-serif;
+  }
+  font-size: 24px;
   font-weight: 400;
   color: #1C1C1C;
-  letter-spacing: 0.02em;
+  letter-spacing: 0.01em;
+  line-height: 1.3;
 }
 
 .orderCard {
@@ -101,14 +139,19 @@
   background: none;
   border: none;
   cursor: pointer;
-  font-family: 'Cormorant Garamond', 'Playfair Display', Georgia, serif;
-  font-size: 22px;
+  :root {
+  --font-persian: 'Vazirmatn', sans-serif;
+  --font-persian-heading: 'Vazirmatn', sans-serif;
+  }
+  font-size: 20px;
   font-weight: 400;
   color: #1C1C1C;
+  letter-spacing: 0.01em;
 }
 
 .chevron {
-  transition: transform 300ms ease;
+  transition: transform 400ms cubic-bezier(0.16, 1, 0.3, 1);
+  color: #1C1C1C;
 }
 
 .chevronOpen {
@@ -123,47 +166,148 @@
 .itemsList {
   display: flex;
   flex-direction: column;
-  gap: 20px;
+  gap: 24px;
+}
+.checkoutSteps {
+  background: #FBFBF9;
+  border: 1px solid #DCD8D0;
+  padding: 28px 40px;
+  border-radius: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0;
+  margin-bottom: 48px;
+}
+
+
+.step {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+
+  color: #8C8880;
+  font-size: 13px;
+
+  :root {
+  --font-persian: 'Vazirmatn', sans-serif;
+  --font-persian-heading: 'Vazirmatn', sans-serif;
+  }
+  font-weight: 400;
+
+  min-width: 110px;
+}
+
+
+.circle {
+  width: 36px;
+  height: 36px;
+
+  border-radius: 50%;
+
+  display:flex;
+  align-items:center;
+  justify-content:center;
+
+  border:1px solid #DCD8D0;
+
+  background:#FBFBF9;
+
+  color:#8C8880;
+
+  transition:all .3s ease;
+}
+
+
+.line {
+  width:90px;
+  height:1px;
+
+  background:#DCD8D0;
+}
+
+.step.active {
+  color: #1C1C1C;
+  font-weight: 500;
+}
+
+.step.active .circle {
+  background: #1C1C1C;
+  color: #FBFBF9;
+  border-color: #1C1C1C;
+  box-shadow: 0 2px 8px rgba(28, 28, 28, 0.15);
+}
+
+.step.active span:last-child {
+  position: relative;
+}
+
+.step.active span:last-child::after {
+  content: "";
+  position: absolute;
+  bottom: -4px;
+  right: 0;
+  width: 100%;
+  height: 1px;
+  background: #1C1C1C;
+  animation: fadeIn 300ms ease forwards;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: scaleX(0); }
+  to { opacity: 1; transform: scaleX(1); }
 }
 
 @media (max-width: 1024px) {
+  .container {
+    padding: 48px 24px 90px;
+  }
+
   .grid {
     grid-template-columns: 1fr;
-    gap: 32px;
+    gap: 36px;
   }
 
   .card {
     padding: 36px;
+    border-radius: 14px;
+  }
+
+  .checkoutSteps {
+    padding: 28px 32px;
   }
 }
 
 @media (max-width: 768px) {
   .container {
-    padding: 24px 14px 80px;
+    padding: 28px 16px 80px;
   }
 
   .card {
-    padding: 20px 16px;
+    padding: 24px 20px;
+    border-radius: 14px;
   }
 
   .title {
-    font-size: 26px;
-    margin-bottom: 28px;
+    font-size: 28px;
+    margin-bottom: 32px;
   }
 
   .breadcrumb {
-    font-size: 8px;
-    gap: 6px;
-    letter-spacing: 0.18em;
+    font-size: 9px;
+    gap: 10px;
+    letter-spacing: 0.15em;
+    margin-bottom: 28px;
   }
 
   .grid {
-    gap: 20px;
+    gap: 24px;
   }
 
   .leftColumn,
   .rightColumn {
-    gap: 20px;
+    gap: 24px;
   }
 
   .orderToggle {
@@ -171,10 +315,54 @@
   }
 
   .orderContent {
-    margin-top: 16px;
+    margin-top: 20px;
   }
 
   .sectionTitle {
     font-size: 20px;
+    margin-bottom: 20px;
+  }
+
+  .checkoutSteps {
+    padding: 20px 16px;
+    gap: 12px;
+    border-radius: 14px;
+    margin-bottom: 32px;
+  }
+
+  .step {
+    gap: 8px;
+    font-size: 11px;
+    letter-spacing: 0.04em;
+  }
+
+  .circle {
+    width: 28px;
+    height: 28px;
+    font-size: 11px;
+  }
+
+  .step.active span:last-child::after {
+    bottom: -2px;
+  }
+}
+
+@media (max-width: 600px) {
+  .checkoutSteps {
+    justify-content: space-between;
+    padding: 16px 12px;
+  }
+
+  .line {
+    min-width: 16px;
+  }
+
+  .step span:last-child {
+    display: none;
+  }
+
+  .step.active span:last-child {
+    display: inline;
+    font-size: 11px;
   }
 }

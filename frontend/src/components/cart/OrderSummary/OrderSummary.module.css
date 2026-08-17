@@ -1,80 +1,177 @@
-.summary {
-  display: flex;
-  flex-direction: column;
-  gap: 20px;
+.summary{
+display:flex;
+flex-direction:column;
+gap:24px;
+:root {
+  --font-persian: 'Vazirmatn', sans-serif;
+  --font-persian-heading: 'Vazirmatn', sans-serif;
+    }
 }
 
-.title {
-  margin: 0;
-  font-family: 'Cormorant Garamond', 'Playfair Display', Georgia, serif;
-  font-size: 24px;
-  font-weight: 400;
-  color: #1C1C1C;
-  letter-spacing: 0.02em;
+
+.title{
+font-size:26px;
+font-weight:500;
+color:#1c1c1c;
 }
 
-.rows {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
+
+
+.customerBox{
+
+background:#f7f5f0;
+border:1px solid #ded8cd;
+border-radius:18px;
+padding:20px;
+
+display:flex;
+flex-direction:column;
+gap:8px;
+
 }
 
-.row {
-  display: flex;
-  justify-content: space-between;
-  align-items: baseline;
-  font-family: 'Inter', 'Vazirmatn', sans-serif;
-  font-size: 0.82rem;
-  color: #9E9E9E;
-  direction: rtl;
+
+.customerBox h3{
+
+margin:0 0 8px;
+font-size:16px;
+
 }
 
-.row span:last-child {
-  color: #1C1C1C;
+
+
+.customerBox p{
+
+margin:0;
+font-size:14px;
+color:#777;
+
 }
 
-.divider {
-  height: 1px;
-  background: #DCD8D0;
-  margin: 4px 0;
+
+
+.rows{
+
+display:flex;
+flex-direction:column;
+gap:16px;
+
 }
 
-.total {
-  display: flex;
-  justify-content: space-between;
-  align-items: baseline;
-  font-family: 'Inter', 'Vazirmatn', sans-serif;
-  font-size: 1rem;
-  font-weight: 500;
-  color: #1C1C1C;
-  direction: rtl;
+
+
+.row,
+.total{
+
+display:flex;
+justify-content:space-between;
+align-items:center;
+
 }
 
-.total span:last-child {
-  font-size: 1.1rem;
+
+
+.row{
+
+font-size:14px;
+color:#777;
+
 }
 
-.checkout {
-  margin-top: 8px;
-  padding: 16px 28px;
-  background: #1C1C1C;
-  border: none;
-  border-radius: 0;
-  font-family: 'Inter', 'Vazirmatn', sans-serif;
-  font-size: 0.78rem;
-  letter-spacing: 0.15em;
-  text-transform: uppercase;
-  color: #FBFBF9;
-  cursor: pointer;
-  transition: background-color 300ms ease;
+
+
+.row span:last-child{
+
+color:#222;
+
 }
 
-.checkout:hover {
-  background: #000000;
+
+
+
+.divider{
+
+height:1px;
+background:#ddd5ca;
+
 }
 
-@media (max-width: 480px) {
-  .title {
-    font-size: 20px;
-  }
+
+
+.total{
+
+font-size:18px;
+font-weight:600;
+
+}
+
+
+
+.total span:last-child{
+
+font-size:22px;
+
+}
+
+
+
+
+.gift{
+
+background:#fff8e8;
+
+border:1px solid #ead8a8;
+
+border-radius:14px;
+
+padding:14px;
+
+font-size:13px;
+
+color:#8a6b22;
+
+line-height:1.8;
+
+}
+
+
+
+
+.checkout{
+
+margin-top:10px;
+
+height:56px;
+
+border-radius:18px;
+
+border:none;
+
+background:#1c1c1c;
+
+color:white;
+
+:root {
+  --font-persian: 'Vazirmatn', sans-serif;
+  --font-persian-heading: 'Vazirmatn', sans-serif;
+}
+
+font-size:15px;
+
+cursor:pointer;
+
+transition:.3s;
+
+}
+
+
+
+.checkout:hover{
+
+transform:translateY(-3px);
+
+background:#000;
+
+box-shadow:0 10px 30px #0003;
+
 }

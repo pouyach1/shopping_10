@@ -14,7 +14,10 @@
 }
 
 .title {
-  font-family: var(--font-persian-heading);
+  :root {
+  --font-persian: 'Vazirmatn', sans-serif;
+  --font-persian-heading: 'Vazirmatn', sans-serif;
+  }
   font-size: clamp(1.2rem, 1.8vw, 1.6rem);
   font-weight: 400;
   line-height: 1.5;
@@ -62,7 +65,10 @@
 }
 
 .quote {
-  font-family: var(--font-persian);
+  :root {
+  --font-persian: 'Vazirmatn', sans-serif;
+  --font-persian-heading: 'Vazirmatn', sans-serif;
+  }
   font-size: 0.875rem;
   font-weight: 400;
   line-height: 1.8;
@@ -77,14 +83,20 @@
 }
 
 .author {
-  font-family: var(--font-persian);
+  :root {
+  --font-persian: 'Vazirmatn', sans-serif;
+  --font-persian-heading: 'Vazirmatn', sans-serif;
+  }
   font-size: 0.8rem;
   font-weight: 500;
   color: var(--color-charcoal-900);
 }
 
 .role {
-  font-family: var(--font-persian);
+  :root {
+  --font-persian: 'Vazirmatn', sans-serif;
+  --font-persian-heading: 'Vazirmatn', sans-serif;
+  }
   font-size: 0.7rem;
   color: var(--color-charcoal-500);
 }

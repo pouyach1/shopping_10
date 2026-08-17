@@ -64,7 +64,10 @@
 .newsletterTitle {
   max-width: 680px;
   margin: 0;
-  font-family: var(--font-persian-heading, sans-serif);
+  :root {
+  --font-persian: 'Vazirmatn', sans-serif;
+  --font-persian-heading: 'Vazirmatn', sans-serif;
+  }
   font-size: clamp(2rem, 4vw, 3.45rem);
   font-weight: 400;
   line-height: 1.25;
@@ -306,7 +309,10 @@
 .columnTitle {
   margin: 0;
   color: #f4f2ed;
-  font-family: var(--font-persian-heading, sans-serif);
+  :root {
+  --font-persian: 'Vazirmatn', sans-serif;
+  --font-persian-heading: 'Vazirmatn', sans-serif;
+  }
   font-size: 14px;
   font-weight: 500;
   line-height: 1.5;

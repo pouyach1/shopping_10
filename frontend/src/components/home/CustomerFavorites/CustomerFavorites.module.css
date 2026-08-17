@@ -31,7 +31,10 @@
 
 .title {
   margin: 0;
-  font-family: var(--font-persian-heading);
+  :root {
+  --font-persian: 'Vazirmatn', sans-serif;
+  --font-persian-heading: 'Vazirmatn', sans-serif;
+  }
   font-size: clamp(1.3rem, 2vw, 1.8rem);
   font-weight: 400;
   line-height: 1.5;
@@ -93,7 +96,10 @@
 
 .productName {
   margin: 0;
-  font-family: var(--font-persian);
+  :root {
+  --font-persian: 'Vazirmatn', sans-serif;
+  --font-persian-heading: 'Vazirmatn', sans-serif;
+  }
   font-size: 0.8rem;
   font-weight: 400;
   line-height: 1.6;
@@ -101,7 +107,10 @@
 }
 
 .price {
-  font-family: var(--font-persian);
+  :root {
+  --font-persian: 'Vazirmatn', sans-serif;
+  --font-persian-heading: 'Vazirmatn', sans-serif;
+  }
   font-size: 0.72rem;
   font-weight: 400;
   color: var(--color-charcoal-500);

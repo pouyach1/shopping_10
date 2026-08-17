@@ -62,7 +62,10 @@
 
 .title {
   direction: rtl;
-  font-family: var(--font-persian-heading);
+  :root {
+  --font-persian: 'Vazirmatn', sans-serif;
+  --font-persian-heading: 'Vazirmatn', sans-serif;
+  }
   font-weight: 300;
   font-size: clamp(1.35rem, 1rem + 1.2vw, 2rem);
   line-height: 1.9;

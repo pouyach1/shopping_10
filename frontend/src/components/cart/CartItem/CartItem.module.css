@@ -33,7 +33,10 @@
 
 .name {
   margin: 0;
-  font-family: 'Inter', 'Vazirmatn', sans-serif;
+  :root {
+  --font-persian: 'Vazirmatn', sans-serif;
+  --font-persian-heading: 'Vazirmatn', sans-serif;
+  }
   font-size: 0.9rem;
   font-weight: 400;
   color: #1C1C1C;
@@ -44,7 +47,10 @@
   display: flex;
   align-items: center;
   gap: 10px;
-  font-family: 'Inter', 'Vazirmatn', sans-serif;
+  :root {
+  --font-persian: 'Vazirmatn', sans-serif;
+  --font-persian-heading: 'Vazirmatn', sans-serif;
+  }
   font-size: 0.7rem;
   color: #9E9E9E;
 }
@@ -58,7 +64,10 @@
 }
 
 .price {
-  font-family: 'Inter', 'Vazirmatn', sans-serif;
+  :root {
+  --font-persian: 'Vazirmatn', sans-serif;
+  --font-persian-heading: 'Vazirmatn', sans-serif;
+  }
   font-size: 0.85rem;
   font-weight: 400;
   color: #1C1C1C;
