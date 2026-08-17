@@ -11,19 +11,14 @@
   direction: rtl;
 }
 
-.newsletter {
-  position: relative;
-  background: var(--color-cream-100, #f5f0e8);
-  color: var(--color-charcoal-900, #1a1a1a);
-  border-bottom: 1px solid rgba(26, 26, 26, 0.12);
-  opacity: 0;
-  transform: translateY(12px);
-  transition: opacity 600ms ease, transform 600ms ease;
-}
+/* ============================================
+   NEWSLETTER
+   ============================================ */
 
-.newsletter.isVisible {
-  opacity: 1;
-  transform: translateY(0);
+.newsletter {
+  background: #f5f0e8;
+  color: #1a1a1a;
+  border-bottom: 1px solid rgba(26, 26, 26, 0.12);
 }
 
 .newsletterInner {
@@ -47,11 +42,11 @@
   gap: 10px;
   margin-bottom: 18px;
   color: #6d6559;
-  font-family: var(--font-english-body, system-ui, sans-serif);
   font-size: 10px;
   font-weight: 600;
   letter-spacing: 0.18em;
   direction: ltr;
+  font-family: 'Inter', 'Vazirmatn', sans-serif;
 }
 
 .eyebrow::before {
@@ -64,10 +59,7 @@
 .newsletterTitle {
   max-width: 680px;
   margin: 0;
-  :root {
-  --font-persian: 'Vazirmatn', sans-serif;
-  --font-persian-heading: 'Vazirmatn', sans-serif;
-  }
+  font-family: 'Vazirmatn', sans-serif;
   font-size: clamp(2rem, 4vw, 3.45rem);
   font-weight: 400;
   line-height: 1.25;
@@ -75,7 +67,7 @@
 }
 
 .newsletterTitle span {
-  font-family: var(--font-english-heading, Georgia, serif);
+  font-family: 'Playfair Display', Georgia, serif;
   font-style: italic;
   letter-spacing: -0.02em;
   direction: ltr;
@@ -87,6 +79,7 @@
   color: #69645c;
   font-size: 14px;
   line-height: 1.9;
+  font-family: 'Vazirmatn', sans-serif;
 }
 
 .newsletterForm {
@@ -104,10 +97,6 @@
   background: #fff;
 }
 
-.inputWrap {
-  min-width: 0;
-}
-
 .input {
   width: 100%;
   height: 100%;
@@ -116,8 +105,9 @@
   border: 0;
   outline: 0;
   background: transparent;
-  color: var(--color-charcoal-900, #1a1a1a);
+  color: #1a1a1a;
   font-size: 14px;
+  font-family: 'Vazirmatn', sans-serif;
 }
 
 .input::placeholder {
@@ -136,13 +126,14 @@
   justify-content: center;
   gap: 16px;
   padding: 0 24px;
-  border-right: 1px solid rgba(255, 255, 255, 0.12);
-  background: var(--color-charcoal-900, #1a1a1a);
+  border: 0;
+  background: #1a1a1a;
   color: #fff;
   font-size: 13px;
   font-weight: 600;
   cursor: pointer;
-  transition: background-color 280ms ease, color 280ms ease, transform 280ms ease;
+  transition: background-color 280ms ease, transform 280ms ease;
+  font-family: 'Vazirmatn', sans-serif;
 }
 
 .subscribeButton:hover {
@@ -159,10 +150,10 @@
 }
 
 .buttonArrow {
-  font-family: var(--font-english-body, sans-serif);
   font-size: 17px;
   line-height: 1;
   direction: ltr;
+  font-family: 'Inter', sans-serif;
   transition: transform 280ms ease;
 }
 
@@ -170,20 +161,14 @@
   transform: translate(-2px, -2px);
 }
 
+/* ============================================
+   MAIN FOOTER
+   ============================================ */
+
 .mainFooter {
   position: relative;
   isolation: isolate;
-  background:
-    radial-gradient(circle at 82% 8%, rgba(255, 255, 255, 0.035), transparent 28%),
-    linear-gradient(180deg, #1d1d1d 0%, #1a1a1a 100%);
-  opacity: 0;
-  transform: translateY(12px);
-  transition: opacity 650ms ease 80ms, transform 650ms ease 80ms;
-}
-
-.mainFooter.isVisible {
-  opacity: 1;
-  transform: translateY(0);
+  background: #1a1a1a;
 }
 
 .mainFooter::before {
@@ -193,7 +178,13 @@
   z-index: -1;
   pointer-events: none;
   opacity: 0.22;
-  background-image: repeating-linear-gradient(0deg, rgba(255, 255, 255, 0.018) 0, rgba(255, 255, 255, 0.018) 1px, transparent 1px, transparent 4px);
+  background-image: repeating-linear-gradient(
+    0deg,
+    rgba(255, 255, 255, 0.018) 0,
+    rgba(255, 255, 255, 0.018) 1px,
+    transparent 1px,
+    transparent 4px
+  );
 }
 
 .watermark {
@@ -205,7 +196,7 @@
   opacity: 0.035;
   pointer-events: none;
   user-select: none;
-  font-family: var(--font-english-heading, Georgia, serif);
+  font-family: 'Playfair Display', Georgia, serif;
   font-size: clamp(5rem, 15vw, 14rem);
   font-weight: 400;
   line-height: 0.8;
@@ -219,7 +210,7 @@
   margin: 0 auto;
   padding: 78px 0 72px;
   display: grid;
-  grid-template-columns: minmax(250px, 1.4fr) repeat(3, minmax(140px, 1fr));
+  grid-template-columns: minmax(280px, 1.5fr) repeat(auto-fit, minmax(160px, 1fr));
   gap: clamp(40px, 5vw, 84px);
 }
 
@@ -236,23 +227,18 @@
 
 .brandName {
   color: #fff;
-  font-family: var(--font-english-heading, Georgia, serif);
+  font-family: 'Playfair Display', Georgia, serif;
   font-size: clamp(2rem, 3vw, 2.75rem);
   font-weight: 500;
   line-height: 1;
   letter-spacing: 0.08em;
   direction: ltr;
   transition: color 250ms ease;
+  text-decoration: none;
 }
 
 .brandName:hover {
   color: var(--footer-gold);
-}
-
-.brandMeta,
-.established {
-  font-family: var(--font-english-body, system-ui, sans-serif);
-  direction: ltr;
 }
 
 .brandMeta {
@@ -260,6 +246,8 @@
   color: #777775;
   font-size: 9px;
   letter-spacing: 0.17em;
+  font-family: 'Inter', sans-serif;
+  direction: ltr;
 }
 
 .tagline {
@@ -268,6 +256,7 @@
   color: var(--footer-muted);
   font-size: 13px;
   line-height: 1.95;
+  font-family: 'Vazirmatn', sans-serif;
 }
 
 .established {
@@ -276,20 +265,35 @@
   color: var(--footer-gold);
   font-size: 9px;
   letter-spacing: 0.2em;
+  font-family: 'Inter', sans-serif;
+  direction: ltr;
+}
+
+.designerCredit {
+  margin-top: 14px;
+  color: #777775;
+  font-family: 'Vazirmatn', sans-serif;
+  font-size: 10px;
+  line-height: 1.8;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.designerCreditLabel {
+  display: inline;
+}
+
+.designerCreditValue {
+  color: #a5a5a1;
+  font-size: 11px;
+  letter-spacing: 0.05em;
 }
 
 .column {
   display: flex;
   flex-direction: column;
   align-items: flex-start;
-  opacity: 0;
-  transform: translateY(12px);
-  transition: opacity 600ms ease var(--reveal-delay, 0ms), transform 600ms ease var(--reveal-delay, 0ms);
-}
-
-.isVisible .column {
-  opacity: 1;
-  transform: translateY(0);
 }
 
 .titleRow {
@@ -309,10 +313,7 @@
 .columnTitle {
   margin: 0;
   color: #f4f2ed;
-  :root {
-  --font-persian: 'Vazirmatn', sans-serif;
-  --font-persian-heading: 'Vazirmatn', sans-serif;
-  }
+  font-family: 'Vazirmatn', sans-serif;
   font-size: 14px;
   font-weight: 500;
   line-height: 1.5;
@@ -337,6 +338,8 @@
   color: var(--footer-muted);
   font-size: 13px;
   line-height: 1.8;
+  font-family: 'Vazirmatn', sans-serif;
+  text-decoration: none;
   transition: color 250ms ease, transform 250ms ease;
 }
 
@@ -377,6 +380,7 @@
   display: block;
   margin-bottom: 12px;
   color: #777775;
+  font-family: 'Vazirmatn', sans-serif;
   font-size: 11px;
 }
 
@@ -409,6 +413,10 @@
   outline-offset: 3px;
 }
 
+/* ============================================
+   COPYRIGHT
+   ============================================ */
+
 .copyright {
   width: min(1280px, calc(100% - 48px));
   min-height: 72px;
@@ -421,6 +429,7 @@
   gap: 24px;
   color: #6f6f6b;
   font-size: 11px;
+  font-family: 'Vazirmatn', sans-serif;
 }
 
 .copyright p {
@@ -437,6 +446,10 @@
 .legalLinks a {
   position: relative;
   padding-bottom: 2px;
+  color: #6f6f6b;
+  text-decoration: none;
+  font-family: 'Vazirmatn', sans-serif;
+  font-size: 11px;
   transition: color 220ms ease;
 }
 
@@ -466,15 +479,15 @@
   outline-offset: 4px;
 }
 
+/* ============================================
+   RESPONSIVE
+   ============================================ */
+
 @media (max-width: 1023px) {
   .newsletterInner {
     grid-template-columns: 1fr;
     gap: 34px;
     padding: 54px 0 58px;
-  }
-
-  .newsletterForm {
-    max-width: 680px;
   }
 
   .footerInner {
@@ -522,19 +535,8 @@
     gap: 8px;
   }
 
-  .inputWrap {
-    min-height: 58px;
-    border: 1px solid rgba(26, 26, 26, 0.24);
-    background: rgba(255, 255, 255, 0.48);
-  }
-
-  .input {
-    min-height: 56px;
-  }
-
   .subscribeButton {
     min-height: 56px;
-    border: 0;
   }
 
   .footerInner {
@@ -584,9 +586,6 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .newsletter,
-  .mainFooter,
-  .column,
   .subscribeButton,
   .buttonArrow,
   .link,

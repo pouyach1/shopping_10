@@ -31,16 +31,25 @@ export function CartItem({
     <motion.article
       className={styles.item}
       initial={{ opacity: 1, height: 'auto', scale: 1 }}
-      exit={{ opacity: 0, height: 0, scale: 0.97, overflow: 'hidden' }}
-      transition={{ duration: 0.35, ease: [0.16, 1, 0.3, 1] }}
+      exit={{
+        opacity: 0,
+        height: 0,
+        scale: 0.97,
+        overflow: 'hidden',
+      }}
+      transition={{
+        duration: 0.35,
+        ease: [0.16, 1, 0.3, 1],
+      }}
       layout
     >
       <div className={styles.imageWrapper}>
         <img
           src={item.imageSrc}
-          alt={item.imageAlt}
+          alt={item.imageAlt || item.name}
           className={styles.image}
           loading="lazy"
+          decoding="async"
         />
       </div>
 
@@ -48,8 +57,22 @@ export function CartItem({
         <h3 className={styles.name}>{item.name}</h3>
 
         <div className={styles.meta}>
-          <span className={styles.colorDot} />
-          <span>{item.size}</span>
+          {item.color && (
+            <span className={styles.colorInfo}>
+              {item.colorValue && (
+                <span
+                  className={styles.colorSwatch}
+                  style={{ backgroundColor: item.colorValue }}
+                  aria-hidden="true"
+                />
+              )}
+              {item.color}
+            </span>
+          )}
+
+          <span className={styles.sizeInfo}>
+            سایز {item.size}
+          </span>
         </div>
 
         <div className={styles.quantityControl}>
@@ -63,7 +86,9 @@ export function CartItem({
             <Minus size={13} strokeWidth={1.5} />
           </button>
 
-          <span className={styles.quantityValue}>{item.quantity}</span>
+          <span className={styles.quantityValue}>
+            {item.quantity}
+          </span>
 
           <button
             type="button"

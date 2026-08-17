@@ -1,4 +1,4 @@
-import { useState, type CSSProperties, type FormEvent } from 'react';
+import { useState, type FormEvent } from 'react';
 import { SocialIcon } from '../../ui/SocialIcon';
 import type { FooterColumn } from '../../../pages/Home/types';
 import styles from './Footer.module.css';
@@ -46,7 +46,7 @@ export function Footer({
 
   return (
     <footer className={styles.footer} dir="rtl">
-      <section className={`${styles.newsletter} ${styles.isVisible}`}>
+      <section className={styles.newsletter}>
         <div className={styles.newsletterInner}>
           <div className={styles.newsletterCopy}>
             <span className={styles.eyebrow}>LUXORA PRIVÉ</span>
@@ -80,27 +80,30 @@ export function Footer({
         </div>
       </section>
 
-      <section className={`${styles.mainFooter} ${styles.isVisible}`}>
+      <section className={styles.mainFooter}>
         <span className={styles.watermark} aria-hidden="true">
           LUXORA
         </span>
 
         <div className={styles.footerInner}>
-          <div className={`${styles.brandColumn} ${styles.revealItem}`}>
+          <div className={styles.brandColumn}>
             <a href="/" className={styles.brandName}>
               {brandName}
             </a>
             <span className={styles.brandMeta}>LUXORA / PRIVATE COLLECTION</span>
             {brandTagline && <p className={styles.tagline}>{brandTagline}</p>}
             <span className={styles.established}>EST. 2026</span>
+
+            <div className={styles.designerCredit}>
+              <span className={styles.designerCreditLabel}>طراحی و توسعه</span>
+              <span className={styles.designerCreditValue} aria-hidden="true">
+                —
+              </span>
+            </div>
           </div>
 
-          {columns.map((column, index) => (
-            <div
-              key={column.id}
-              className={`${styles.column} ${styles.revealItem}`}
-              style={{ '--reveal-delay': `${120 + index * 80}ms` } as CSSProperties}
-            >
+          {columns.map((column) => (
+            <div key={column.id} className={styles.column}>
               <div className={styles.titleRow}>
                 <span className={styles.titleAccent} />
                 <h3 className={styles.columnTitle}>{column.title}</h3>

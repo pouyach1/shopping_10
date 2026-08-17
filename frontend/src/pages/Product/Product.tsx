@@ -177,16 +177,19 @@ export function Product({ slug = 'silk-blend-blouse' }: ProductPageProps) {
   const [activeTab, setActiveTab] = useState('details');
 
   const handleAddToCart = () => {
+    const variantKey = `${product.id}__${selectedColor.name}__${selectedSize}`;
     const savedCart = localStorage.getItem(CART_STORAGE_KEY);
     const cart = savedCart ? JSON.parse(savedCart) : { items: [] };
 
     const newItem = {
-      id: product.id,
+      id: variantKey,
       productId: product.id,
       name: product.name,
       price: product.price,
       currency: product.currency,
       size: selectedSize,
+      color: selectedColor.name,
+      colorValue: selectedColor.value,
       imageSrc: product.imageSrc,
       imageAlt: product.imageAlt,
       quantity,

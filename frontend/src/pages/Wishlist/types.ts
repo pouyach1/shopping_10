@@ -20,6 +20,8 @@ export interface CartItem {
   price: number;
   currency: string;
   size: string;
+  color?: string;
+  colorValue?: string;
   imageSrc: string;
   imageAlt: string;
   quantity: number;
