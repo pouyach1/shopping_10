@@ -3,7 +3,7 @@ import { WishlistHeader } from '../WishlistHeader/WishlistHeader';
 import { WishlistItem } from '../WishlistItem/WishlistItem';
 import { WishlistActions } from '../WishlistActions/WishlistActions';
 import { WishlistEmpty } from '../WishlistEmpty/WishlistEmpty';
-import type { WishlistItem as WishlistItemType } from '../../../pages/Wishlist/types';
+import type { WishlistItem as WishlistItemType } from '../../../types/user';
 import { mockWishlistItems } from '../../../pages/Wishlist/data';
 import styles from './WishlistPage.module.css';
 

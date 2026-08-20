@@ -1,4 +1,5 @@
 import type { SearchProduct } from '../../../pages/Search/types';
+import { formatPrice } from '../../../lib/formatCurrency';
 import styles from './SearchProductPreview.module.css';
 
 interface SearchProductPreviewProps {
@@ -9,9 +10,6 @@ export function SearchProductPreview({
   products,
 }: SearchProductPreviewProps) {
   if (!products.length) return null;
-
-  const formatPrice = (value: number) =>
-    new Intl.NumberFormat('fa-IR').format(value);
 
   return (
     <div className={styles.preview} dir="rtl">

@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Heart } from 'lucide-react';
-import type { Product } from '../../pages/Home/types';
+import type { Product } from '../../types/product';
+import { formatPrice } from '../../lib/formatCurrency';
 import styles from './ProductCard.module.css';
 
 interface ProductCardProps {
@@ -20,9 +21,6 @@ export function ProductCard({ product }: ProductCardProps) {
   } = product;
 
   const [isWishlisted, setIsWishlisted] = useState(false);
-
-  const formatPrice = (value: number) =>
-    new Intl.NumberFormat('fa-IR').format(value);
 
   return (
     <article className={styles.card}>

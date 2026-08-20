@@ -5,7 +5,7 @@ import { ChevronDown } from 'lucide-react';
 import {
   CART_STORAGE_KEY,
   type CartItem,
-} from '../../../pages/Wishlist/types';
+} from '../../../types/cart';
 
 import { CartItem as CartItemComponent } from '../CartItem/CartItem';
 import { OrderSummary } from '../OrderSummary/OrderSummary';
@@ -17,10 +17,10 @@ import { EmptyCart } from '../EmptyCart/EmptyCart';
 
 import {
   EMPTY_CUSTOMER,
-  type CustomerData,
   type PaymentMethodId,
   type ShippingMethodId,
 } from '../types';
+import type { CustomerData } from '../../../types/user';
 
 import styles from './CartPage.module.css';
 

@@ -1,6 +1,7 @@
 import { motion } from 'framer-motion';
 import { Minus, Plus, X } from 'lucide-react';
-import type { CartItem as CartItemType } from '../../../pages/Wishlist/types';
+import type { CartItem as CartItemType } from '../../../types/cart';
+import { formatPrice } from '../../../lib/formatCurrency';
 import styles from './CartItem.module.css';
 
 interface CartItemProps {
@@ -14,9 +15,6 @@ export function CartItem({
   onRemove,
   onQuantityChange,
 }: CartItemProps) {
-  const formatPrice = (value: number) =>
-    new Intl.NumberFormat('fa-IR').format(value);
-
   const decreaseQuantity = () => {
     if (item.quantity > 1) {
       onQuantityChange(item.id, item.quantity - 1);

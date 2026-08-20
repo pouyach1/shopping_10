@@ -15,10 +15,11 @@ import styles from './OrderSummary.module.css';
 import {
   SHIPPING_METHODS,
   PAYMENT_METHODS,
-  type CustomerData,
   type PaymentMethodId,
   type ShippingMethodId,
 } from '../types';
+import type { CustomerData } from '../../../types/user';
+import { formatPrice } from '../../../lib/formatCurrency';
 
 interface OrderSummaryProps {
   subtotal: number;
@@ -37,9 +38,6 @@ export function OrderSummary({
   shippingMethod,
   paymentMethod,
 }: OrderSummaryProps) {
-  const formatPrice = (value: number) =>
-    new Intl.NumberFormat('fa-IR').format(value);
-
   const giftLimit = 2_000_000;
   const remaining = giftLimit - total;
 

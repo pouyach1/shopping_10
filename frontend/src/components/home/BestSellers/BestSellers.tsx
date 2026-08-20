@@ -1,6 +1,6 @@
 import { useScrollReveal } from '../../../hooks/useScrollReveal';
 import { ProductGrid } from '../../product/ProductGrid';
-import type { Product } from '../../../pages/Home/types';
+import type { Product } from '../../../types/product';
 import styles from './BestSellers.module.css';
 
 interface BestSellersProps {

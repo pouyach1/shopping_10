@@ -17,10 +17,11 @@ import {
   bestSellerProducts,
   customerFavoriteProducts,
 } from '../Home/data';
-import type { Product } from '../Home/types';
+import type { Product } from '../../types/product';
 import { ProductCard } from '../../components/product/ProductCard';
 import { siteImages } from '../../config/images';
-import { CART_STORAGE_KEY } from '../Wishlist/types';
+import { CART_STORAGE_KEY } from '../../types/cart';
+import { formatPrice } from '../../lib/formatCurrency';
 import styles from './Product.module.css';
 
 interface ProductPageProps {
@@ -151,9 +152,6 @@ const fallbackProduct: ProductDetails = {
     'امکان بازگشت طبق قوانین فروشگاه',
   ],
 };
-
-const formatPrice = (value: number) =>
-  new Intl.NumberFormat('fa-IR').format(value);
 
 const getDiscountPercent = (product: Product) => {
   if (!product.originalPrice || product.originalPrice <= product.price) {

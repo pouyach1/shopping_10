@@ -1,4 +1,4 @@
-import type { Product } from '../../pages/Home/types';
+import type { Product } from '../../types/product';
 import { ProductCard } from './ProductCard';
 import styles from './ProductGrid.module.css';
 

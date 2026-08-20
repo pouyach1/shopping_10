@@ -13,15 +13,12 @@ import {
   type ShippingMethodId,
 } from '../types';
 
+import { formatPrice } from '../../../lib/formatCurrency';
 import styles from './ShippingMethod.module.css';
 
 interface ShippingMethodProps {
   value: ShippingMethodId;
   onChange: (value: ShippingMethodId) => void;
-}
-
-function formatPrice(value: number) {
-  return new Intl.NumberFormat('fa-IR').format(value);
 }
 
 function getMethodIcon(id: ShippingMethodId) {
