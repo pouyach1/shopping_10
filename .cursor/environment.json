@@ -1,0 +1,16 @@
+{
+  "name": "Luxora storefront",
+  "install": "cd frontend && npm ci",
+  "terminals": [
+    {
+      "name": "vite-dev",
+      "command": "cd frontend && npm run dev"
+    }
+  ],
+  "ports": [
+    {
+      "name": "vite",
+      "port": 5173
+    }
+  ]
+}
