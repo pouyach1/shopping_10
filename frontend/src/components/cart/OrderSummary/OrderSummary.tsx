@@ -28,6 +28,7 @@ interface OrderSummaryProps {
   customer: CustomerData;
   shippingMethod: ShippingMethodId;
   paymentMethod: PaymentMethodId;
+  onCheckout?: () => void;
 }
 
 export function OrderSummary({
@@ -37,6 +38,7 @@ export function OrderSummary({
   customer,
   shippingMethod,
   paymentMethod,
+  onCheckout,
 }: OrderSummaryProps) {
   const giftLimit = 2_000_000;
   const remaining = giftLimit - total;
@@ -382,6 +384,7 @@ export function OrderSummary({
       <button
         type="button"
         className={styles.checkout}
+        onClick={onCheckout}
       >
         <span>
           ثبت و پرداخت سفارش
