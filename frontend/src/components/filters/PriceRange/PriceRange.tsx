@@ -1,3 +1,4 @@
+import { formatPrice } from '../../../lib/formatCurrency';
 import styles from './PriceRange.module.css';
 
 interface PriceRangeProps {
@@ -6,9 +7,6 @@ interface PriceRangeProps {
 }
 
 const MAX_PRICE = 5000000;
-
-const formatPrice = (value: number) =>
-  new Intl.NumberFormat('fa-IR').format(value);
 
 export function PriceRange({
   value,

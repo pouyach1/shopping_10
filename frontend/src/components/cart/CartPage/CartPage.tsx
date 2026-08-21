@@ -2,11 +2,6 @@ import { useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { ChevronDown } from 'lucide-react';
 
-import {
-  CART_STORAGE_KEY,
-  type CartItem,
-} from '../../../pages/Wishlist/types';
-
 import { CartItem as CartItemComponent } from '../CartItem/CartItem';
 import { OrderSummary } from '../OrderSummary/OrderSummary';
 import { CustomerForm } from '../CustomerForm/CustomerForm';
@@ -17,39 +12,13 @@ import { EmptyCart } from '../EmptyCart/EmptyCart';
 
 import {
   EMPTY_CUSTOMER,
-  type CustomerData,
   type PaymentMethodId,
   type ShippingMethodId,
 } from '../types';
+import type { CustomerData } from '../../../types/user';
+import { useCart } from '../../../hooks/useCart';
 
 import styles from './CartPage.module.css';
-
-
-function loadCart(): CartItem[] {
-  try {
-    const stored = localStorage.getItem(CART_STORAGE_KEY);
-
-    if (!stored) {
-      return [];
-    }
-
-    const data = JSON.parse(stored);
-
-    return Array.isArray(data.items)
-      ? data.items
-      : [];
-  } catch {
-    return [];
-  }
-}
-
-
-function saveCart(items: CartItem[]): void {
-  localStorage.setItem(
-    CART_STORAGE_KEY,
-    JSON.stringify({ items }),
-  );
-}
 
 
 const SHIPPING_PRICES: Record<ShippingMethodId, number> = {
@@ -66,9 +35,18 @@ const easeLuxury = [
   1,
 ] as const;
 
+const REQUIRED_CUSTOMER_FIELDS: { key: keyof CustomerData; label: string }[] = [
+  { key: 'firstName', label: 'نام' },
+  { key: 'lastName', label: 'نام خانوادگی' },
+  { key: 'phone', label: 'شماره موبایل' },
+  { key: 'province', label: 'استان' },
+  { key: 'city', label: 'شهر' },
+  { key: 'address', label: 'آدرس' },
+];
+
 
 export function CartPage() {
-  const [items, setItems] = useState<CartItem[]>(loadCart);
+  const { items, removeItem, updateQuantity, subtotal, itemCount } = useCart();
 
   const [customer, setCustomer] =
     useState<CustomerData>(EMPTY_CUSTOMER);
@@ -83,50 +61,32 @@ export function CartPage() {
     useState(false);
 
 
-  const removeItem = (id: string) => {
-    const updated = items.filter(
-      (item) => item.id !== id,
-    );
-
-    setItems(updated);
-    saveCart(updated);
-  };
-
-
-  const handleQuantityChange = (
-    id: string,
-    quantity: number,
-  ) => {
-    const updated = items.map((item) =>
-      item.id === id
-        ? { ...item, quantity }
-        : item,
-    );
-
-    setItems(updated);
-    saveCart(updated);
-  };
-
-
-  const subtotal = items.reduce(
-    (sum, item) =>
-      sum + item.price * item.quantity,
-    0,
-  );
-
-
-  const itemCount = items.reduce(
-    (sum, item) => sum + item.quantity,
-    0,
-  );
-
-
   const shipping =
     SHIPPING_PRICES[shippingMethod];
 
 
   const total =
     subtotal + shipping;
+
+
+  const handleCheckout = () => {
+    if (items.length === 0) {
+      alert('سبد خرید شما خالی است.');
+      return;
+    }
+
+    const missing = REQUIRED_CUSTOMER_FIELDS.filter(
+      (field) => !customer[field.key].trim(),
+    ).map((field) => field.label);
+
+    if (missing.length > 0) {
+      alert('لطفاً اطلاعات زیر را تکمیل کنید:\n' + missing.join('، '));
+      return;
+    }
+
+    // Payment gateway integration is intentionally deferred to a later phase.
+    alert('سفارش شما ثبت شد. اتصال درگاه پرداخت در فاز بعدی اضافه خواهد شد.');
+  };
 
 
   return (
@@ -331,7 +291,7 @@ export function CartPage() {
                           key={item.id}
                           item={item}
                           onRemove={removeItem}
-                          onQuantityChange={handleQuantityChange}
+                          onQuantityChange={updateQuantity}
                         />
                       ))}
                     </AnimatePresence>
@@ -351,6 +311,7 @@ export function CartPage() {
                   customer={customer}
                   shippingMethod={shippingMethod}
                   paymentMethod={paymentMethod}
+                  onCheckout={handleCheckout}
                 />
 
               </div>

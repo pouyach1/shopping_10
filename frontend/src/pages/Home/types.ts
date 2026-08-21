@@ -20,18 +20,6 @@ export interface CategoryItem {
   href: string;
 }
 
-export interface Product {
-  id: string;
-  name: string;
-  price: number;
-  originalPrice?: number;
-  currency: string;
-  imageSrc: string;
-  imageAlt: string;
-  badge?: string;
-  href: string;
-}
-
 export interface Testimonial {
   id: string;
   quote: string;

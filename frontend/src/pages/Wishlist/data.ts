@@ -1,4 +1,4 @@
-import type { WishlistItem } from './types';
+import type { WishlistItem } from '../../types/user';
 import { siteImages } from '../../config/images';
 
 export const mockWishlistItems: WishlistItem[] = [

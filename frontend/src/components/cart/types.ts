@@ -1,15 +1,4 @@
-export interface CustomerData {
-  firstName: string;
-  lastName: string;
-  phone: string;
-  email: string;
-  province: string;
-  city: string;
-  postalCode: string;
-  address: string;
-  landline: string;
-  description: string;
-}
+import type { CustomerData } from '../../types/user';
 
 export type ShippingMethodId =
   | 'post-express'

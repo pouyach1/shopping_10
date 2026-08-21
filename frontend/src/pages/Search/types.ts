@@ -1,4 +1,5 @@
-import type { CategoryId, Product } from '../Home/types';
+import type { CategoryId } from '../Home/types';
+import type { Product } from '../../types/product';
 
 export interface SearchProduct extends Product {
   category: CategoryId;

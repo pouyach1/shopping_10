@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import type { WishlistItem as WishlistItemType } from '../../../pages/Wishlist/types';
+import type { WishlistItem as WishlistItemType } from '../../../types/user';
+import { formatPrice } from '../../../lib/formatCurrency';
 import styles from './WishlistItem.module.css';
 
 interface WishlistItemProps {
@@ -25,10 +26,6 @@ export function WishlistItem({
   const [isCommenting, setIsCommenting] = useState(false);
   const [commentDraft, setCommentDraft] = useState(item.comment ?? '');
   const [addedToBag, setAddedToBag] = useState(false);
-
-
-  const formatPrice = (value: number) =>
-    new Intl.NumberFormat('fa-IR').format(value);
 
 
   const handleRemove = () => {

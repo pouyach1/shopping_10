@@ -1,4 +1,5 @@
-import type { NavItem, FeatureItem, CategoryItem, Product, Testimonial, SocialImage, FooterColumn } from './types';
+import type { NavItem, FeatureItem, CategoryItem, Testimonial, SocialImage, FooterColumn } from './types';
+import type { Product } from '../../types/product';
 import { siteImages } from '../../config/images';
 
 export const navItems: NavItem[] = [

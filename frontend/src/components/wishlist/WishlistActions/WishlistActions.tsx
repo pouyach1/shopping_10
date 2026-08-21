@@ -1,4 +1,4 @@
-import type { WishlistItem } from '../../../pages/Wishlist/types';
+import type { WishlistItem } from '../../../types/user';
 import styles from './WishlistActions.module.css';
 
 interface WishlistActionsProps {

@@ -1,6 +1,6 @@
 import { useMemo } from 'react';
 import iranCity from 'iran-city';
-import type { CustomerData } from '../types';
+import type { CustomerData } from '../../../types/user';
 import styles from './CustomerForm.module.css';
 
 interface CustomerFormProps {

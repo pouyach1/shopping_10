@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
-import type { Product } from '../../../pages/Home/types';
+import type { Product } from '../../../types/product';
+import { formatPrice } from '../../../lib/formatCurrency';
 import styles from './CustomerFavorites.module.css';
 
 interface CustomerFavoritesProps {
@@ -24,9 +25,6 @@ export function CustomerFavorites({ title, products }: CustomerFavoritesProps) {
   const prefersReducedMotionRef = useRef(false);
   const isPausedRef = useRef(false);
   const animateRef = useRef<((timestamp: number) => void) | null>(null);
-
-  const formatPrice = (value: number) =>
-    new Intl.NumberFormat('fa-IR').format(value);
 
   const duplicatedProducts = Array.from({ length: DUPLICATE_COUNT }, () => products).flat();
 

@@ -15,10 +15,11 @@ import styles from './OrderSummary.module.css';
 import {
   SHIPPING_METHODS,
   PAYMENT_METHODS,
-  type CustomerData,
   type PaymentMethodId,
   type ShippingMethodId,
 } from '../types';
+import type { CustomerData } from '../../../types/user';
+import { formatPrice } from '../../../lib/formatCurrency';
 
 interface OrderSummaryProps {
   subtotal: number;
@@ -27,6 +28,7 @@ interface OrderSummaryProps {
   customer: CustomerData;
   shippingMethod: ShippingMethodId;
   paymentMethod: PaymentMethodId;
+  onCheckout?: () => void;
 }
 
 export function OrderSummary({
@@ -36,10 +38,8 @@ export function OrderSummary({
   customer,
   shippingMethod,
   paymentMethod,
+  onCheckout,
 }: OrderSummaryProps) {
-  const formatPrice = (value: number) =>
-    new Intl.NumberFormat('fa-IR').format(value);
-
   const giftLimit = 2_000_000;
   const remaining = giftLimit - total;
 
@@ -384,6 +384,7 @@ export function OrderSummary({
       <button
         type="button"
         className={styles.checkout}
+        onClick={onCheckout}
       >
         <span>
           ثبت و پرداخت سفارش

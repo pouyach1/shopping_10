@@ -17,17 +17,19 @@ import {
   bestSellerProducts,
   customerFavoriteProducts,
 } from '../Home/data';
-import type { Product } from '../Home/types';
+import type { Product } from '../../types/product';
+import type { CartItem } from '../../types/cart';
 import { ProductCard } from '../../components/product/ProductCard';
 import { siteImages } from '../../config/images';
-import { CART_STORAGE_KEY } from '../Wishlist/types';
+import { useCart } from '../../hooks/useCart';
+import { formatPrice } from '../../lib/formatCurrency';
 import styles from './Product.module.css';
 
 interface ProductPageProps {
   slug?: string;
 }
 
-type ProductDetails = Product & {
+type ProductContent = {
   description: string;
   rating: number;
   reviewCount: number;
@@ -42,9 +44,10 @@ type ProductDetails = Product & {
   shipping: string[];
 };
 
-const productDetails: Record<string, ProductDetails> = {
+type ProductDetails = Product & ProductContent;
+
+const productContent: Record<string, ProductContent> = {
   'silk-blend-blouse': {
-    ...bestSellerProducts[0],
     description:
       'بلوزی ظریف با فرم مینیمال و پارچه‌ای سبک که برای استایل روزمره و موقعیت‌های رسمی طراحی شده است.',
     rating: 4.8,
@@ -80,7 +83,6 @@ const productDetails: Record<string, ProductDetails> = {
   },
 
   'tailored-wool-coat': {
-    ...bestSellerProducts[1],
     description:
       'پالتوی پشمی با ساختار Tailored و سیلوئت تمیز که برای ساختن یک استایل ماندگار طراحی شده است.',
     rating: 4.9,
@@ -116,8 +118,7 @@ const productDetails: Record<string, ProductDetails> = {
   },
 };
 
-const fallbackProduct: ProductDetails = {
-  ...bestSellerProducts[0],
+const defaultContent: ProductContent = {
   description:
     'یک انتخاب مینیمال و لوکس از مجموعه LUXORA با تمرکز بر کیفیت، فرم و جزئیات.',
   rating: 4.8,
@@ -152,9 +153,6 @@ const fallbackProduct: ProductDetails = {
   ],
 };
 
-const formatPrice = (value: number) =>
-  new Intl.NumberFormat('fa-IR').format(value);
-
 const getDiscountPercent = (product: Product) => {
   if (!product.originalPrice || product.originalPrice <= product.price) {
     return 0;
@@ -165,8 +163,55 @@ const getDiscountPercent = (product: Product) => {
   );
 };
 
-export function Product({ slug = 'silk-blend-blouse' }: ProductPageProps) {
-  const product = productDetails[slug] ?? fallbackProduct;
+const productsBySlug: Record<string, Product> = {};
+for (const item of [...customerFavoriteProducts, ...bestSellerProducts]) {
+  const productSlug = item.href.split('/').pop();
+  if (productSlug) {
+    productsBySlug[productSlug] = item;
+  }
+}
+
+function getProductDetails(slug: string | undefined): ProductDetails | null {
+  if (!slug) return null;
+
+  const base = productsBySlug[slug];
+  if (!base) return null;
+
+  return { ...base, ...(productContent[slug] ?? defaultContent) };
+}
+
+function ProductNotFound() {
+  return (
+    <main className={styles.page} dir="rtl">
+      <div className={styles.container}>
+        <div className={styles.notFound}>
+          <span className={styles.notFoundEyebrow}>LUXORA</span>
+          <h1>محصول پیدا نشد</h1>
+          <p>
+            متأسفیم، محصولی که دنبال آن هستید وجود ندارد یا از فروشگاه حذف شده
+            است.
+          </p>
+          <a href="/" className={styles.notFoundLink}>
+            بازگشت به صفحه اصلی
+          </a>
+        </div>
+      </div>
+    </main>
+  );
+}
+
+export function Product({ slug }: ProductPageProps) {
+  const product = getProductDetails(slug);
+
+  if (!product) {
+    return <ProductNotFound />;
+  }
+
+  return <ProductView product={product} />;
+}
+
+function ProductView({ product }: { product: ProductDetails }) {
+  const { addItem } = useCart();
 
   const [selectedImage, setSelectedImage] = useState(0);
   const [selectedColor, setSelectedColor] = useState(product.colors[0]);
@@ -178,10 +223,8 @@ export function Product({ slug = 'silk-blend-blouse' }: ProductPageProps) {
 
   const handleAddToCart = () => {
     const variantKey = `${product.id}__${selectedColor.name}__${selectedSize}`;
-    const savedCart = localStorage.getItem(CART_STORAGE_KEY);
-    const cart = savedCart ? JSON.parse(savedCart) : { items: [] };
 
-    const newItem = {
+    const newItem: CartItem = {
       id: variantKey,
       productId: product.id,
       name: product.name,
@@ -195,15 +238,7 @@ export function Product({ slug = 'silk-blend-blouse' }: ProductPageProps) {
       quantity,
     };
 
-    const exists = cart.items.some(
-      (item: { id: string }) => item.id === newItem.id,
-    );
-
-    if (!exists) {
-      cart.items.push(newItem);
-    }
-
-    localStorage.setItem(CART_STORAGE_KEY, JSON.stringify(cart));
+    addItem(newItem);
     alert('محصول به سبد خرید اضافه شد');
   };
 
