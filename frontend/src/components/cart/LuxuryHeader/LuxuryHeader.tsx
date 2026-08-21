@@ -1,11 +1,13 @@
 import { Menu, ArrowLeft, User, Heart, ShoppingBag } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import styles from './LuxuryHeader.module.css';
 
 export function LuxuryHeader() {
 
+  const navigate = useNavigate();
+
   const goTo = (path: string) => {
-    window.history.pushState({}, '', path);
-    window.dispatchEvent(new PopStateEvent('popstate'));
+    navigate(path);
   };
 
   return (
