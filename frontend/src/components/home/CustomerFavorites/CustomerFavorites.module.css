@@ -1,5 +1,8 @@
 .favorites {
   width: 100%;
+  /* Allow this grid/flex child to shrink so the marquee .viewport can clip its
+     wide track instead of forcing the whole page to overflow horizontally. */
+  min-width: 0;
   opacity: 0;
   transform: translateX(48px);
   transition:
