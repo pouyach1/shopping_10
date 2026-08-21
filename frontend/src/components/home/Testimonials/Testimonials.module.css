@@ -1,6 +1,8 @@
 .testimonials {
   position: relative;
   width: 100%;
+  /* Grid/flex child guard so content can't force horizontal page overflow. */
+  min-width: 0;
   opacity: 0;
   transform: translateX(40px);
   transition:
