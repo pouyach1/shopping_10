@@ -8,6 +8,8 @@ import {
   X,
 } from 'lucide-react';
 
+import { useNavigate } from 'react-router-dom';
+
 import { useSearch } from '../../../hooks/useSearch';
 
 import { TrendingSearches } from '../TrendingSearches/TrendingSearches';
@@ -28,6 +30,8 @@ export function SearchOverlay({
 }: SearchOverlayProps) {
   const inputRef =
     useRef<HTMLInputElement>(null);
+
+  const navigate = useNavigate();
 
   const {
     query,
@@ -86,15 +90,7 @@ export function SearchOverlay({
 
     if (!value) return;
 
-    window.history.pushState(
-      {},
-      '',
-      `/search?q=${encodeURIComponent(value)}`,
-    );
-
-    window.dispatchEvent(
-      new PopStateEvent('popstate'),
-    );
+    navigate(`/search?q=${encodeURIComponent(value)}`);
 
     onClose();
   };
