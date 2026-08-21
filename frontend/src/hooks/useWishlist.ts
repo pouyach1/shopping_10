@@ -1,11 +1,22 @@
 import { useCallback, useEffect, useState } from 'react';
 import type { WishlistItem } from '../types/user';
 import { WISHLIST_STORAGE_KEY } from '../types/user';
-import { CART_STORAGE_KEY } from '../types/cart';
+import type { CartItem } from '../types/cart';
+import { addItem as addItemToCart } from './useCart';
 import { mockWishlistItems } from '../pages/Wishlist/data';
 
-interface CartState {
-  items: WishlistItem[];
+function toCartItem(item: WishlistItem): CartItem {
+  return {
+    id: item.id,
+    productId: item.productId,
+    name: item.name,
+    price: item.price,
+    currency: item.currency,
+    size: item.size,
+    imageSrc: item.imageSrc,
+    imageAlt: item.imageAlt,
+    quantity: 1,
+  };
 }
 
 function loadFromStorage<T>(key: string, fallback: T): T {
@@ -78,31 +89,22 @@ export function useWishlist() {
   }, []);
 
   const addToCart = useCallback((item: WishlistItem) => {
-    const cart = loadFromStorage<CartState>(CART_STORAGE_KEY, { items: [] });
-    const exists = cart.items.some((cartItem) => cartItem.id === item.id);
-    if (!exists) {
-      cart.items.push({ ...item });
-      saveToStorage(CART_STORAGE_KEY, cart);
-    }
+    addItemToCart(toCartItem(item));
   }, []);
 
-  const addAllToCart = useCallback(
-    (allItems: WishlistItem[]) => {
-      const cart = loadFromStorage<CartState>(CART_STORAGE_KEY, { items: [] });
-      allItems.forEach((item) => {
-        if (!cart.items.some((cartItem) => cartItem.id === item.id)) {
-          cart.items.push({ ...item });
-        }
-      });
-      saveToStorage(CART_STORAGE_KEY, cart);
-    },
-    [],
-  );
+  const addAllToCart = useCallback((allItems: WishlistItem[]) => {
+    allItems.forEach((item) => addItemToCart(toCartItem(item)));
+  }, []);
 
   const updateWishlist = useCallback(() => {
     saveToStorage(WISHLIST_STORAGE_KEY, items);
     setFeedback('Wishlist updated');
   }, [items]);
+
+  const clearWishlist = useCallback(() => {
+    setItems([]);
+    saveToStorage(WISHLIST_STORAGE_KEY, []);
+  }, []);
 
   const retry = useCallback(() => {
     setError(false);
@@ -121,6 +123,7 @@ export function useWishlist() {
     addToCart,
     addAllToCart,
     updateWishlist,
+    clearWishlist,
     retry,
   };
 }
