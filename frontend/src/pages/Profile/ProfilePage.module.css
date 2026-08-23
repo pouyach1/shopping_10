@@ -4,43 +4,138 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 24px;
+  padding: 48px 24px;
+  font-family: 'Vazirmatn', Tahoma, Arial, sans-serif;
 }
 
-.container {
+/* Mobile browsers shrink the viewport as the address bar collapses, which
+   makes a 100vh box taller than the visible area. */
+@supports (min-height: 100dvh) {
+  .page {
+    min-height: 100dvh;
+  }
+}
+
+.card {
+  width: 100%;
+  /* Wide enough that the description keeps the single-line measure it had
+     before it gained a container. */
+  max-width: 520px;
+  padding: 48px 40px;
+  background: #fbfbf9;
+  border: 1px solid #dcd8d0;
+  border-radius: 16px;
+  box-shadow: 0 4px 20px -2px rgba(28, 28, 28, 0.02);
+  text-align: center;
+}
+
+.header {
   display: flex;
   flex-direction: column;
   align-items: center;
-  justify-content: center;
-  gap: 12px;
-  text-align: center;
-  font-family: 'Vazirmatn', Tahoma, Arial, sans-serif;
+  gap: 10px;
 }
 
 .eyebrow {
   font-size: 0.75rem;
   letter-spacing: 0.25em;
+  text-transform: uppercase;
   color: #6b6b6b;
+  direction: ltr;
+  /* Absorbs the letter-space trailing the final glyph so the wordmark sits
+     optically centred rather than 1–2px off to the side. */
+  margin-inline-end: -0.25em;
 }
 
 .title {
-  font-size: 1.75rem;
+  /* Holds the established 1.75rem on desktop and only scales down once the
+     card gets too narrow for it. */
+  font-size: clamp(1.375rem, 5vw, 1.75rem);
   font-weight: 600;
   color: #1a1b1e;
 }
 
+.divider {
+  display: block;
+  width: 48px;
+  height: 1px;
+  margin: 24px auto;
+  background-color: rgba(26, 27, 30, 0.2);
+}
+
 .description {
-  max-width: 420px;
   color: #6b6b6b;
   line-height: 1.8;
+  /* Evens out the lines on narrow viewports instead of stranding the closing
+     word on its own. */
+  text-wrap: balance;
+}
+
+.actions {
+  display: flex;
+  justify-content: center;
+  margin-top: 32px;
 }
 
 .link {
-  margin-top: 8px;
-  padding: 12px 28px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 48px;
+  padding: 0 32px;
   background: #1a1b1e;
+  border: 1px solid #1a1b1e;
+  border-radius: 12px;
   color: #fff;
   font-size: 0.8125rem;
   letter-spacing: 0.08em;
   text-decoration: none;
+  transition: background-color 250ms ease, border-color 250ms ease,
+    box-shadow 250ms ease, transform 250ms ease;
+}
+
+.link:hover {
+  background: #2d2d2d;
+  border-color: #2d2d2d;
+  box-shadow: 0 10px 24px -8px rgba(28, 28, 28, 0.35);
+  transform: translateY(-1px);
+}
+
+.link:active {
+  transform: translateY(0);
+  box-shadow: none;
+}
+
+@media (max-width: 768px) {
+  .page {
+    padding: 32px 20px;
+  }
+
+  .card {
+    padding: 36px 28px;
+    border-radius: 14px;
+  }
+
+  .divider {
+    margin: 20px auto;
+  }
+
+  .actions {
+    margin-top: 28px;
+  }
+}
+
+@media (max-width: 480px) {
+  .page {
+    padding: 24px 16px;
+  }
+
+  .card {
+    padding: 28px 20px;
+  }
+
+  .link {
+    width: 100%;
+    padding: 0 20px;
+  }
 }
