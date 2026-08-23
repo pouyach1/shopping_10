@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import type { WishlistItem as WishlistItemType } from '../../../types/user';
+import type { WishlistItem as WishlistItemType } from '../../../types/wishlist';
 import { formatPrice } from '../../../lib/formatCurrency';
 import styles from './WishlistItem.module.css';
 

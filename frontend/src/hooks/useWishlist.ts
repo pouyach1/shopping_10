@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
-import type { WishlistItem } from '../types/user';
-import { WISHLIST_STORAGE_KEY } from '../types/user';
+import type { WishlistItem } from '../types/wishlist';
+import { WISHLIST_STORAGE_KEY } from '../types/wishlist';
 import type { CartItem } from '../types/cart';
 import { addItem as addItemToCart } from './useCart';
 import { mockWishlistItems } from '../pages/Wishlist/data';
