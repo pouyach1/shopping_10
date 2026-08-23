@@ -168,6 +168,7 @@
 .mainFooter {
   position: relative;
   isolation: isolate;
+  overflow: hidden;
   background: #1a1a1a;
 }
 

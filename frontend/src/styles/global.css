@@ -128,6 +128,11 @@ html {
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   text-rendering: optimizeLegibility;
+  /* Prevent stray horizontal scrolling from off-canvas drawers and
+     decorative overflow (e.g. the mobile menu and footer watermark).
+     Applied at the root so it does not create a nested scroll container
+     that would break position: sticky. */
+  overflow-x: hidden;
 }
 
 body {
