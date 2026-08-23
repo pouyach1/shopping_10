@@ -350,7 +350,7 @@ export function Header({ navItems, onCart, logo = 'لوکسورا', logoLatin = 
               </a>
             </li>
             <li>
-              <a href="/account" className={styles.mobileNavLink} onClick={closeMobileMenu}>
+              <a href="/profile" className={styles.mobileNavLink} onClick={closeMobileMenu}>
                 حساب کاربری
               </a>
             </li>
