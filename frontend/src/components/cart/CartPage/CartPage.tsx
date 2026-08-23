@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { ChevronDown } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 
 import { CartItem as CartItemComponent } from '../CartItem/CartItem';
 import { OrderSummary } from '../OrderSummary/OrderSummary';
@@ -17,6 +18,7 @@ import {
 } from '../types';
 import type { CustomerData } from '../../../types/user';
 import { useCart } from '../../../hooks/useCart';
+import { saveOrderSnapshot } from '../../../lib/orderSnapshot';
 
 import styles from './CartPage.module.css';
 
@@ -46,7 +48,9 @@ const REQUIRED_CUSTOMER_FIELDS: { key: keyof CustomerData; label: string }[] = [
 
 
 export function CartPage() {
-  const { items, removeItem, updateQuantity, subtotal, itemCount } = useCart();
+  const { items, removeItem, updateQuantity, subtotal, itemCount, clearCart } =
+    useCart();
+  const navigate = useNavigate();
 
   const [customer, setCustomer] =
     useState<CustomerData>(EMPTY_CUSTOMER);
@@ -84,8 +88,20 @@ export function CartPage() {
       return;
     }
 
-    // Payment gateway integration is intentionally deferred to a later phase.
-    alert('سفارش شما ثبت شد. اتصال درگاه پرداخت در فاز بعدی اضافه خواهد شد.');
+    const orderId = `LX-${Date.now().toString(36).toUpperCase()}`;
+
+    saveOrderSnapshot({
+      orderId,
+      itemCount,
+      subtotal,
+      shipping,
+      total,
+      customerName: `${customer.firstName} ${customer.lastName}`.trim(),
+      createdAt: new Date().toISOString(),
+    });
+
+    clearCart();
+    navigate('/order/confirmation');
   };
 
 

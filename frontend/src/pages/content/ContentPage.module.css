@@ -1,0 +1,264 @@
+.page {
+  min-height: 100%;
+  background: #f8f6f2;
+  color: #181817;
+  font-family: 'Vazirmatn', Tahoma, Arial, sans-serif;
+}
+
+.hero {
+  position: relative;
+  overflow: hidden;
+  padding: 120px 24px 72px;
+  border-bottom: 1px solid #e5e0d8;
+  background:
+    radial-gradient(
+      circle at 50% 0%,
+      rgba(197, 168, 128, 0.11),
+      transparent 42%
+    ),
+    linear-gradient(180deg, #fbfaf7 0%, #f8f6f2 100%);
+  text-align: center;
+}
+
+.heroGlow {
+  position: absolute;
+  width: 480px;
+  height: 480px;
+  top: -260px;
+  left: 50%;
+  transform: translateX(-50%);
+  border-radius: 50%;
+  background: rgba(197, 168, 128, 0.08);
+  filter: blur(80px);
+  pointer-events: none;
+}
+
+.heroInner {
+  position: relative;
+  z-index: 1;
+  width: min(760px, 100%);
+  margin: 0 auto;
+}
+
+.eyebrow {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  margin-bottom: 22px;
+  color: #a08c72;
+  font-size: 0.57rem;
+  letter-spacing: 0.19em;
+  text-transform: uppercase;
+  direction: ltr;
+}
+
+.eyebrowLine {
+  width: 26px;
+  height: 1px;
+  background: #c5a880;
+}
+
+.heroTitle {
+  margin: 0;
+  font-size: clamp(2rem, 4.5vw, 3.25rem);
+  font-weight: 300;
+  line-height: 1.45;
+  letter-spacing: -0.03em;
+  color: #1a1b1e;
+}
+
+.heroTitle em {
+  color: #9b8060;
+  font-style: normal;
+}
+
+.heroLead {
+  width: min(520px, 100%);
+  margin: 18px auto 0;
+  color: #8d8982;
+  font-size: 0.875rem;
+  line-height: 2;
+}
+
+.content {
+  width: min(920px, calc(100% - 48px));
+  margin: 0 auto;
+  padding: 64px 0 112px;
+}
+
+.narrow {
+  width: min(760px, calc(100% - 48px));
+}
+
+.section {
+  margin-bottom: 56px;
+}
+
+.section:last-child {
+  margin-bottom: 0;
+}
+
+.sectionEyebrow {
+  display: block;
+  margin-bottom: 12px;
+  color: #a08c72;
+  font-size: 0.62rem;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  direction: ltr;
+}
+
+.sectionTitle {
+  margin: 0 0 18px;
+  font-size: clamp(1.35rem, 2.5vw, 1.85rem);
+  font-weight: 500;
+  color: #1a1b1e;
+  line-height: 1.5;
+}
+
+.sectionBody {
+  margin: 0;
+  color: #6b6b6b;
+  font-size: 0.9375rem;
+  line-height: 2;
+}
+
+.sectionBody a,
+.prose a,
+.heroLead a {
+  color: #1a1b1e;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.sectionBody + .sectionBody {
+  margin-top: 16px;
+}
+
+.divider {
+  display: block;
+  width: 48px;
+  height: 1px;
+  margin: 0 auto 48px;
+  background: rgba(26, 27, 30, 0.18);
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 24px;
+}
+
+.card {
+  padding: 28px 24px;
+  background: #fbfbf9;
+  border: 1px solid #dcd8d0;
+  border-radius: 16px;
+  box-shadow: 0 4px 20px -2px rgba(28, 28, 28, 0.02);
+}
+
+.cardTitle {
+  margin: 0 0 10px;
+  font-size: 1rem;
+  font-weight: 500;
+  color: #1a1b1e;
+}
+
+.cardBody {
+  margin: 0;
+  color: #6b6b6b;
+  font-size: 0.8125rem;
+  line-height: 1.9;
+}
+
+.list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.listItem {
+  display: flex;
+  gap: 12px;
+  color: #6b6b6b;
+  font-size: 0.9rem;
+  line-height: 1.9;
+}
+
+.listItem::before {
+  content: '';
+  flex: 0 0 6px;
+  width: 6px;
+  height: 6px;
+  margin-top: 12px;
+  border-radius: 50%;
+  background: #c5a880;
+}
+
+.prose {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.prose p {
+  margin: 0;
+  color: #6b6b6b;
+  font-size: 0.9rem;
+  line-height: 2;
+}
+
+.prose h2 {
+  margin: 18px 0 0;
+  font-size: 1.15rem;
+  font-weight: 500;
+  color: #1a1b1e;
+}
+
+.prose h3 {
+  margin: 8px 0 0;
+  font-size: 1rem;
+  font-weight: 500;
+  color: #1a1b1e;
+}
+
+@media (max-width: 900px) {
+  .grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 768px) {
+  .hero {
+    padding: 96px 20px 56px;
+  }
+
+  .content,
+  .narrow {
+    width: calc(100% - 40px);
+    padding: 48px 0 88px;
+  }
+
+  .section {
+    margin-bottom: 44px;
+  }
+}
+
+@media (max-width: 480px) {
+  .hero {
+    padding: 84px 16px 48px;
+  }
+
+  .content,
+  .narrow {
+    width: calc(100% - 32px);
+  }
+
+  .card {
+    padding: 22px 18px;
+  }
+}
