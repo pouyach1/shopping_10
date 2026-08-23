@@ -1,1 +1,0 @@
-export { CatalogResults } from './CatalogResults';

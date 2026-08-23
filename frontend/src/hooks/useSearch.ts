@@ -1,6 +1,5 @@
 import { useMemo, useState } from 'react';
 
-import type { CategoryId } from '../pages/Home/types';
 import type {
   SearchFilters,
   SortOption,
@@ -17,20 +16,12 @@ import {
   sizeOptions,
 } from '../pages/Search/data';
 
-interface UseSearchOptions {
-  initialCategories?: CategoryId[];
-}
-
-export function useSearch(
-  initialQuery = '',
-  options: UseSearchOptions = {},
-) {
+export function useSearch(initialQuery = '') {
   const [query, setQuery] = useState(initialQuery);
-  const [filters, setFilters] = useState<SearchFilters>(() => ({
+  const [filters, setFilters] = useState<SearchFilters>({
     ...DEFAULT_FILTERS,
     priceRange: [...DEFAULT_FILTERS.priceRange] as [number, number],
-    categories: options.initialCategories ?? [],
-  }));
+  });
 
   const [sortBy, setSortBy] =
     useState<SortOption>('popular');

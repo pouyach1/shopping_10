@@ -2,7 +2,7 @@ import styles from './NotFound.module.css';
 
 export function NotFound() {
   return (
-    <div className={styles.page} dir="rtl">
+    <main className={styles.page} dir="rtl">
       <div className={styles.container}>
         <span className={styles.eyebrow}>LUXORA</span>
         <p className={styles.code}>۴۰۴</p>
@@ -14,6 +14,6 @@ export function NotFound() {
           بازگشت به صفحه اصلی
         </a>
       </div>
-    </div>
+    </main>
   );
 }

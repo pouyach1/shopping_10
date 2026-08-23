@@ -17,7 +17,7 @@ export function WishlistPage() {
   } = useWishlist();
 
   return (
-    <div className={styles.page} dir="rtl">
+    <main className={styles.page} dir="rtl">
       <div className={styles.container}>
         <WishlistHeader itemCount={items.length} />
 
@@ -46,6 +46,6 @@ export function WishlistPage() {
           </>
         )}
       </div>
-    </div>
+    </main>
   );
 }
