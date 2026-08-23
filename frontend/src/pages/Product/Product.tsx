@@ -182,7 +182,7 @@ function getProductDetails(slug: string | undefined): ProductDetails | null {
 
 function ProductNotFound() {
   return (
-    <main className={styles.page} dir="rtl">
+    <div className={styles.page} dir="rtl">
       <div className={styles.container}>
         <div className={styles.notFound}>
           <span className={styles.notFoundEyebrow}>LUXORA</span>
@@ -196,7 +196,7 @@ function ProductNotFound() {
           </a>
         </div>
       </div>
-    </main>
+    </div>
   );
 }
 
@@ -289,7 +289,7 @@ function ProductView({ product }: { product: ProductDetails }) {
   };
 
   return (
-    <main className={styles.page} dir="rtl">
+    <div className={styles.page} dir="rtl">
       <div className={styles.container}>
         <div className={styles.breadcrumb}>
           <a href="/">خانه</a>
@@ -636,6 +636,6 @@ function ProductView({ product }: { product: ProductDetails }) {
           />
         </div>
       )}
-    </main>
+    </div>
   );
 }

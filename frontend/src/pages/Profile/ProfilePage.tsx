@@ -2,7 +2,7 @@ import styles from './ProfilePage.module.css';
 
 export function ProfilePage() {
   return (
-    <main className={styles.page} dir="rtl">
+    <div className={styles.page} dir="rtl">
       <div className={styles.card}>
         <header className={styles.header}>
           <span className={styles.eyebrow}>LUXORA</span>
@@ -21,6 +21,6 @@ export function ProfilePage() {
           </a>
         </div>
       </div>
-    </main>
+    </div>
   );
 }
