@@ -76,6 +76,14 @@ export default function App() {
         <Route path="/terms" element={<TermsPage />} />
 
         {/* 404 */}
+        <Route path="/order/confirmation" element={<OrderConfirmation />} />
+        <Route path="/about" element={<AboutPage />} />
+        <Route path="/contact" element={<ContactPage />} />
+        <Route path="/faq" element={<FaqPage />} />
+        <Route path="/shipping" element={<ShippingPage />} />
+        <Route path="/returns" element={<ReturnsPage />} />
+        <Route path="/privacy" element={<PrivacyPage />} />
+        <Route path="/terms" element={<TermsPage />} />
         <Route path="*" element={<NotFound />} />
 
       </Route>
