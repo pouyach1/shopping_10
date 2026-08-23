@@ -18,7 +18,9 @@
 
 .card {
   width: 100%;
-  max-width: 480px;
+  /* Wide enough that the description keeps the single-line measure it had
+     before it gained a container. */
+  max-width: 520px;
   padding: 48px 40px;
   background: #fbfbf9;
   border: 1px solid #dcd8d0;
@@ -64,6 +66,9 @@
 .description {
   color: #6b6b6b;
   line-height: 1.8;
+  /* Evens out the lines on narrow viewports instead of stranding the closing
+     word on its own. */
+  text-wrap: balance;
 }
 
 .actions {
