@@ -1,9 +1,19 @@
 .page {
+  min-height: 100vh;
+  background: #f5f0e8;
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 64px 24px 96px;
+  padding: 48px 24px;
   font-family: 'Vazirmatn', Tahoma, Arial, sans-serif;
+}
+
+/* Mobile browsers shrink the viewport as the address bar collapses, which
+   makes a 100vh box taller than the visible area. */
+@supports (min-height: 100dvh) {
+  .page {
+    min-height: 100dvh;
+  }
 }
 
 .card {
