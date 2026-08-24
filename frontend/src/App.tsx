@@ -36,57 +36,41 @@ function ProductRoute() {
 export default function App() {
   return (
     <Routes>
+
       <Route element={<SiteLayout />}>
 
-        {/* Main */}
         <Route path="/" element={<Home />} />
 
-        {/* Shopping */}
         <Route path="/shop" element={<ShopPage />} />
         <Route path="/category/:slug" element={<CategoryPage />} />
         <Route path="/product/:slug" element={<ProductRoute />} />
 
-        {/* Search */}
         <Route path="/search" element={<Search />} />
 
-        {/* Cart / Wishlist */}
         <Route path="/cart" element={<CartPage />} />
         <Route path="/wishlist" element={<WishlistPage />} />
 
-        {/* Checkout */}
-        <Route
+        <Route 
           path="/order/confirmation"
           element={<OrderConfirmation />}
         />
 
-        {/* Account */}
         <Route path="/profile" element={<ProfilePage />} />
 
-        {/* Brand */}
         <Route path="/about" element={<AboutPage />} />
         <Route path="/contact" element={<ContactPage />} />
 
-        {/* Support */}
         <Route path="/faq" element={<FaqPage />} />
         <Route path="/shipping" element={<ShippingPage />} />
         <Route path="/returns" element={<ReturnsPage />} />
 
-        {/* Legal */}
         <Route path="/privacy" element={<PrivacyPage />} />
         <Route path="/terms" element={<TermsPage />} />
 
-        {/* 404 */}
-        <Route path="/order/confirmation" element={<OrderConfirmation />} />
-        <Route path="/about" element={<AboutPage />} />
-        <Route path="/contact" element={<ContactPage />} />
-        <Route path="/faq" element={<FaqPage />} />
-        <Route path="/shipping" element={<ShippingPage />} />
-        <Route path="/returns" element={<ReturnsPage />} />
-        <Route path="/privacy" element={<PrivacyPage />} />
-        <Route path="/terms" element={<TermsPage />} />
         <Route path="*" element={<NotFound />} />
 
       </Route>
+
     </Routes>
   );
 }
