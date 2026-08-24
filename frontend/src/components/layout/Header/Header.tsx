@@ -23,43 +23,45 @@ interface MegaMenuColumn {
   items: MegaMenuItem[];
 }
 
+/* Mega links only use routes that exist in App.tsx:
+   /shop, /category/:slug (women|men|bags|shoes|accessories) */
 const megaMenuData: Record<string, MegaMenuColumn[]> = {
   shop: [
     {
       id: 'women',
       title: 'زنانه',
       items: [
-        { id: 'w-dresses', label: 'پیراهن', href: '/shop/dresses' },
-        { id: 'w-tops', label: 'بالاتنه', href: '/shop/tops' },
-        { id: 'w-pants', label: 'شلوار', href: '/shop/pants' },
-        { id: 'w-outerwear', label: 'پالتو و کت', href: '/shop/outerwear' },
+        { id: 'w-dresses', label: 'پیراهن', href: '/category/women' },
+        { id: 'w-tops', label: 'بالاتنه', href: '/category/women' },
+        { id: 'w-pants', label: 'شلوار', href: '/category/women' },
+        { id: 'w-outerwear', label: 'پالتو و کت', href: '/category/women' },
       ],
     },
     {
       id: 'men',
       title: 'مردانه',
       items: [
-        { id: 'm-shirts', label: 'پیراهن', href: '/shop/shirts' },
-        { id: 'm-trousers', label: 'شلوار', href: '/shop/trousers' },
-        { id: 'm-jackets', label: 'کاپشن', href: '/shop/jackets' },
+        { id: 'm-shirts', label: 'پیراهن', href: '/category/men' },
+        { id: 'm-trousers', label: 'شلوار', href: '/category/men' },
+        { id: 'm-jackets', label: 'کاپشن', href: '/category/men' },
       ],
     },
     {
       id: 'accessories',
       title: 'اکسسوری',
       items: [
-        { id: 'a-bags', label: 'کیف', href: '/shop/bags' },
-        { id: 'a-belts', label: 'کمربند', href: '/shop/belts' },
-        { id: 'a-scarves', label: 'شال و روسری', href: '/shop/scarves' },
+        { id: 'a-bags', label: 'کیف', href: '/category/bags' },
+        { id: 'a-belts', label: 'کمربند', href: '/category/accessories' },
+        { id: 'a-scarves', label: 'شال و روسری', href: '/category/accessories' },
       ],
     },
     {
       id: 'new',
       title: 'جدیدها',
       items: [
-        { id: 'n-new-arrivals', label: 'تازه‌واردها', href: '/shop/new-arrivals' },
-        { id: 'n-bestsellers', label: 'پرفروش‌ها', href: '/shop/bestsellers' },
-        { id: 'n-limited', label: 'نسخه محدود', href: '/shop/limited' },
+        { id: 'n-new-arrivals', label: 'تازه‌واردها', href: '/shop' },
+        { id: 'n-bestsellers', label: 'پرفروش‌ها', href: '/shop' },
+        { id: 'n-limited', label: 'نسخه محدود', href: '/shop' },
       ],
     },
   ],
@@ -68,28 +70,28 @@ const megaMenuData: Record<string, MegaMenuColumn[]> = {
       id: 'clothing',
       title: 'پوشاک',
       items: [
-        { id: 'c-dresses', label: 'پیراهن', href: '/category/dresses' },
-        { id: 'c-tops', label: 'بالاتنه', href: '/category/tops' },
-        { id: 'c-bottoms', label: 'پایین‌تنه', href: '/category/bottoms' },
+        { id: 'c-women', label: 'زنانه', href: '/category/women' },
+        { id: 'c-men', label: 'مردانه', href: '/category/men' },
+        { id: 'c-all', label: 'همه فروشگاه', href: '/shop' },
       ],
     },
     {
-      id: 'occasion',
-      title: 'موقعیت',
+      id: 'accessories-cat',
+      title: 'اکسسوری',
       items: [
-        { id: 'o-casual', label: 'روزمره', href: '/category/casual' },
-        { id: 'o-formal', label: 'رسمی', href: '/category/formal' },
-        { id: 'o-evening', label: 'مجلسی', href: '/category/evening' },
+        { id: 'o-bags', label: 'کیف', href: '/category/bags' },
+        { id: 'o-shoes', label: 'کفش', href: '/category/shoes' },
+        { id: 'o-accessories', label: 'اکسسوری', href: '/category/accessories' },
       ],
     },
     {
       id: 'collections',
       title: 'مجموعه‌ها',
       items: [
-        { id: 'col-spring', label: 'بهار', href: '/category/spring' },
-        { id: 'col-summer', label: 'تابستان', href: '/category/summer' },
-        { id: 'col-autumn', label: 'پاییز', href: '/category/autumn' },
-        { id: 'col-winter', label: 'زمستان', href: '/category/winter' },
+        { id: 'col-shop', label: 'فروشگاه', href: '/shop' },
+        { id: 'col-women', label: 'زنانه', href: '/category/women' },
+        { id: 'col-men', label: 'مردانه', href: '/category/men' },
+        { id: 'col-bags', label: 'کیف‌ها', href: '/category/bags' },
       ],
     },
   ],

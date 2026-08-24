@@ -16,7 +16,7 @@ export const homeContent = {
     },
     secondaryCta: {
       label: 'LOOKBOOK',
-      href: '/lookbook',
+      href: '/shop',
     },
   },
 

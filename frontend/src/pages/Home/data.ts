@@ -3,11 +3,11 @@ import type { Product } from '../../types/product';
 import { siteImages } from '../../config/images';
 
 export const navItems: NavItem[] = [
-  { id: 'new-in', label: 'تازه‌واردها', href: '/new-in' },
+  { id: 'new-in', label: 'تازه‌واردها', href: '/shop' },
   { id: 'shop', label: 'فروشگاه', href: '/shop' },
-  { id: 'collections', label: 'مجموعه‌ها', href: '/collections' },
+  { id: 'collections', label: 'مجموعه‌ها', href: '/shop' },
   { id: 'about', label: 'درباره ما', href: '/about' },
-  { id: 'journal', label: 'مجله', href: '/journal' },
+  { id: 'journal', label: 'مجله', href: '/about' },
 ];
 
 export const featureItems: FeatureItem[] = [
@@ -73,7 +73,7 @@ export const footerColumns: FooterColumn[] = [
     id: 'shop',
     title: 'فروشگاه',
     links: [
-      { id: 'shop-new', label: 'تازه‌واردها', href: '/new-in' },
+      { id: 'shop-new', label: 'تازه‌واردها', href: '/shop' },
       { id: 'shop-women', label: 'زنانه', href: '/category/women' },
       { id: 'shop-men', label: 'مردانه', href: '/category/men' },
       { id: 'shop-bags', label: 'کیف‌ها', href: '/category/bags' },
@@ -85,10 +85,10 @@ export const footerColumns: FooterColumn[] = [
     title: 'خدمات مشتریان',
     links: [
       { id: 'service-shipping', label: 'ارسال و بازگشت', href: '/shipping' },
-      { id: 'service-size', label: 'راهنمای سایز', href: '/size-guide' },
+      { id: 'service-returns', label: 'بازگشت کالا', href: '/returns' },
       { id: 'service-faq', label: 'سوالات متداول', href: '/faq' },
       { id: 'service-contact', label: 'تماس با ما', href: '/contact' },
-      { id: 'service-support', label: 'پشتیبانی', href: '/support' },
+      { id: 'service-support', label: 'پشتیبانی', href: '/contact' },
     ],
   },
   {
@@ -96,9 +96,9 @@ export const footerColumns: FooterColumn[] = [
     title: 'درباره LUXORA',
     links: [
       { id: 'about-story', label: 'داستان ما', href: '/about' },
-      { id: 'about-journal', label: 'مجله LUXORA', href: '/journal' },
-      { id: 'about-collections', label: 'مجموعه‌ها', href: '/collections' },
-      { id: 'about-careers', label: 'فرصت‌های همکاری', href: '/careers' },
+      { id: 'about-shipping', label: 'ارسال و تحویل', href: '/shipping' },
+      { id: 'about-privacy', label: 'حریم خصوصی', href: '/privacy' },
+      { id: 'about-terms', label: 'شرایط استفاده', href: '/terms' },
       { id: 'about-contact', label: 'ارتباط با ما', href: '/contact' },
     ],
   },
@@ -109,7 +109,7 @@ export const heroContent = {
   title: 'ELEGANCE,\nREIMAGINED',
   description: 'Timeless silhouettes. Modern craftsmanship.\nDesigned for the now and forever.',
   primaryCta: { label: 'SHOP THE COLLECTION', href: '/shop' },
-  secondaryCta: { label: 'LOOKBOOK', href: '/lookbook' },
+  secondaryCta: { label: 'LOOKBOOK', href: '/shop' },
   imageSrc: siteImages.hero.main,
   imageAlt: 'Luxora fashion model',
   currentSlide: 1,
