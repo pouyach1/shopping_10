@@ -1,4 +1,4 @@
-import { useCallback, useSyncExternalStore } from 'react';
+import { useSyncExternalStore } from 'react';
 
 import {
   readAdminSession,
@@ -8,6 +8,9 @@ import {
 /**
  * Demo-only admin gate. Persists a boolean flag in localStorage.
  * No JWT, hashing, roles, or backend — intentional Phase 1 scope.
+ *
+ * Module-level login/logout mirror the cart store pattern so callers
+ * do not depend on hook closures.
  */
 
 let authenticated = readAdminSession().authenticated;
@@ -28,10 +31,22 @@ function getSnapshot(): boolean {
   return authenticated;
 }
 
+function getServerSnapshot(): boolean {
+  return false;
+}
+
 function setAuthenticated(next: boolean): void {
   authenticated = next;
   writeAdminSession(next);
   emit();
+}
+
+export function loginAdmin(): void {
+  setAuthenticated(true);
+}
+
+export function logoutAdmin(): void {
+  setAuthenticated(false);
 }
 
 if (typeof window !== 'undefined') {
@@ -44,19 +59,15 @@ if (typeof window !== 'undefined') {
 }
 
 export function useAdminAuth() {
-  const isAuthenticated = useSyncExternalStore(subscribe, getSnapshot);
-
-  const login = useCallback(() => {
-    setAuthenticated(true);
-  }, []);
-
-  const logout = useCallback(() => {
-    setAuthenticated(false);
-  }, []);
+  const isAuthenticated = useSyncExternalStore(
+    subscribe,
+    getSnapshot,
+    getServerSnapshot,
+  );
 
   return {
     isAuthenticated,
-    login,
-    logout,
+    login: loginAdmin,
+    logout: logoutAdmin,
   };
 }

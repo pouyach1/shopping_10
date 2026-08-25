@@ -4,12 +4,12 @@ import { Navigate, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { AdminHeader } from '../../components/AdminHeader';
 import { AdminSidebar } from '../../components/AdminSidebar';
 import { getAdminPageTitle } from '../../data/navItems';
-import { useAdminAuth } from '../../hooks/useAdminAuth';
+import { logoutAdmin, useAdminAuth } from '../../hooks/useAdminAuth';
 
 import styles from './AdminLayout.module.css';
 
 export function AdminLayout() {
-  const { isAuthenticated, logout } = useAdminAuth();
+  const { isAuthenticated } = useAdminAuth();
   const location = useLocation();
   const navigate = useNavigate();
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -17,6 +17,11 @@ export function AdminLayout() {
   useEffect(() => {
     setSidebarOpen(false);
   }, [location.pathname]);
+
+  const handleLogout = () => {
+    logoutAdmin();
+    navigate('/admin/login', { replace: true });
+  };
 
   if (!isAuthenticated) {
     return (
@@ -27,11 +32,6 @@ export function AdminLayout() {
       />
     );
   }
-
-  const handleLogout = () => {
-    logout();
-    navigate('/admin/login', { replace: true });
-  };
 
   const title = getAdminPageTitle(location.pathname);
 

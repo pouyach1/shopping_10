@@ -84,7 +84,12 @@ export function AdminSidebar({ open, onClose, onLogout }: AdminSidebarProps) {
         </nav>
 
         <div className={styles.footer}>
-          <button type="button" className={styles.logoutButton} onClick={onLogout}>
+          <button
+            type="button"
+            className={styles.logoutButton}
+            onClick={onLogout}
+            data-testid="admin-sidebar-logout"
+          >
             <LogOut size={18} strokeWidth={1.75} aria-hidden="true" />
             <span>خروج</span>
           </button>

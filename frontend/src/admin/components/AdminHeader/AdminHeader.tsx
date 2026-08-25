@@ -49,6 +49,7 @@ export function AdminHeader({ title, onMenuClick, onLogout }: AdminHeaderProps) 
           className={styles.logoutButton}
           onClick={onLogout}
           aria-label="خروج"
+          data-testid="admin-header-logout"
         >
           <LogOut size={16} strokeWidth={1.75} />
           <span>خروج</span>

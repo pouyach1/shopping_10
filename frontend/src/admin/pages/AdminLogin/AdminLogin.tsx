@@ -1,12 +1,12 @@
 import { type FormEvent, useState } from 'react';
 import { Navigate, useNavigate } from 'react-router-dom';
 
-import { useAdminAuth } from '../../hooks/useAdminAuth';
+import { loginAdmin, useAdminAuth } from '../../hooks/useAdminAuth';
 
 import styles from './AdminLogin.module.css';
 
 export function AdminLogin() {
-  const { isAuthenticated, login } = useAdminAuth();
+  const { isAuthenticated } = useAdminAuth();
   const navigate = useNavigate();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -25,7 +25,7 @@ export function AdminLogin() {
     }
 
     setError('');
-    login();
+    loginAdmin();
     navigate('/admin', { replace: true });
   };
 
