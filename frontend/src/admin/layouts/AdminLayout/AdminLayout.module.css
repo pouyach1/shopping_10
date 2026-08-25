@@ -1,0 +1,31 @@
+.shell {
+  display: flex;
+  min-height: 100vh;
+  background: var(--color-cream-50, #faf7f2);
+  color: var(--color-charcoal-900, #1a1a1a);
+  font-family: var(--font-persian, 'Vazirmatn', Tahoma, Arial, sans-serif);
+}
+
+.main {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-width: 0;
+}
+
+.content {
+  flex: 1;
+  padding: 1.25rem;
+}
+
+@media (min-width: 768px) {
+  .content {
+    padding: 1.5rem 1.75rem;
+  }
+}
+
+@media (min-width: 1024px) {
+  .content {
+    padding: 1.75rem 2rem;
+  }
+}

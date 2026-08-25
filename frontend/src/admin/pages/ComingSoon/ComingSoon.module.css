@@ -1,0 +1,40 @@
+.page {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: min(420px, 60vh);
+}
+
+.card {
+  width: 100%;
+  max-width: 480px;
+  text-align: center;
+  padding: 2.5rem 1.5rem;
+  background: var(--color-white, #ffffff);
+  border: 1px solid var(--color-charcoal-200, #e5e7eb);
+  border-radius: var(--radius-lg, 0.75rem);
+  box-shadow: var(--shadow-sm, 0 1px 2px rgba(0, 0, 0, 0.05));
+}
+
+.eyebrow {
+  display: inline-block;
+  margin-bottom: 0.75rem;
+  font-size: 0.7rem;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  color: #b89b5e;
+}
+
+.title {
+  margin: 0 0 0.75rem;
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: var(--color-charcoal-900, #1a1a1a);
+}
+
+.message {
+  margin: 0;
+  font-size: 0.9375rem;
+  line-height: 1.7;
+  color: var(--color-charcoal-500, #6b7280);
+}
