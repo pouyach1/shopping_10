@@ -14,6 +14,7 @@ import {
 
 import type { NavItem } from '../../../pages/Home/types';
 import { SearchOverlay } from '../../search/SearchOverlay/SearchOverlay';
+import { MobileNavDrawer } from '../MobileNavDrawer';
 import { useCart } from '../../../hooks/useCart';
 import { useWishlist } from '../../../hooks/useWishlist';
 import { useProfileAuth } from '../../../hooks/useProfileAuth';
@@ -361,76 +362,22 @@ export function Header({
         ) : null}
       </header>
 
-      {mobileMenuOpen ? (
-        <div
-          className={styles.mobileOverlay}
-          onClick={closeMobileMenu}
-          role="presentation"
-        />
-      ) : null}
-
-      <div
-        id="mobile-menu"
-        className={`${styles.mobileMenu} ${mobileMenuOpen ? styles.mobileMenuOpen : ''}`}
-        role="dialog"
-        aria-modal="true"
-        aria-label="منوی موبایل"
-      >
-        <nav aria-label="منوی موبایل">
-          <ul className={styles.mobileNavList}>
-            {navItems.map((item) => (
-              <li key={item.id}>
-                <Link
-                  to={item.href}
-                  className={styles.mobileNavLink}
-                  onClick={closeMobileMenu}
-                >
-                  {item.label}
-                </Link>
-              </li>
-            ))}
-            <li>
-              <Link
-                to="/wishlist"
-                className={styles.mobileNavLink}
-                onClick={closeMobileMenu}
-              >
-                علاقه‌مندی‌ها
-                {wishlistCount > 0 ? ` (${wishlistCount})` : ''}
-              </Link>
-            </li>
-            <li>
-              <Link
-                to="/profile"
-                className={styles.mobileNavLink}
-                onClick={closeMobileMenu}
-              >
-                {isAuthenticated
-                  ? `حساب کاربری${customer?.name ? ` (${customer.name})` : ''}`
-                  : 'ورود / حساب کاربری'}
-              </Link>
-            </li>
-            <li>
-              <Link
-                to="/shipping"
-                className={styles.mobileNavLink}
-                onClick={closeMobileMenu}
-              >
-                ارسال و تحویل
-              </Link>
-            </li>
-            <li>
-              <Link
-                to="/returns"
-                className={styles.mobileNavLink}
-                onClick={closeMobileMenu}
-              >
-                مرجوعی کالا
-              </Link>
-            </li>
-          </ul>
-        </nav>
-      </div>
+      <MobileNavDrawer
+        open={mobileMenuOpen}
+        onClose={closeMobileMenu}
+        onOpenSearch={openSearch}
+        logo={logo}
+        logoLatin={logoLatin}
+        cartCount={cartCount}
+        wishlistCount={wishlistCount}
+        profileLabel={
+          isAuthenticated
+            ? customer?.name
+              ? `حساب (${customer.name})`
+              : 'حساب کاربری'
+            : 'ورود / پروفایل'
+        }
+      />
 
       <SearchOverlay open={searchOpen} onClose={closeSearch} />
     </>
