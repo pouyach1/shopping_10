@@ -57,24 +57,26 @@ const hasDiscovery =
   (await page.getByRole('heading', { name: 'این محصولات را هم ببینید' })
     .count()) > 0;
 
-async function sectionHrefs(headingName) {
+async function sectionProductHrefs(headingName) {
   const heading = page.getByRole('heading', { name: headingName });
   if ((await heading.count()) === 0) return [];
-  return heading.evaluate((h) => {
+  const hrefs = await heading.evaluate((h) => {
     const section = h.closest('section');
     if (!section) return [];
     return [...section.querySelectorAll('a[href^="/product/"]')]
       .map((a) => a.getAttribute('href'))
       .filter(Boolean);
   });
+  // ProductCard renders image + title links to the same href.
+  return [...new Set(hrefs)];
 }
 
-const relatedHrefs = await sectionHrefs('محصولات مرتبط');
+const relatedHrefs = await sectionProductHrefs('محصولات مرتبط');
 const complementaryHrefs = hasComplementary
-  ? await sectionHrefs('محصولات مکمل')
+  ? await sectionProductHrefs('محصولات مکمل')
   : [];
 const discoveryHrefs = hasDiscovery
-  ? await sectionHrefs('این محصولات را هم ببینید')
+  ? await sectionProductHrefs('این محصولات را هم ببینید')
   : [];
 
 assert.ok(relatedHrefs.length > 0, 'related section should list products');
@@ -85,7 +87,11 @@ assert.equal(
 );
 
 const all = [...relatedHrefs, ...complementaryHrefs, ...discoveryHrefs];
-assert.equal(new Set(all).size, all.length, 'DOM must not repeat products');
+assert.equal(
+  new Set(all).size,
+  all.length,
+  'sections must not repeat the same product',
+);
 
 const firstRelated = relatedHrefs[0];
 await page.locator(`section >> a[href="${firstRelated}"]`).first().click();
