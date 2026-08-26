@@ -435,6 +435,11 @@
   color: #9CA3AF;
 }
 
+/* Mobile-only profile entry (desktop uses account dropdown) */
+.mobileProfileButton {
+  display: none;
+}
+
 /* Mobile */
 @media (max-width: 767px) {
   .headerInner {
@@ -452,6 +457,10 @@
 
   .menuToggle {
     display: flex;
+  }
+
+  .mobileProfileButton {
+    display: inline-flex;
   }
 
   .logoText {
