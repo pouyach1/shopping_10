@@ -111,28 +111,149 @@
   color: var(--color-charcoal-900, #1a1a1a);
 }
 
-.chartPlaceholder {
-  min-height: 220px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 2rem 1.25rem;
-  background:
-    repeating-linear-gradient(
-      -45deg,
-      transparent,
-      transparent 10px,
-      rgba(184, 155, 94, 0.04) 10px,
-      rgba(184, 155, 94, 0.04) 20px
-    );
+.trendBody {
+  padding: 1.25rem 1.15rem 1.5rem;
 }
 
-.chartPlaceholder p {
-  margin: 0;
-  max-width: 28rem;
+.trendBars {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 0.6rem;
+  align-items: end;
+  min-height: 200px;
+}
+
+.trendItem {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.4rem;
+  min-width: 0;
+}
+
+.trendBarTrack {
+  width: 100%;
+  height: 140px;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  background: var(--color-cream-50, #faf7f2);
+  border-radius: var(--radius-md, 0.5rem);
+  padding: 0.35rem;
+}
+
+.trendBar {
+  width: 100%;
+  max-width: 28px;
+  border-radius: 0.35rem 0.35rem 0.15rem 0.15rem;
+  background: #b89b5e;
+  opacity: 0.85;
+}
+
+.trendLabel {
+  font-size: 0.7rem;
+  color: var(--color-charcoal-700, #404040);
+  font-variant-numeric: tabular-nums;
+}
+
+.trendMeta {
+  font-size: 0.65rem;
+  color: var(--color-charcoal-400, #9ca3af);
   text-align: center;
+  line-height: 1.3;
+}
+
+.panels {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 0.875rem;
+}
+
+.panel {
+  background: var(--color-white, #ffffff);
+  border: 1px solid var(--color-charcoal-200, #e5e7eb);
+  border-radius: var(--radius-lg, 0.75rem);
+  box-shadow: var(--shadow-sm, 0 1px 2px rgba(0, 0, 0, 0.05));
+  overflow: hidden;
+}
+
+.panelHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.95rem 1.15rem;
+  border-bottom: 1px solid var(--color-charcoal-200, #e5e7eb);
+}
+
+.panelTitle {
+  margin: 0;
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--color-charcoal-900, #1a1a1a);
+}
+
+.panelHint {
+  font-size: 0.75rem;
+  color: var(--color-charcoal-500, #6b7280);
+}
+
+.list {
+  list-style: none;
+  margin: 0;
+  padding: 0.35rem 0;
+}
+
+.listRow {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.75rem 1.15rem;
+}
+
+.listRow + .listRow {
+  border-top: 1px solid var(--color-charcoal-100, #f3f4f6);
+}
+
+.listRow strong {
+  display: block;
   font-size: 0.875rem;
-  line-height: 1.7;
+  font-weight: 600;
+  color: var(--color-charcoal-900, #1a1a1a);
+}
+
+.listRow span {
+  display: block;
+  margin-top: 0.2rem;
+  font-size: 0.75rem;
+  color: var(--color-charcoal-500, #6b7280);
+}
+
+.listMeta {
+  text-align: start;
+  flex-shrink: 0;
+}
+
+.listMeta span {
+  display: block;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--color-charcoal-800, #2d2d2d);
+}
+
+.listMeta em {
+  display: block;
+  margin-top: 0.2rem;
+  font-style: normal;
+  font-size: 0.75rem;
+  color: #b89b5e;
+}
+
+.empty {
+  margin: 0;
+  padding: 1.25rem 1.15rem;
+  font-size: 0.875rem;
   color: var(--color-charcoal-500, #6b7280);
 }
 
@@ -147,7 +268,15 @@
     grid-template-columns: repeat(4, 1fr);
   }
 
-  .chartPlaceholder {
-    min-height: 280px;
+  .panels {
+    grid-template-columns: 1.3fr 1fr 1fr;
+  }
+
+  .trendBars {
+    min-height: 220px;
+  }
+
+  .trendBarTrack {
+    height: 160px;
   }
 }
