@@ -15,6 +15,7 @@ import {
 import type { NavItem } from '../../../pages/Home/types';
 import { SearchOverlay } from '../../search/SearchOverlay/SearchOverlay';
 import { MobileNavDrawer } from '../MobileNavDrawer';
+import { MobileProfileDrawer } from '../MobileProfileDrawer';
 import { useCart } from '../../../hooks/useCart';
 import { useWishlist } from '../../../hooks/useWishlist';
 import { useProfileAuth } from '../../../hooks/useProfileAuth';
@@ -102,6 +103,7 @@ export function Header({
   const { isAuthenticated, customer, logout } = useProfileAuth();
 
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [profileDrawerOpen, setProfileDrawerOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(() => {
     return sessionStorage.getItem('luxora-search-open') === 'true';
   });
@@ -114,6 +116,7 @@ export function Header({
 
   const toggleMobileMenu = useCallback(() => {
     setMobileMenuOpen((prev) => !prev);
+    setProfileDrawerOpen(false);
     setMegaMenuOpen(null);
     setAccountDropdownOpen(false);
   }, []);
@@ -122,8 +125,21 @@ export function Header({
     setMobileMenuOpen(false);
   }, []);
 
+  const openProfileDrawer = useCallback(() => {
+    setMobileMenuOpen(false);
+    setAccountDropdownOpen(false);
+    setMegaMenuOpen(null);
+    setProfileDrawerOpen(true);
+  }, []);
+
+  const closeProfileDrawer = useCallback(() => {
+    setProfileDrawerOpen(false);
+  }, []);
+
   const openSearch = useCallback(() => {
     sessionStorage.setItem('luxora-search-open', 'true');
+    setProfileDrawerOpen(false);
+    setMobileMenuOpen(false);
     setSearchOpen(true);
   }, []);
 
@@ -152,6 +168,7 @@ export function Header({
     const handleEscape = (e: KeyboardEvent) => {
       if (e.key !== 'Escape') return;
       if (searchOpen) closeSearch();
+      if (profileDrawerOpen) closeProfileDrawer();
       if (mobileMenuOpen) closeMobileMenu();
       if (accountDropdownOpen) setAccountDropdownOpen(false);
       if (megaMenuOpen) setMegaMenuOpen(null);
@@ -161,10 +178,12 @@ export function Header({
   }, [
     searchOpen,
     mobileMenuOpen,
+    profileDrawerOpen,
     accountDropdownOpen,
     megaMenuOpen,
     closeSearch,
     closeMobileMenu,
+    closeProfileDrawer,
   ]);
 
   useEffect(() => {
@@ -279,6 +298,23 @@ export function Header({
               ) : null}
             </Link>
 
+            <button
+              type="button"
+              className={`${styles.iconButton} ${styles.mobileProfileButton}`}
+              onClick={openProfileDrawer}
+              aria-label={
+                isAuthenticated
+                  ? customer?.name
+                    ? `حساب کاربری، ${customer.name}`
+                    : 'حساب کاربری'
+                  : 'ورود / پروفایل'
+              }
+              aria-expanded={profileDrawerOpen}
+              aria-controls="mobile-profile-drawer"
+            >
+              <User size={20} strokeWidth={1.5} />
+            </button>
+
             <div className={`${styles.accountWrap} ${styles.hideOnMobile}`}>
               <button
                 type="button"
@@ -366,6 +402,7 @@ export function Header({
         open={mobileMenuOpen}
         onClose={closeMobileMenu}
         onOpenSearch={openSearch}
+        onOpenProfile={openProfileDrawer}
         logo={logo}
         logoLatin={logoLatin}
         cartCount={cartCount}
@@ -377,6 +414,11 @@ export function Header({
               : 'حساب کاربری'
             : 'ورود / پروفایل'
         }
+      />
+
+      <MobileProfileDrawer
+        open={profileDrawerOpen}
+        onClose={closeProfileDrawer}
       />
 
       <SearchOverlay open={searchOpen} onClose={closeSearch} />

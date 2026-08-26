@@ -1,5 +1,5 @@
 import { type FormEvent, useEffect, useId, useRef, useState } from 'react';
-import { Navigate, Route, Routes } from 'react-router-dom';
+import { Navigate, Route, Routes, useSearchParams } from 'react-router-dom';
 import { Eye, EyeOff } from 'lucide-react';
 
 import { Reveal } from '../../components/ui/Reveal';
@@ -260,6 +260,20 @@ function ProfileLogin() {
   );
 }
 
+const LEGACY_SECTION_REDIRECTS: Record<string, string> = {
+  orders: '/profile/orders',
+  wishlist: '/profile/wishlist',
+  cart: '/profile/cart',
+  account: '/profile/account',
+};
+
+function ProfileIndex() {
+  const [params] = useSearchParams();
+  const legacyPath = LEGACY_SECTION_REDIRECTS[params.get('section') ?? ''];
+  if (legacyPath) return <Navigate to={legacyPath} replace />;
+  return <ProfileHome />;
+}
+
 export function ProfilePage() {
   const { isAuthenticated } = useProfileAuth();
 
@@ -268,7 +282,7 @@ export function ProfilePage() {
       {isAuthenticated ? (
         <Routes>
           <Route element={<ProfileAccountHub />}>
-            <Route index element={<ProfileHome />} />
+            <Route index element={<ProfileIndex />} />
             <Route path="orders" element={<ProfileOrders />} />
             <Route path="wishlist" element={<ProfileWishlist />} />
             <Route path="cart" element={<ProfileCart />} />

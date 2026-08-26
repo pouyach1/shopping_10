@@ -18,6 +18,7 @@ interface MobileNavDrawerProps {
   open: boolean;
   onClose: () => void;
   onOpenSearch: () => void;
+  onOpenProfile: () => void;
   logo: string;
   logoLatin: string;
   cartCount: number;
@@ -29,6 +30,7 @@ export function MobileNavDrawer({
   open,
   onClose,
   onOpenSearch,
+  onOpenProfile,
   logo,
   logoLatin,
   cartCount,
@@ -77,6 +79,11 @@ export function MobileNavDrawer({
   const handleSearch = () => {
     onClose();
     onOpenSearch();
+  };
+
+  const handleOpenProfile = () => {
+    onClose();
+    onOpenProfile();
   };
 
   return (
@@ -244,16 +251,16 @@ export function MobileNavDrawer({
                   </Link>
                 </li>
                 <li>
-                  <Link
-                    to="/profile"
+                  <button
+                    type="button"
                     className={styles.quickAction}
-                    onClick={onClose}
+                    onClick={handleOpenProfile}
                   >
                     <span className={styles.quickIcon} aria-hidden="true">
                       <User size={18} strokeWidth={1.6} />
                     </span>
                     <span>{profileLabel}</span>
-                  </Link>
+                  </button>
                 </li>
               </ul>
             </section>

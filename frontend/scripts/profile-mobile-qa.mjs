@@ -198,13 +198,13 @@ console.log('PASS account + history + refresh');
 
 await page.goto(BASE + '/profile');
 await page.getByRole('navigation', { name: /بخش‌های حساب/ }).waitFor();
-await page.getByRole('button', { name: 'باز کردن منو' }).click();
-const drawer = page.getByRole('dialog', { name: 'LUXORA' });
-await drawer.waitFor();
-await drawer.getByRole('link', { name: 'حساب (سارا محمدی)' }).click();
+await page.getByRole('button', { name: /حساب کاربری، سارا محمدی/ }).click();
+const profileDrawer = page.locator('#mobile-profile-drawer');
+await profileDrawer.waitFor();
+await profileDrawer.getByRole('link', { name: /حساب من/ }).click();
 await page.waitForURL((url) => url.pathname === '/profile');
-assert.equal(await page.getByRole('dialog', { name: 'LUXORA' }).count(), 0);
-console.log('PASS mobile nav drawer → profile');
+assert.equal(await profileDrawer.getAttribute('aria-hidden'), 'true');
+console.log('PASS mobile profile drawer → profile');
 
 await page.getByRole('button', { name: /خروج از حساب/ }).click();
 await page.getByRole('heading', { name: /ورود به حساب/ }).waitFor();
