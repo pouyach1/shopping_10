@@ -16,6 +16,7 @@ import type { NavItem } from '../../../pages/Home/types';
 import { SearchOverlay } from '../../search/SearchOverlay/SearchOverlay';
 import { useCart } from '../../../hooks/useCart';
 import { useWishlist } from '../../../hooks/useWishlist';
+import { useProfileAuth } from '../../../hooks/useProfileAuth';
 
 import styles from './Header.module.css';
 
@@ -97,6 +98,7 @@ export function Header({
   const navigate = useNavigate();
   const { itemCount: cartCount } = useCart();
   const { itemCount: wishlistCount } = useWishlist();
+  const { isAuthenticated, customer, logout } = useProfileAuth();
 
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(() => {
@@ -294,19 +296,24 @@ export function Header({
                     onClick={() => setAccountDropdownOpen(false)}
                   >
                     <UserCircle size={16} strokeWidth={1.5} />
-                    پروفایل
+                    {isAuthenticated
+                      ? customer?.name || 'پروفایل'
+                      : 'ورود / پروفایل'}
                   </Link>
-                  <button
-                    type="button"
-                    className={styles.dropdownItem}
-                    onClick={() => {
-                      setAccountDropdownOpen(false);
-                      navigate('/');
-                    }}
-                  >
-                    <LogOut size={16} strokeWidth={1.5} />
-                    بستن
-                  </button>
+                  {isAuthenticated ? (
+                    <button
+                      type="button"
+                      className={styles.dropdownItem}
+                      onClick={() => {
+                        setAccountDropdownOpen(false);
+                        logout();
+                        navigate('/profile');
+                      }}
+                    >
+                      <LogOut size={16} strokeWidth={1.5} />
+                      خروج
+                    </button>
+                  ) : null}
                 </div>
               ) : null}
             </div>
@@ -398,7 +405,9 @@ export function Header({
                 className={styles.mobileNavLink}
                 onClick={closeMobileMenu}
               >
-                حساب کاربری
+                {isAuthenticated
+                  ? `حساب کاربری${customer?.name ? ` (${customer.name})` : ''}`
+                  : 'ورود / حساب کاربری'}
               </Link>
             </li>
             <li>
