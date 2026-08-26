@@ -16,6 +16,7 @@ export interface CustomerProfile {
   identifier: string;
   email?: string;
   phone?: string;
+  address?: string;
 }
 
 export interface ProfileSession {
@@ -50,6 +51,7 @@ export const DEMO_CUSTOMER = {
     identifier: '09121234567',
     phone: '09121234567',
     email: 'customer@luxora.ir',
+    address: 'تهران، خیابان ولیعصر',
   } satisfies CustomerProfile,
 } as const;
 
@@ -95,6 +97,7 @@ export function readProfileSession(): ProfileSession | null {
         identifier: parsed.customer.identifier ?? '',
         email: parsed.customer.email,
         phone: parsed.customer.phone,
+        address: parsed.customer.address,
       },
       signedInAt: parsed.signedInAt ?? new Date().toISOString(),
     };
@@ -185,7 +188,9 @@ export function logoutCustomer(): void {
 }
 
 export function updateCustomerProfile(
-  patch: Partial<Pick<CustomerProfile, 'name' | 'email' | 'phone'>>,
+  patch: Partial<
+    Pick<CustomerProfile, 'name' | 'email' | 'phone' | 'address'>
+  >,
 ): ProfileSession | null {
   const current = readProfileSession();
   if (!current) return null;

@@ -72,7 +72,11 @@ export function useProfileAuth() {
   }, []);
 
   const updateProfile = useCallback(
-    (patch: Partial<Pick<CustomerProfile, 'name' | 'email' | 'phone'>>) => {
+    (
+      patch: Partial<
+        Pick<CustomerProfile, 'name' | 'email' | 'phone' | 'address'>
+      >,
+    ) => {
       const next = updateCustomerProfile(patch);
       if (next) setSession(next);
       return next;
