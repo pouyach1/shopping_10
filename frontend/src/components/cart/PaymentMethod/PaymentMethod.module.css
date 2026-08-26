@@ -156,9 +156,15 @@
 @media (max-width: 560px) {
   .option {
     align-items: flex-start;
+    min-height: 72px;
+    padding: 14px 14px;
+  }
+
+  .name {
+    font-size: 0.875rem;
   }
 
   .description {
-    font-size: 10px;
+    font-size: 0.75rem;
   }
 }

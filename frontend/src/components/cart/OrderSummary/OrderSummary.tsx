@@ -29,6 +29,8 @@ interface OrderSummaryProps {
   shippingMethod: ShippingMethodId;
   paymentMethod: PaymentMethodId;
   onCheckout?: () => void;
+  /** Hide in-flow CTA on small screens when a sticky bar is present. */
+  hideMobileCheckout?: boolean;
 }
 
 export function OrderSummary({
@@ -39,6 +41,7 @@ export function OrderSummary({
   shippingMethod,
   paymentMethod,
   onCheckout,
+  hideMobileCheckout = false,
 }: OrderSummaryProps) {
   const giftLimit = 2_000_000;
   const remaining = giftLimit - total;
@@ -290,9 +293,7 @@ export function OrderSummary({
       {/* Price breakdown */}
       <section className={styles.pricing}>
         <div className={styles.priceRow}>
-          <span>
-            مبلغ کالاها
-          </span>
+          <span>قیمت محصولات</span>
 
           <strong>
             {formatPrice(subtotal)}
@@ -301,9 +302,7 @@ export function OrderSummary({
         </div>
 
         <div className={styles.priceRow}>
-          <span>
-            هزینه ارسال
-          </span>
+          <span>هزینه ارسال</span>
 
           <strong>
             {shipping === 0
@@ -315,6 +314,11 @@ export function OrderSummary({
                 </>
               )}
           </strong>
+        </div>
+
+        <div className={styles.priceRow}>
+          <span>تخفیف</span>
+          <strong>—</strong>
         </div>
       </section>
 
@@ -383,18 +387,15 @@ export function OrderSummary({
       {/* Checkout */}
       <button
         type="button"
-        className={styles.checkout}
+        className={`${styles.checkout} ${
+          hideMobileCheckout ? styles.checkoutDesktopOnly : ''
+        }`}
         onClick={onCheckout}
       >
-        <span>
-          ثبت و پرداخت سفارش
-        </span>
+        <span>ثبت و پرداخت سفارش</span>
 
         <span className={styles.checkoutIcon}>
-          <CheckCircle2
-            size={17}
-            strokeWidth={1.55}
-          />
+          <CheckCircle2 size={17} strokeWidth={1.55} aria-hidden="true" />
         </span>
       </button>
     </aside>
