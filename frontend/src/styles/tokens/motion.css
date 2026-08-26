@@ -1,0 +1,23 @@
+/**
+ * Luxora storefront motion tokens — quiet luxury.
+ * Prefer transform/opacity. Keep durations short enough for shopping.
+ */
+:root {
+  --ease-out-expo: cubic-bezier(0.22, 1, 0.36, 1);
+  --ease-out-soft: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-in-out-soft: cubic-bezier(0.4, 0, 0.2, 1);
+
+  --motion-micro: 180ms;
+  --motion-standard: 280ms;
+  --motion-editorial: 560ms;
+  --motion-ken: 18s;
+
+  --transition-micro: var(--motion-micro) var(--ease-out-expo);
+  --transition-standard: var(--motion-standard) var(--ease-out-expo);
+  --transition-editorial: var(--motion-editorial) var(--ease-out-expo);
+
+  /* Align legacy aliases with the motion system */
+  --transition-fast: var(--motion-micro) var(--ease-out-expo);
+  --transition-normal: var(--motion-standard) var(--ease-out-expo);
+  --transition-slow: var(--motion-editorial) var(--ease-out-expo);
+}

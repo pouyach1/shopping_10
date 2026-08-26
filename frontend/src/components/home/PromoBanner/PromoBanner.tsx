@@ -1,5 +1,7 @@
 import { Link } from 'react-router-dom';
 
+import { Reveal } from '../../ui/Reveal';
+
 import styles from './PromoBanner.module.css';
 
 interface PromoBannerProps {
@@ -21,27 +23,29 @@ export function PromoBanner({
 }: PromoBannerProps) {
   return (
     <section className={styles.promoBanner} aria-labelledby="home-promo-title">
-      <div className={styles.bannerInner}>
-        <img
-          src={imageSrc}
-          alt={imageAlt}
-          className={styles.backgroundImage}
-          loading="lazy"
-          decoding="async"
-        />
-        <div className={styles.overlay} aria-hidden="true" />
-        <div className={styles.content}>
-          <h2 id="home-promo-title" className={styles.title}>
-            {title}
-          </h2>
-          {description ? (
-            <p className={styles.description}>{description}</p>
-          ) : null}
-          <Link to={ctaHref} className={styles.cta}>
-            {ctaLabel}
-          </Link>
+      <Reveal variant="editorial" className={styles.revealWrap}>
+        <div className={styles.bannerInner}>
+          <img
+            src={imageSrc}
+            alt={imageAlt}
+            className={styles.backgroundImage}
+            loading="lazy"
+            decoding="async"
+          />
+          <div className={styles.overlay} aria-hidden="true" />
+          <div className={styles.content}>
+            <h2 id="home-promo-title" className={styles.title}>
+              {title}
+            </h2>
+            {description ? (
+              <p className={styles.description}>{description}</p>
+            ) : null}
+            <Link to={ctaHref} className={styles.cta}>
+              {ctaLabel}
+            </Link>
+          </div>
         </div>
-      </div>
+      </Reveal>
     </section>
   );
 }

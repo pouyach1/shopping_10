@@ -1,5 +1,12 @@
 :root {
-  --transition-fast: 150ms ease;
-  --transition-normal: 250ms ease;
-  --transition-slow: 350ms ease;
+  --ease-out-expo: cubic-bezier(0.22, 1, 0.36, 1);
+  --ease-out-soft: cubic-bezier(0.16, 1, 0.3, 1);
+
+  --motion-micro: 180ms;
+  --motion-standard: 280ms;
+  --motion-editorial: 560ms;
+
+  --transition-fast: var(--motion-micro) var(--ease-out-expo);
+  --transition-normal: var(--motion-standard) var(--ease-out-expo);
+  --transition-slow: var(--motion-editorial) var(--ease-out-expo);
 }

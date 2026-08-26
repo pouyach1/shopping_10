@@ -1,6 +1,7 @@
 import { Link } from 'react-router-dom';
 
 import type { CategoryItem } from '../../../pages/Home/types';
+import { Reveal } from '../../ui/Reveal';
 
 import styles from './Categories.module.css';
 
@@ -14,23 +15,24 @@ export function Categories({ title, description, categories }: CategoriesProps) 
   return (
     <section className={styles.categories} aria-labelledby="home-categories-title">
       <div className={styles.inner}>
-        <div className={styles.header}>
-          <h2 id="home-categories-title" className={styles.title}>
-            {title}
-          </h2>
-          {description ? (
-            <p className={styles.description}>{description}</p>
-          ) : null}
-        </div>
+        <Reveal variant="subtle">
+          <div className={styles.header}>
+            <h2 id="home-categories-title" className={styles.title}>
+              {title}
+            </h2>
+            {description ? (
+              <p className={styles.description}>{description}</p>
+            ) : null}
+          </div>
+        </Reveal>
 
-        <ul className={styles.grid}>
+        <Reveal variant="moderate" stagger as="ul" className={styles.grid}>
           {categories.map((category) => (
             <li
               key={category.id}
+              data-reveal-child
               className={
-                category.id === 'accessories'
-                  ? styles.spanWide
-                  : undefined
+                category.id === 'accessories' ? styles.spanWide : undefined
               }
             >
               <Link to={category.href} className={styles.card}>
@@ -49,7 +51,7 @@ export function Categories({ title, description, categories }: CategoriesProps) 
               </Link>
             </li>
           ))}
-        </ul>
+        </Reveal>
       </div>
     </section>
   );

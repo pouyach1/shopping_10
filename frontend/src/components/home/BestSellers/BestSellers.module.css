@@ -96,13 +96,19 @@
   border-radius: 999px;
 
   transition:
-    background-color 250ms ease,
-    transform 250ms ease;
+    background-color var(--motion-micro, 180ms) ease,
+    transform var(--motion-micro, 180ms) var(--ease-out-expo, cubic-bezier(0.22, 1, 0.36, 1)),
+    box-shadow var(--motion-micro, 180ms) ease;
 }
 
 .viewAll:hover {
   background-color: #2D2D2D;
   transform: translateY(-1px);
+  box-shadow: 0 6px 16px rgba(26, 26, 26, 0.16);
+}
+
+.viewAll:active {
+  transform: scale(0.98);
 }
 
 .viewAll:focus-visible {

@@ -6,9 +6,16 @@ interface ProductGridProps {
   products: Product[];
   columns?: 2 | 3 | 4 | 5 | 6;
   gap?: 'sm' | 'md' | 'lg';
+  /** Mark each card for Reveal stagger parents. */
+  revealChildren?: boolean;
 }
 
-export function ProductGrid({ products, columns = 5, gap = 'md' }: ProductGridProps) {
+export function ProductGrid({
+  products,
+  columns = 5,
+  gap = 'md',
+  revealChildren = false,
+}: ProductGridProps) {
   const columnClass = {
     2: styles.columns2,
     3: styles.columns3,
@@ -26,7 +33,13 @@ export function ProductGrid({ products, columns = 5, gap = 'md' }: ProductGridPr
   return (
     <div className={`${styles.grid} ${columnClass} ${gapClass}`}>
       {products.map((product) => (
-        <ProductCard key={product.id} product={product} />
+        <div
+          key={product.id}
+          className={styles.cell}
+          {...(revealChildren ? { 'data-reveal-child': true } : {})}
+        >
+          <ProductCard product={product} />
+        </div>
       ))}
     </div>
   );

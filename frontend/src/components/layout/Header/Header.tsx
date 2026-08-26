@@ -105,6 +105,8 @@ export function Header({
   const [accountDropdownOpen, setAccountDropdownOpen] = useState(false);
   const [megaMenuOpen, setMegaMenuOpen] = useState<string | null>(null);
   const [isSticky, setIsSticky] = useState(false);
+  const [cartBadgePulse, setCartBadgePulse] = useState(false);
+  const prevCartCountRef = useRef(cartCount);
   const megaMenuTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const toggleMobileMenu = useCallback(() => {
@@ -168,6 +170,15 @@ export function Header({
     window.addEventListener('scroll', handleScroll, { passive: true });
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
+
+  useEffect(() => {
+    if (cartCount === prevCartCountRef.current) return;
+    prevCartCountRef.current = cartCount;
+    if (cartCount <= 0) return;
+    setCartBadgePulse(true);
+    const timer = window.setTimeout(() => setCartBadgePulse(false), 420);
+    return () => window.clearTimeout(timer);
+  }, [cartCount]);
 
   useEffect(() => {
     return () => {
@@ -255,7 +266,13 @@ export function Header({
             >
               <ShoppingBag size={20} strokeWidth={1.5} />
               {cartCount > 0 ? (
-                <span className={styles.countBadge}>{cartCount}</span>
+                <span
+                  className={`${styles.countBadge} ${
+                    cartBadgePulse ? styles.countBadgePulse : ''
+                  }`}
+                >
+                  {cartCount}
+                </span>
               ) : null}
             </Link>
 
