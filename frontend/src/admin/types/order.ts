@@ -24,6 +24,7 @@ export interface AdminOrderItem {
 
 export interface AdminOrder {
   id: string;
+  /** Human-friendly number shown in admin/UI, e.g. LX-10421 */
   orderNumber: string;
 
   customerId: string;
@@ -31,6 +32,8 @@ export interface AdminOrder {
   items: AdminOrderItem[];
 
   subtotal: number;
+  /** Optional discount amount deducted before final total. */
+  discount?: number;
   shippingCost: number;
   total: number;
 
@@ -41,6 +44,9 @@ export interface AdminOrder {
   orderStatus: OrderStatus;
 
   shippingAddress: string;
+
+  /** Optional carrier tracking code for future SMS / fulfillment. */
+  trackingCode?: string;
 
   note?: string;
 

@@ -29,3 +29,65 @@
   color: var(--admin-text-muted);
   border-color: var(--admin-border);
 }
+
+/* Order statuses */
+.order_pending {
+  background: color-mix(in srgb, var(--admin-warning, #c9852a) 16%, transparent);
+  color: var(--admin-warning, #c9852a);
+  border-color: color-mix(in srgb, var(--admin-warning, #c9852a) 28%, transparent);
+}
+
+.order_confirmed {
+  background: color-mix(in srgb, var(--admin-accent) 16%, transparent);
+  color: var(--admin-accent);
+  border-color: color-mix(in srgb, var(--admin-accent) 28%, transparent);
+}
+
+.order_processing {
+  background: color-mix(in srgb, #3b82f6 16%, transparent);
+  color: #3b82f6;
+  border-color: color-mix(in srgb, #3b82f6 28%, transparent);
+}
+
+.order_shipped {
+  background: color-mix(in srgb, #0d9488 16%, transparent);
+  color: #0d9488;
+  border-color: color-mix(in srgb, #0d9488 28%, transparent);
+}
+
+.order_delivered {
+  background: color-mix(in srgb, var(--admin-success) 16%, transparent);
+  color: var(--admin-success);
+  border-color: color-mix(in srgb, var(--admin-success) 28%, transparent);
+}
+
+.order_cancelled {
+  background: color-mix(in srgb, var(--admin-danger) 14%, transparent);
+  color: var(--admin-danger);
+  border-color: color-mix(in srgb, var(--admin-danger) 28%, transparent);
+}
+
+/* Payment statuses */
+.payment_pending {
+  background: color-mix(in srgb, var(--admin-warning, #c9852a) 16%, transparent);
+  color: var(--admin-warning, #c9852a);
+  border-color: color-mix(in srgb, var(--admin-warning, #c9852a) 28%, transparent);
+}
+
+.payment_paid {
+  background: color-mix(in srgb, var(--admin-success) 16%, transparent);
+  color: var(--admin-success);
+  border-color: color-mix(in srgb, var(--admin-success) 28%, transparent);
+}
+
+.payment_cod {
+  background: color-mix(in srgb, var(--admin-accent) 16%, transparent);
+  color: var(--admin-accent);
+  border-color: color-mix(in srgb, var(--admin-accent) 28%, transparent);
+}
+
+.payment_failed {
+  background: color-mix(in srgb, var(--admin-danger) 14%, transparent);
+  color: var(--admin-danger);
+  border-color: color-mix(in srgb, var(--admin-danger) 28%, transparent);
+}
