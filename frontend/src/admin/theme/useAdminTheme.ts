@@ -1,0 +1,1 @@
+export { useAdminTheme } from './AdminThemeProvider';

@@ -10,8 +10,8 @@
   display: flex;
   flex-direction: column;
   width: 260px;
-  background: var(--color-white, #ffffff);
-  border-inline-end: 1px solid var(--color-charcoal-200, #e5e7eb);
+  background: var(--admin-surface);
+  border-inline-end: 1px solid var(--admin-border);
   transform: translateX(100%);
   transition: transform var(--transition-normal, 250ms ease);
 }
@@ -26,7 +26,7 @@
   justify-content: space-between;
   gap: 0.75rem;
   padding: 1.25rem 1.25rem 1rem;
-  border-bottom: 1px solid var(--color-charcoal-200, #e5e7eb);
+  border-bottom: 1px solid var(--admin-border);
 }
 
 .brand {
@@ -43,12 +43,12 @@
   font-size: 1.15rem;
   font-weight: 600;
   letter-spacing: 0.12em;
-  color: var(--color-charcoal-900, #1a1a1a);
+  color: var(--admin-text);
 }
 
 .brandSub {
   font-size: 0.75rem;
-  color: var(--color-charcoal-500, #6b7280);
+  color: var(--admin-text-muted);
 }
 
 .closeButton {
@@ -57,11 +57,20 @@
   justify-content: center;
   width: 36px;
   height: 36px;
-  border: 1px solid var(--color-charcoal-200, #e5e7eb);
+  border: 1px solid var(--admin-border);
   border-radius: var(--radius-md, 0.5rem);
-  background: var(--color-white, #ffffff);
-  color: var(--color-charcoal-700, #404040);
+  background: var(--admin-surface);
+  color: var(--admin-text-secondary);
   cursor: pointer;
+}
+
+.closeButton:hover {
+  background: var(--admin-surface-hover);
+}
+
+.closeButton:focus-visible {
+  outline: none;
+  box-shadow: var(--admin-focus-ring);
 }
 
 .nav {
@@ -79,7 +88,7 @@
   gap: 0.75rem;
   padding: 0.7rem 0.85rem;
   border-radius: var(--radius-md, 0.5rem);
-  color: var(--color-charcoal-700, #404040);
+  color: var(--admin-text-secondary);
   text-decoration: none;
   font-size: 0.875rem;
   font-weight: 500;
@@ -89,20 +98,25 @@
 }
 
 .navLink:hover {
-  background: var(--color-cream-100, #f5f0e8);
-  color: var(--color-charcoal-900, #1a1a1a);
+  background: var(--admin-surface-hover);
+  color: var(--admin-text);
+}
+
+.navLink:focus-visible {
+  outline: none;
+  box-shadow: var(--admin-focus-ring);
 }
 
 .navLinkActive {
-  background: var(--color-cream-100, #f5f0e8);
-  color: var(--color-charcoal-900, #1a1a1a);
-  box-shadow: inset -3px 0 0 #b89b5e;
+  background: var(--admin-surface-hover);
+  color: var(--admin-text);
+  box-shadow: inset -3px 0 0 var(--admin-accent);
   font-weight: 600;
 }
 
 .footer {
   padding: 0.75rem;
-  border-top: 1px solid var(--color-charcoal-200, #e5e7eb);
+  border-top: 1px solid var(--admin-border);
 }
 
 .logoutButton {
@@ -114,7 +128,7 @@
   border: none;
   border-radius: var(--radius-md, 0.5rem);
   background: transparent;
-  color: var(--color-charcoal-700, #404040);
+  color: var(--admin-text-secondary);
   font-family: inherit;
   font-size: 0.875rem;
   font-weight: 500;
@@ -123,8 +137,13 @@
 }
 
 .logoutButton:hover {
-  background: #fef2f2;
-  color: #b91c1c;
+  background: var(--admin-danger-soft);
+  color: var(--admin-danger);
+}
+
+.logoutButton:focus-visible {
+  outline: none;
+  box-shadow: var(--admin-focus-ring);
 }
 
 @media (min-width: 1024px) {
@@ -151,7 +170,7 @@
     position: fixed;
     inset: 0;
     z-index: 35;
-    background: rgba(0, 0, 0, 0.35);
+    background: var(--admin-overlay);
     opacity: 0;
     pointer-events: none;
     transition: opacity var(--transition-normal, 250ms ease);
@@ -163,7 +182,6 @@
   }
 }
 
-/* RTL: drawer slides from the right (inline-start) */
 [dir='rtl'] .sidebar {
   transform: translateX(100%);
 }
@@ -175,5 +193,12 @@
 @media (min-width: 1024px) {
   [dir='rtl'] .sidebar {
     transform: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sidebar,
+  .backdrop {
+    transition: none;
   }
 }

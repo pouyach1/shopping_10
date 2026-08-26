@@ -1,21 +1,28 @@
 .page {
+  position: relative;
   min-height: 100vh;
   display: flex;
   align-items: center;
   justify-content: center;
   padding: 1.5rem;
-  background: var(--color-cream-50, #faf7f2);
+  background: var(--admin-bg);
   font-family: var(--font-persian, 'Vazirmatn', Tahoma, Arial, sans-serif);
-  color: var(--color-charcoal-900, #1a1a1a);
+  color: var(--admin-text);
+}
+
+.themeControl {
+  position: absolute;
+  top: 1.25rem;
+  inset-inline-end: 1.25rem;
 }
 
 .card {
   width: 100%;
   max-width: 420px;
-  background: var(--color-white, #ffffff);
-  border: 1px solid var(--color-charcoal-200, #e5e7eb);
+  background: var(--admin-surface);
+  border: 1px solid var(--admin-border);
   border-radius: var(--radius-lg, 0.75rem);
-  box-shadow: var(--shadow-sm, 0 1px 2px rgba(0, 0, 0, 0.05));
+  box-shadow: var(--admin-shadow);
   padding: 2rem 1.5rem;
 }
 
@@ -30,7 +37,7 @@
   font-size: 1.25rem;
   font-weight: 600;
   letter-spacing: 0.14em;
-  color: var(--color-charcoal-900, #1a1a1a);
+  color: var(--admin-text);
   margin-bottom: 1rem;
 }
 
@@ -38,12 +45,13 @@
   margin: 0 0 0.5rem;
   font-size: 1.25rem;
   font-weight: 600;
+  color: var(--admin-text);
 }
 
 .subtitle {
   margin: 0;
   font-size: 0.875rem;
-  color: var(--color-charcoal-500, #6b7280);
+  color: var(--admin-text-muted);
   line-height: 1.6;
 }
 
@@ -59,34 +67,35 @@
   gap: 0.4rem;
   font-size: 0.8125rem;
   font-weight: 500;
-  color: var(--color-charcoal-700, #404040);
+  color: var(--admin-text-secondary);
 }
 
 .field input {
   height: 44px;
   padding: 0 0.85rem;
-  border: 1px solid var(--color-charcoal-200, #e5e7eb);
+  border: 1px solid var(--admin-border);
   border-radius: var(--radius-md, 0.5rem);
-  background: var(--color-white, #ffffff);
+  background: var(--admin-surface-elevated);
   font-family: inherit;
   font-size: 0.9375rem;
-  color: var(--color-charcoal-900, #1a1a1a);
+  color: var(--admin-text);
   outline: none;
   transition: border-color var(--transition-fast, 150ms ease);
 }
 
 .field input:focus {
-  border-color: #b89b5e;
+  border-color: var(--admin-accent);
+  box-shadow: var(--admin-focus-ring);
 }
 
 .field input::placeholder {
-  color: var(--color-charcoal-400, #9ca3af);
+  color: var(--admin-text-muted);
 }
 
 .error {
   margin: 0;
   font-size: 0.8125rem;
-  color: #b91c1c;
+  color: var(--admin-danger);
 }
 
 .submit {
@@ -94,8 +103,8 @@
   margin-top: 0.25rem;
   border: none;
   border-radius: var(--radius-md, 0.5rem);
-  background: var(--color-charcoal-900, #1a1a1a);
-  color: var(--color-white, #ffffff);
+  background: var(--admin-inverse-bg);
+  color: var(--admin-inverse);
   font-family: inherit;
   font-size: 0.9375rem;
   font-weight: 600;
@@ -104,14 +113,19 @@
 }
 
 .submit:hover {
-  background: var(--color-charcoal-800, #2d2d2d);
+  background: var(--admin-inverse-bg-hover);
+}
+
+.submit:focus-visible {
+  outline: none;
+  box-shadow: var(--admin-focus-ring);
 }
 
 .hint {
   margin: 1.25rem 0 0;
   text-align: center;
   font-size: 0.75rem;
-  color: var(--color-charcoal-400, #9ca3af);
+  color: var(--admin-text-muted);
   line-height: 1.5;
 }
 

@@ -1,8 +1,8 @@
 .shell {
   display: flex;
   min-height: 100vh;
-  background: var(--color-cream-50, #faf7f2);
-  color: var(--color-charcoal-900, #1a1a1a);
+  background: var(--admin-bg);
+  color: var(--admin-text);
   font-family: var(--font-persian, 'Vazirmatn', Tahoma, Arial, sans-serif);
 }
 

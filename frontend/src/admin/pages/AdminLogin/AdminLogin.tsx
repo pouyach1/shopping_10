@@ -1,6 +1,7 @@
 import { type FormEvent, useState } from 'react';
 import { Navigate, useNavigate } from 'react-router-dom';
 
+import { ThemeToggle } from '../../components/ThemeToggle';
 import { loginAdmin, useAdminAuth } from '../../hooks/useAdminAuth';
 
 import styles from './AdminLogin.module.css';
@@ -31,6 +32,10 @@ export function AdminLogin() {
 
   return (
     <div className={styles.page} dir="rtl">
+      <div className={styles.themeControl}>
+        <ThemeToggle />
+      </div>
+
       <div className={styles.card}>
         <header className={styles.header}>
           <span className={styles.brand}>LUXORA</span>

@@ -1,0 +1,75 @@
+/**
+ * Admin-scoped theme tokens.
+ * Variables are defined only under [data-admin-root] so the storefront is untouched.
+ */
+
+[data-admin-root] {
+  --admin-transition:
+    background-color 180ms ease,
+    color 180ms ease,
+    border-color 180ms ease,
+    box-shadow 180ms ease;
+
+  color: var(--admin-text);
+  background-color: var(--admin-bg);
+  font-family: var(--font-persian, 'Vazirmatn', Tahoma, Arial, sans-serif);
+  min-height: 100vh;
+
+  transition: var(--admin-transition);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  [data-admin-root] {
+    transition: none !important;
+  }
+}
+
+[data-admin-root][data-theme='light'] {
+  --admin-bg: #faf7f2;
+  --admin-surface: #ffffff;
+  --admin-surface-elevated: #ffffff;
+  --admin-surface-hover: #f5f0e8;
+  --admin-text: #1a1a1a;
+  --admin-text-secondary: #404040;
+  --admin-text-muted: #6b7280;
+  --admin-border: #e5e7eb;
+  --admin-border-strong: #d1d5db;
+  --admin-accent: #b89b5e;
+  --admin-accent-soft: #ebe5db;
+  --admin-success: #059669;
+  --admin-warning: #d97706;
+  --admin-danger: #b91c1c;
+  --admin-danger-soft: #fef2f2;
+  --admin-info: #2563eb;
+  --admin-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+  --admin-overlay: rgba(0, 0, 0, 0.35);
+  --admin-inverse: #ffffff;
+  --admin-inverse-bg: #1a1a1a;
+  --admin-inverse-bg-hover: #2d2d2d;
+  --admin-focus-ring: 0 0 0 3px rgba(184, 155, 94, 0.35);
+}
+
+[data-admin-root][data-theme='dark'] {
+  --admin-bg: #141414;
+  --admin-surface: #1c1c1c;
+  --admin-surface-elevated: #242424;
+  --admin-surface-hover: #2a2a2a;
+  --admin-text: #f3efe7;
+  --admin-text-secondary: #c8c2b8;
+  --admin-text-muted: #9a948a;
+  --admin-border: #33302c;
+  --admin-border-strong: #454139;
+  --admin-accent: #c4a86a;
+  --admin-accent-soft: #2c271f;
+  --admin-success: #34d399;
+  --admin-warning: #fbbf24;
+  --admin-danger: #f87171;
+  --admin-danger-soft: #3a1d1d;
+  --admin-info: #60a5fa;
+  --admin-shadow: 0 1px 2px rgba(0, 0, 0, 0.35);
+  --admin-overlay: rgba(0, 0, 0, 0.55);
+  --admin-inverse: #141414;
+  --admin-inverse-bg: #f3efe7;
+  --admin-inverse-bg-hover: #e8e2d6;
+  --admin-focus-ring: 0 0 0 3px rgba(196, 168, 106, 0.4);
+}

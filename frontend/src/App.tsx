@@ -27,6 +27,7 @@ import { AdminLayout } from './admin/layouts/AdminLayout';
 import { AdminLogin } from './admin/pages/AdminLogin';
 import { Dashboard } from './admin/pages/Dashboard';
 import { ComingSoon } from './admin/pages/ComingSoon';
+import { AdminThemeProvider } from './admin/theme';
 
 import './styles/global.css';
 
@@ -42,35 +43,37 @@ export default function App() {
   return (
     <Routes>
 
-      {/* Admin — separate from storefront SiteLayout */}
-      <Route path="/admin/login" element={<AdminLogin />} />
+      {/* Admin — theme provider scopes tokens to admin routes only */}
+      <Route element={<AdminThemeProvider />}>
+        <Route path="/admin/login" element={<AdminLogin />} />
 
-      <Route path="/admin" element={<AdminLayout />}>
-        <Route index element={<Dashboard />} />
-        <Route
-          path="products"
-          element={<ComingSoon title="محصولات" />}
-        />
-        <Route
-          path="orders"
-          element={<ComingSoon title="سفارش‌ها" />}
-        />
-        <Route
-          path="customers"
-          element={<ComingSoon title="مشتریان" />}
-        />
-        <Route
-          path="categories"
-          element={<ComingSoon title="دسته‌بندی‌ها" />}
-        />
-        <Route
-          path="discounts"
-          element={<ComingSoon title="تخفیف‌ها" />}
-        />
-        <Route
-          path="settings"
-          element={<ComingSoon title="تنظیمات" />}
-        />
+        <Route path="/admin" element={<AdminLayout />}>
+          <Route index element={<Dashboard />} />
+          <Route
+            path="products"
+            element={<ComingSoon title="محصولات" />}
+          />
+          <Route
+            path="orders"
+            element={<ComingSoon title="سفارش‌ها" />}
+          />
+          <Route
+            path="customers"
+            element={<ComingSoon title="مشتریان" />}
+          />
+          <Route
+            path="categories"
+            element={<ComingSoon title="دسته‌بندی‌ها" />}
+          />
+          <Route
+            path="discounts"
+            element={<ComingSoon title="تخفیف‌ها" />}
+          />
+          <Route
+            path="settings"
+            element={<ComingSoon title="تنظیمات" />}
+          />
+        </Route>
       </Route>
 
       <Route element={<SiteLayout />}>
