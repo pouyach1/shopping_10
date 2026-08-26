@@ -64,7 +64,11 @@ export function OrderConfirmation() {
           </div>
           <div className={styles.row}>
             <dt>هزینه ارسال</dt>
-            <dd>{formatPrice(order.shipping)} تومان</dd>
+            <dd>
+              {order.shipping === 0
+                ? 'رایگان'
+                : `${formatPrice(order.shipping)} تومان`}
+            </dd>
           </div>
           <div className={`${styles.row} ${styles.totalRow}`}>
             <dt>مبلغ کل</dt>

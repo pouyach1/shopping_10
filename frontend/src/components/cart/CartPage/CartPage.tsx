@@ -8,11 +8,11 @@ import { OrderSummary } from '../OrderSummary/OrderSummary';
 import { CustomerForm } from '../CustomerForm/CustomerForm';
 import { ShippingMethod } from '../ShippingMethod/ShippingMethod';
 import { PaymentMethod } from '../PaymentMethod/PaymentMethod';
-import { LuxuryHeader } from '../LuxuryHeader/LuxuryHeader';
 import { EmptyCart } from '../EmptyCart/EmptyCart';
 
 import {
   EMPTY_CUSTOMER,
+  SHIPPING_METHODS,
   type PaymentMethodId,
   type ShippingMethodId,
 } from '../types';
@@ -21,17 +21,17 @@ import type { CustomerData } from '../../../types/user';
 import { useCart } from '../../../hooks/useCart';
 import { saveOrderSnapshot } from '../../../lib/orderSnapshot';
 import { formatPrice } from '../../../lib/formatCurrency';
+import { resolveShippingCost } from '../../../config/shipping';
 
 import styles from './CartPage.module.css';
 
-const SHIPPING_PRICES: Record<ShippingMethodId, number> = {
-  'post-express': 65000,
-  tipax: 85000,
-  'post-regular': 45000,
-  express: 120000,
-};
-
 const easeLuxury = [0.16, 1, 0.3, 1] as const;
+
+function getMethodBasePrice(methodId: ShippingMethodId): number {
+  return (
+    SHIPPING_METHODS.find((method) => method.id === methodId)?.price ?? 0
+  );
+}
 
 const REQUIRED_CUSTOMER_FIELDS: { key: keyof CustomerData; label: string }[] = [
   { key: 'firstName', label: 'نام' },
@@ -66,7 +66,10 @@ export function CartPage() {
   const [undoItem, setUndoItem] = useState<CartItemType | null>(null);
   const undoTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const shipping = SHIPPING_PRICES[shippingMethod];
+  const shipping = resolveShippingCost(
+    getMethodBasePrice(shippingMethod),
+    subtotal,
+  );
   const total = subtotal + shipping;
 
   useEffect(() => {
@@ -144,14 +147,6 @@ export function CartPage() {
 
   return (
     <div className={styles.page} dir="rtl">
-      <motion.div
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        transition={{ duration: 0.5, ease: easeLuxury }}
-      >
-        <LuxuryHeader />
-      </motion.div>
-
       {items.length === 0 ? (
         <EmptyCart />
       ) : (
@@ -202,6 +197,7 @@ export function CartPage() {
                   <ShippingMethod
                     value={shippingMethod}
                     onChange={setShippingMethod}
+                    subtotal={subtotal}
                   />
                 </div>
 
