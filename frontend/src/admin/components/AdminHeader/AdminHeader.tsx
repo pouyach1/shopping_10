@@ -1,5 +1,7 @@
 import { Bell, Menu, LogOut } from 'lucide-react';
 
+import { ThemeToggle } from '../ThemeToggle';
+
 import styles from './AdminHeader.module.css';
 
 interface AdminHeaderProps {
@@ -25,6 +27,8 @@ export function AdminHeader({ title, onMenuClick, onLogout }: AdminHeaderProps) 
       </div>
 
       <div className={styles.end}>
+        <ThemeToggle />
+
         <button
           type="button"
           className={styles.iconButton}
