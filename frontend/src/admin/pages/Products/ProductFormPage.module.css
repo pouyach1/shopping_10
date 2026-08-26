@@ -1,0 +1,369 @@
+.page {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+.header {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.backLink {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  margin-bottom: 0.55rem;
+  color: var(--admin-text-muted);
+  text-decoration: none;
+  font-size: 0.8125rem;
+}
+
+.backLink:hover {
+  color: var(--admin-text);
+}
+
+.title {
+  margin: 0;
+  font-size: 1.35rem;
+  font-weight: 600;
+  color: var(--admin-text);
+}
+
+.subtitle {
+  margin: 0;
+  font-size: 0.875rem;
+  color: var(--admin-text-muted);
+}
+
+.form {
+  display: block;
+}
+
+.layout {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 1rem;
+}
+
+.mainColumn,
+.sideColumn {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.card {
+  background: var(--admin-surface);
+  border: 1px solid var(--admin-border);
+  border-radius: var(--radius-lg, 0.75rem);
+  box-shadow: var(--admin-shadow);
+  padding: 1.15rem;
+}
+
+.sectionTitle {
+  margin: 0 0 1rem;
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--admin-text);
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  margin-bottom: 0.9rem;
+  font-size: 0.8125rem;
+  font-weight: 500;
+  color: var(--admin-text-secondary);
+}
+
+.field input,
+.field textarea,
+.field select {
+  width: 100%;
+  border: 1px solid var(--admin-border);
+  border-radius: var(--radius-md, 0.5rem);
+  background: var(--admin-surface-elevated);
+  color: var(--admin-text);
+  font-family: inherit;
+  font-size: 0.9rem;
+  padding: 0.7rem 0.85rem;
+}
+
+.field input,
+.field select {
+  height: 42px;
+}
+
+.field textarea {
+  resize: vertical;
+  min-height: 110px;
+  line-height: 1.7;
+}
+
+.field input:focus,
+.field textarea:focus,
+.field select:focus {
+  outline: none;
+  border-color: var(--admin-accent);
+  box-shadow: var(--admin-focus-ring);
+}
+
+.field em,
+.errorText {
+  font-style: normal;
+  font-size: 0.75rem;
+  color: var(--admin-danger);
+}
+
+.inlineFields {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 0.75rem;
+}
+
+.primaryPreview {
+  position: relative;
+  display: inline-flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  margin-bottom: 0.9rem;
+}
+
+.primaryPreview img {
+  width: 140px;
+  height: 175px;
+  object-fit: cover;
+  border-radius: var(--radius-md, 0.5rem);
+  border: 1px solid var(--admin-border);
+  background: var(--admin-surface-hover);
+}
+
+.primaryPreview span {
+  font-size: 0.72rem;
+  color: var(--admin-accent);
+  font-weight: 600;
+}
+
+.removeImage {
+  position: absolute;
+  top: 0.4rem;
+  inset-inline-start: 0.4rem;
+  width: 28px;
+  height: 28px;
+  border: none;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--admin-bg) 80%, transparent);
+  color: var(--admin-text);
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+}
+
+.galleryPreview {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+}
+
+.galleryItem {
+  position: relative;
+}
+
+.galleryItem img {
+  width: 72px;
+  height: 90px;
+  object-fit: cover;
+  border-radius: var(--radius-md, 0.5rem);
+  border: 1px solid var(--admin-border);
+}
+
+.galleryItem button {
+  position: absolute;
+  top: 0.25rem;
+  inset-inline-start: 0.25rem;
+  width: 24px;
+  height: 24px;
+  border: none;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--admin-bg) 85%, transparent);
+  color: var(--admin-danger);
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+}
+
+.colorsHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-bottom: 0.65rem;
+  font-size: 0.8125rem;
+  font-weight: 500;
+  color: var(--admin-text-secondary);
+}
+
+.addColor {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  border: 1px solid var(--admin-border);
+  background: var(--admin-surface-hover);
+  color: var(--admin-text);
+  border-radius: var(--radius-md, 0.5rem);
+  height: 34px;
+  padding: 0 0.7rem;
+  font-family: inherit;
+  font-size: 0.75rem;
+  cursor: pointer;
+}
+
+.colorsList {
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+}
+
+.colorRow {
+  display: grid;
+  grid-template-columns: 1fr 110px 28px 34px;
+  gap: 0.45rem;
+  align-items: center;
+}
+
+.colorRow input {
+  height: 38px;
+  border: 1px solid var(--admin-border);
+  border-radius: var(--radius-md, 0.5rem);
+  background: var(--admin-surface-elevated);
+  color: var(--admin-text);
+  font-family: inherit;
+  font-size: 0.8125rem;
+  padding: 0 0.65rem;
+}
+
+.swatch {
+  width: 28px;
+  height: 28px;
+  border-radius: 999px;
+  border: 1px solid var(--admin-border);
+}
+
+.colorRow button {
+  width: 34px;
+  height: 34px;
+  border: 1px solid var(--admin-border);
+  border-radius: var(--radius-md, 0.5rem);
+  background: var(--admin-surface);
+  color: var(--admin-danger);
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+}
+
+.hint {
+  margin: 0;
+  font-size: 0.75rem;
+  line-height: 1.7;
+  color: var(--admin-text-muted);
+}
+
+.discountHint {
+  margin: 0;
+  padding: 0.55rem 0.7rem;
+  border-radius: var(--radius-md, 0.5rem);
+  background: var(--admin-accent-soft);
+  color: var(--admin-accent);
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+.formActions {
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+}
+
+.primaryButton,
+.secondaryButton,
+.dangerButton {
+  height: 42px;
+  border-radius: var(--radius-md, 0.5rem);
+  font-family: inherit;
+  font-size: 0.875rem;
+  font-weight: 600;
+  cursor: pointer;
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.primaryButton {
+  border: none;
+  background: var(--admin-inverse-bg);
+  color: var(--admin-inverse);
+}
+
+.secondaryButton {
+  border: 1px solid var(--admin-border);
+  background: var(--admin-surface);
+  color: var(--admin-text-secondary);
+}
+
+.dangerButton {
+  border: 1px solid color-mix(in srgb, var(--admin-danger) 35%, transparent);
+  background: var(--admin-danger-soft);
+  color: var(--admin-danger);
+}
+
+.primaryButton:focus-visible,
+.secondaryButton:focus-visible,
+.dangerButton:focus-visible,
+.addColor:focus-visible,
+.backLink:focus-visible {
+  outline: none;
+  box-shadow: var(--admin-focus-ring);
+}
+
+.missing {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.75rem;
+  padding: 2rem;
+  background: var(--admin-surface);
+  border: 1px solid var(--admin-border);
+  border-radius: var(--radius-lg, 0.75rem);
+}
+
+.missing h2 {
+  margin: 0;
+  color: var(--admin-text);
+}
+
+.missing p {
+  margin: 0;
+  color: var(--admin-text-muted);
+}
+
+@media (min-width: 640px) {
+  .inlineFields {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+@media (min-width: 1024px) {
+  .layout {
+    grid-template-columns: minmax(0, 1.6fr) minmax(280px, 0.9fr);
+    align-items: start;
+  }
+
+  .sideColumn {
+    position: sticky;
+    top: 5rem;
+  }
+}

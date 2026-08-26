@@ -1,0 +1,102 @@
+.root {
+  position: fixed;
+  inset: 0;
+  z-index: 80;
+  display: grid;
+  place-items: center;
+  padding: 1.25rem;
+}
+
+.backdrop {
+  position: absolute;
+  inset: 0;
+  border: none;
+  background: var(--admin-overlay);
+  cursor: pointer;
+}
+
+.dialog {
+  position: relative;
+  z-index: 1;
+  width: min(100%, 420px);
+  background: var(--admin-surface);
+  border: 1px solid var(--admin-border);
+  border-radius: var(--radius-lg, 0.75rem);
+  box-shadow: var(--admin-shadow);
+  padding: 1.25rem;
+}
+
+.header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.title {
+  margin: 0;
+  font-size: 1.05rem;
+  font-weight: 600;
+  color: var(--admin-text);
+}
+
+.close {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border: 1px solid var(--admin-border);
+  border-radius: var(--radius-md, 0.5rem);
+  background: var(--admin-surface);
+  color: var(--admin-text-secondary);
+  cursor: pointer;
+}
+
+.close:focus-visible,
+.cancel:focus-visible,
+.confirm:focus-visible {
+  outline: none;
+  box-shadow: var(--admin-focus-ring);
+}
+
+.description {
+  margin: 0.85rem 0 1.25rem;
+  font-size: 0.875rem;
+  line-height: 1.7;
+  color: var(--admin-text-muted);
+}
+
+.actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.6rem;
+}
+
+.cancel,
+.confirm {
+  height: 40px;
+  padding: 0 1rem;
+  border-radius: var(--radius-md, 0.5rem);
+  font-family: inherit;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.cancel {
+  border: 1px solid var(--admin-border);
+  background: var(--admin-surface);
+  color: var(--admin-text-secondary);
+}
+
+.confirm {
+  border: none;
+  background: var(--admin-inverse-bg);
+  color: var(--admin-inverse);
+}
+
+.confirm.danger {
+  background: var(--admin-danger);
+  color: #fff;
+}

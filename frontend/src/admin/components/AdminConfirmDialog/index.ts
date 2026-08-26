@@ -1,0 +1,1 @@
+export { AdminConfirmDialog } from './AdminConfirmDialog';
