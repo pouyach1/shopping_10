@@ -19,7 +19,7 @@ import {
 } from '../Home/data';
 import type { Product } from '../../types/product';
 import type { CartItem } from '../../types/cart';
-import { ProductCard } from '../../components/product/ProductCard';
+import { ProductRecommendations } from '../../components/product/ProductRecommendations';
 import { SizeGuideDialog } from '../../components/product/SizeGuideDialog/SizeGuideDialog';
 import { Toast } from '../../components/ui/Toast';
 import { siteImages } from '../../config/images';
@@ -27,6 +27,8 @@ import { useCart } from '../../hooks/useCart';
 import { useWishlist } from '../../hooks/useWishlist';
 import { formatPrice } from '../../lib/formatCurrency';
 import { normalizeGalleryImages } from '../../lib/productGallery';
+import { getRecommendationCatalog } from '../../lib/recommendationCatalog';
+import { getProductRecommendations } from '../../lib/productRecommendations';
 import { resolveSizeGuide } from '../../lib/sizeGuide';
 import styles from './Product.module.css';
 
@@ -294,20 +296,10 @@ function ProductView({ product }: { product: ProductDetails }) {
     setCartToastOpen(true);
   };
 
-  const relatedProducts = useMemo(() => {
-    const products = [
-      ...bestSellerProducts,
-      ...customerFavoriteProducts,
-    ];
-
-    const unique = products.filter(
-      (item, index, array) =>
-        array.findIndex((candidate) => candidate.id === item.id) === index &&
-        item.id !== product.id,
-    );
-
-    return unique.slice(0, 4);
-  }, [product.id]);
+  const recommendations = useMemo(
+    () => getProductRecommendations(product.id, getRecommendationCatalog()),
+    [product.id],
+  );
 
   const discount = getDiscountPercent(product);
 
@@ -642,25 +634,11 @@ function ProductView({ product }: { product: ProductDetails }) {
           </div>
         </section>
 
-        <section className={styles.relatedSection}>
-          <div className={styles.relatedHeader}>
-            <div>
-              <span>CURATED FOR YOU</span>
-              <h2>شاید این‌ها را هم بپسندید</h2>
-            </div>
-
-            <a href="/shop">
-              مشاهده همه
-              <ChevronLeft size={17} />
-            </a>
-          </div>
-
-          <div className={styles.relatedGrid}>
-            {relatedProducts.map((item) => (
-              <ProductCard key={item.id} product={item} />
-            ))}
-          </div>
-        </section>
+        <ProductRecommendations
+          related={recommendations.related}
+          complementary={recommendations.complementary}
+          discovery={recommendations.discovery}
+        />
       </div>
 
       <div className={styles.mobileCart}>
