@@ -20,11 +20,14 @@ import {
 import type { Product } from '../../types/product';
 import type { CartItem } from '../../types/cart';
 import { ProductCard } from '../../components/product/ProductCard';
+import { SizeGuideDialog } from '../../components/product/SizeGuideDialog/SizeGuideDialog';
 import { Toast } from '../../components/ui/Toast';
 import { siteImages } from '../../config/images';
 import { useCart } from '../../hooks/useCart';
 import { useWishlist } from '../../hooks/useWishlist';
 import { formatPrice } from '../../lib/formatCurrency';
+import { normalizeGalleryImages } from '../../lib/productGallery';
+import { resolveSizeGuide } from '../../lib/sizeGuide';
 import styles from './Product.module.css';
 
 interface ProductPageProps {
@@ -33,8 +36,6 @@ interface ProductPageProps {
 
 type ProductContent = {
   description: string;
-  rating: number;
-  reviewCount: number;
   colors: {
     name: string;
     value: string;
@@ -44,6 +45,14 @@ type ProductContent = {
   materials: string[];
   sizeFit: string[];
   shipping: string[];
+  /** Optional extra gallery URLs (unique). Never used to pad duplicates. */
+  gallery?: string[];
+  images?: Array<{
+    id?: string;
+    url: string;
+    alt?: string;
+    isPrimary?: boolean;
+  }>;
 };
 
 type ProductDetails = Product & ProductContent;
@@ -52,8 +61,6 @@ const productContent: Record<string, ProductContent> = {
   'silk-blend-blouse': {
     description:
       'بلوزی ظریف با فرم مینیمال و پارچه‌ای سبک که برای استایل روزمره و موقعیت‌های رسمی طراحی شده است.',
-    rating: 4.8,
-    reviewCount: 128,
     colors: [
       { name: 'مشکی', value: '#171717' },
       { name: 'خاکستری', value: '#8A8A86' },
@@ -87,8 +94,6 @@ const productContent: Record<string, ProductContent> = {
   'tailored-wool-coat': {
     description:
       'پالتوی پشمی با ساختار Tailored و سیلوئت تمیز که برای ساختن یک استایل ماندگار طراحی شده است.',
-    rating: 4.9,
-    reviewCount: 96,
     colors: [
       { name: 'مشکی', value: '#181818' },
       { name: 'خاکستری', value: '#777875' },
@@ -123,8 +128,6 @@ const productContent: Record<string, ProductContent> = {
 const defaultContent: ProductContent = {
   description:
     'یک انتخاب مینیمال و لوکس از مجموعه LUXORA با تمرکز بر کیفیت، فرم و جزئیات.',
-  rating: 4.8,
-  reviewCount: 64,
   colors: [
     { name: 'مشکی', value: '#171717' },
     { name: 'خاکستری', value: '#8A8A86' },
@@ -219,15 +222,42 @@ function ProductView({ product }: { product: ProductDetails }) {
 
   const [selectedImage, setSelectedImage] = useState(0);
   const [selectedColor, setSelectedColor] = useState(product.colors[0]);
-  const [selectedSize, setSelectedSize] = useState(product.sizes[1]);
+  const [selectedSize, setSelectedSize] = useState(
+    product.sizes[1] ?? product.sizes[0] ?? '',
+  );
   const [quantity, setQuantity] = useState(1);
   const [isZoomOpen, setIsZoomOpen] = useState(false);
   const [activeTab, setActiveTab] = useState('details');
   const [cartToastOpen, setCartToastOpen] = useState(false);
+  const [sizeGuideOpen, setSizeGuideOpen] = useState(false);
 
   const closeCartToast = useCallback(() => {
     setCartToastOpen(false);
   }, []);
+
+  const closeSizeGuide = useCallback(() => {
+    setSizeGuideOpen(false);
+  }, []);
+
+  const gallery = useMemo(
+    () =>
+      normalizeGalleryImages({
+        name: product.name,
+        imageSrc: product.imageSrc,
+        imageAlt: product.imageAlt,
+        gallery: product.gallery,
+        images: product.images,
+      }),
+    [product],
+  );
+
+  const sizeGuide = useMemo(
+    () => resolveSizeGuide(product.sizes),
+    [product.sizes],
+  );
+
+  const hasMultipleImages = gallery.length > 1;
+  const activeImage = gallery[selectedImage] ?? gallery[0];
 
   const handleWishlist = () => {
     toggleProduct({
@@ -264,16 +294,6 @@ function ProductView({ product }: { product: ProductDetails }) {
     setCartToastOpen(true);
   };
 
-  const gallery = useMemo(
-    () => [
-      product.imageSrc,
-      product.imageSrc,
-      product.imageSrc,
-      product.imageSrc,
-    ],
-    [product.imageSrc],
-  );
-
   const relatedProducts = useMemo(() => {
     const products = [
       ...bestSellerProducts,
@@ -299,12 +319,14 @@ function ProductView({ product }: { product: ProductDetails }) {
   }[activeTab as 'details' | 'materials' | 'sizeFit' | 'shipping'];
 
   const previousImage = () => {
+    if (!hasMultipleImages) return;
     setSelectedImage((current) =>
       current === 0 ? gallery.length - 1 : current - 1,
     );
   };
 
   const nextImage = () => {
+    if (!hasMultipleImages) return;
     setSelectedImage((current) =>
       current === gallery.length - 1 ? 0 : current + 1,
     );
@@ -322,29 +344,39 @@ function ProductView({ product }: { product: ProductDetails }) {
         </div>
 
         <section className={styles.productLayout}>
-          <div className={styles.gallery}>
-            <div className={styles.thumbnailColumn}>
-              {gallery.map((image, index) => (
-                <button
-                  key={`${image}-${index}`}
-                  type="button"
-                  className={`${styles.thumbnail} ${
-                    selectedImage === index ? styles.thumbnailActive : ''
-                  }`}
-                  onClick={() => setSelectedImage(index)}
-                  aria-label={`تصویر ${index + 1} از ${product.name}`}
-                >
-                  <img src={image} alt="" />
-                </button>
-              ))}
-            </div>
+          <div
+            className={`${styles.gallery} ${
+              hasMultipleImages ? '' : styles.gallerySingle
+            }`}
+          >
+            {hasMultipleImages ? (
+              <div className={styles.thumbnailColumn} role="tablist" aria-label="تصاویر محصول">
+                {gallery.map((image, index) => (
+                  <button
+                    key={image.id}
+                    type="button"
+                    role="tab"
+                    aria-selected={selectedImage === index}
+                    className={`${styles.thumbnail} ${
+                      selectedImage === index ? styles.thumbnailActive : ''
+                    }`}
+                    onClick={() => setSelectedImage(index)}
+                    aria-label={`نمایش تصویر ${index + 1} از ${gallery.length} برای ${product.name}`}
+                  >
+                    <img src={image.url} alt="" />
+                  </button>
+                ))}
+              </div>
+            ) : null}
 
             <div className={styles.mainImageWrapper}>
-              <img
-                src={gallery[selectedImage]}
-                alt={product.imageAlt}
-                className={styles.mainImage}
-              />
+              {activeImage ? (
+                <img
+                  src={activeImage.url}
+                  alt={activeImage.alt || product.imageAlt}
+                  className={styles.mainImage}
+                />
+              ) : null}
 
               {product.badge && (
                 <span className={styles.imageBadge}>{product.badge}</span>
@@ -355,27 +387,30 @@ function ProductView({ product }: { product: ProductDetails }) {
                 className={styles.zoomButton}
                 aria-label="بزرگ‌نمایی تصویر"
                 onClick={() => setIsZoomOpen(true)}
+                disabled={!activeImage}
               >
                 <Search size={18} strokeWidth={1.7} />
               </button>
 
-              <div className={styles.galleryNavigation}>
-                <button
-                  type="button"
-                  onClick={previousImage}
-                  aria-label="تصویر قبلی"
-                >
-                  <ChevronRight size={18} />
-                </button>
+              {hasMultipleImages ? (
+                <div className={styles.galleryNavigation}>
+                  <button
+                    type="button"
+                    onClick={previousImage}
+                    aria-label="تصویر قبلی"
+                  >
+                    <ChevronRight size={18} />
+                  </button>
 
-                <button
-                  type="button"
-                  onClick={nextImage}
-                  aria-label="تصویر بعدی"
-                >
-                  <ChevronLeft size={18} />
-                </button>
-              </div>
+                  <button
+                    type="button"
+                    onClick={nextImage}
+                    aria-label="تصویر بعدی"
+                  >
+                    <ChevronLeft size={18} />
+                  </button>
+                </div>
+              ) : null}
             </div>
           </div>
 
@@ -408,11 +443,9 @@ function ProductView({ product }: { product: ProductDetails }) {
               </button>
             </div>
 
-            <div className={styles.rating}>
-              <span className={styles.stars}>★★★★★</span>
-              <span>
-                {product.rating} ({product.reviewCount} نظر)
-              </span>
+            <div className={styles.reviewsEmpty} role="status">
+              <span className={styles.reviewsEyebrow}>REVIEWS</span>
+              <p>هنوز نظری برای این محصول ثبت نشده است.</p>
             </div>
 
             <div className={styles.priceArea}>
@@ -472,10 +505,18 @@ function ProductView({ product }: { product: ProductDetails }) {
               <div className={styles.selectorHeader}>
                 <span className={styles.selectorLabel}>سایز</span>
 
-                <button type="button" className={styles.sizeGuide}>
-                  <Ruler size={15} />
-                  راهنمای سایز
-                </button>
+                {sizeGuide ? (
+                  <button
+                    type="button"
+                    className={styles.sizeGuide}
+                    onClick={() => setSizeGuideOpen(true)}
+                    aria-haspopup="dialog"
+                    aria-expanded={sizeGuideOpen}
+                  >
+                    <Ruler size={15} />
+                    راهنمای سایز
+                  </button>
+                ) : null}
               </div>
 
               <div className={styles.sizeOptions}>
@@ -652,12 +693,20 @@ function ProductView({ product }: { product: ProductDetails }) {
           </button>
 
           <img
-            src={gallery[selectedImage]}
-            alt={product.imageAlt}
+            src={activeImage?.url}
+            alt={activeImage?.alt || product.imageAlt}
             onClick={(event) => event.stopPropagation()}
           />
         </div>
       )}
+
+      {sizeGuide ? (
+        <SizeGuideDialog
+          open={sizeGuideOpen}
+          content={sizeGuide}
+          onClose={closeSizeGuide}
+        />
+      ) : null}
 
       <Toast
         open={cartToastOpen}

@@ -1,6 +1,10 @@
-import { useState, type FormEvent } from 'react';
+import { useId, useState, type FormEvent } from 'react';
 import { SocialIcon } from '../../ui/SocialIcon';
 import type { FooterColumn } from '../../../pages/Home/types';
+import {
+  submitNewsletterEmail,
+  validateNewsletterEmail,
+} from '../../../services/newsletter';
 import styles from './Footer.module.css';
 
 interface FooterProps {
@@ -8,6 +12,8 @@ interface FooterProps {
   brandTagline?: string;
   columns: FooterColumn[];
 }
+
+type NewsletterStatus = 'idle' | 'submitting' | 'success' | 'error';
 
 const socialLinks = [
   {
@@ -37,11 +43,38 @@ export function Footer({
   brandTagline,
   columns,
 }: FooterProps) {
+  const feedbackId = useId();
   const [email, setEmail] = useState('');
+  const [status, setStatus] = useState<NewsletterStatus>('idle');
+  const [message, setMessage] = useState<string | null>(null);
 
-  const handleSubscribe = (e: FormEvent<HTMLFormElement>) => {
+  const handleSubscribe = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    setEmail('');
+    if (status === 'submitting') return;
+
+    const validationError = validateNewsletterEmail(email);
+    if (validationError) {
+      setStatus('error');
+      setMessage(validationError);
+      return;
+    }
+
+    setStatus('submitting');
+    setMessage(null);
+
+    try {
+      const result = await submitNewsletterEmail(email);
+      setStatus('success');
+      setMessage(result.message);
+      setEmail('');
+    } catch (error) {
+      setStatus('error');
+      setMessage(
+        error instanceof Error
+          ? error.message
+          : 'ثبت ایمیل ممکن نشد. لطفاً دوباره تلاش کنید.',
+      );
+    }
   };
 
   return (
@@ -59,23 +92,56 @@ export function Footer({
             </p>
           </div>
 
-          <form onSubmit={handleSubscribe} className={styles.newsletterForm}>
+          <form
+            onSubmit={handleSubscribe}
+            className={styles.newsletterForm}
+            noValidate
+            aria-busy={status === 'submitting'}
+          >
             <label htmlFor="footer-email" className="sr-only">
               ایمیل شما
             </label>
             <input
               id="footer-email"
               type="email"
+              inputMode="email"
+              autoComplete="email"
               value={email}
-              onChange={(e) => setEmail(e.target.value)}
+              disabled={status === 'submitting'}
+              onChange={(e) => {
+                setEmail(e.target.value);
+                if (status === 'error' || status === 'success') {
+                  setStatus('idle');
+                  setMessage(null);
+                }
+              }}
               placeholder="ایمیل شما"
               className={styles.input}
-              required
+              aria-invalid={status === 'error'}
+              aria-describedby={message ? feedbackId : undefined}
             />
-            <button type="submit" className={styles.subscribeButton}>
-              <span>عضویت</span>
+            <button
+              type="submit"
+              className={styles.subscribeButton}
+              disabled={status === 'submitting'}
+            >
+              <span>{status === 'submitting' ? 'در حال ثبت...' : 'عضویت'}</span>
               <span className={styles.buttonArrow}>↗</span>
             </button>
+
+            {message ? (
+              <p
+                id={feedbackId}
+                className={
+                  status === 'success'
+                    ? styles.newsletterSuccess
+                    : styles.newsletterError
+                }
+                role={status === 'error' ? 'alert' : 'status'}
+              >
+                {message}
+              </p>
+            ) : null}
           </form>
         </div>
       </section>
