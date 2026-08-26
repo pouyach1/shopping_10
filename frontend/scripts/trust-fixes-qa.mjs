@@ -53,6 +53,12 @@ function item(price, qty = 1, id = 't1') {
 }
 
 async function shippingRowText() {
+  await page.getByRole('heading', { level: 1 }).waitFor({ timeout: 8000 });
+  await page.waitForFunction(() => {
+    return [...document.querySelectorAll('[class*="priceRow"]')].some((r) =>
+      r.innerText.includes('هزینه ارسال'),
+    );
+  }, { timeout: 8000 });
   return page.evaluate(() => {
     const rows = [...document.querySelectorAll('[class*="priceRow"]')].map(
       (r) => r.innerText.replace(/\s+/g, ' ').trim(),
@@ -179,17 +185,24 @@ await page.evaluate(() => {
   localStorage.removeItem('luxora-wishlist');
 });
 await page.goto(BASE + '/product/silk-blend-blouse');
-await page.waitForTimeout(300);
+await page.getByRole('heading', { level: 1 }).waitFor();
 await page.locator('button[aria-label="افزودن به علاقه‌مندی‌ها"]').click();
-await page.waitForTimeout(200);
+await page.waitForFunction(() => {
+  const raw = localStorage.getItem('luxora-wishlist');
+  return Boolean(raw && raw.includes('prod-'));
+});
 const stored = await page.evaluate(() => localStorage.getItem('luxora-wishlist'));
 assert.ok(stored && stored.includes('prod-'), `wishlist not persisted: ${stored}`);
 await page.goto(BASE + '/wishlist');
-await page.waitForTimeout(300);
+await page.waitForFunction(() => document.body.innerText.includes('بلوز') || document.body.innerText.includes('حریر'));
 const wishText = await page.evaluate(() => document.body.innerText);
 assert.ok(wishText.includes('بلوز') || wishText.includes('حریر'), 'wishlist page missing product');
-await page.reload();
-await page.waitForTimeout(300);
+await page.reload({ waitUntil: 'domcontentloaded' });
+await page.getByRole('heading', { name: /علاقه‌مندی/ }).waitFor();
+await page.waitForFunction(() => {
+  const text = document.body.innerText;
+  return text.includes('بلوز') || text.includes('حریر');
+});
 const wishText2 = await page.evaluate(() => document.body.innerText);
 assert.ok(wishText2.includes('بلوز') || wishText2.includes('حریر'), 'wishlist lost after refresh');
 await page.goto(BASE + '/product/silk-blend-blouse');
@@ -234,13 +247,16 @@ console.log('PASS no horizontal overflow @320–430,1280 on cart');
 // Desktop sticky hidden / single site header
 await page.setViewportSize({ width: 1280, height: 800 });
 await page.goto(BASE + '/cart');
+await page.getByRole('heading', { level: 1 }).waitFor();
 const stickyDisplay = await page.evaluate(() => {
-  const bar = [...document.querySelectorAll('div')].find((d) =>
-    String(d.className).includes('stickyBar'),
-  );
+  const bar =
+    document.querySelector('[aria-label="خلاصه پرداخت"]') ||
+    [...document.querySelectorAll('div')].find((d) =>
+      String(d.className).includes('stickyBar'),
+    );
   return bar ? getComputedStyle(bar).display : 'missing';
 });
-assert.equal(stickyDisplay, 'none');
+assert.equal(stickyDisplay, 'none', `sticky should hide on desktop, got ${stickyDisplay}`);
 console.log('PASS desktop sticky bar hidden');
 
 await browser.close();
