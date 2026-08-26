@@ -28,18 +28,16 @@ export function CartItem({
   return (
     <motion.article
       className={styles.item}
-      initial={{ opacity: 1, height: 'auto', scale: 1 }}
+      initial={false}
       exit={{
         opacity: 0,
         height: 0,
-        scale: 0.97,
         overflow: 'hidden',
       }}
       transition={{
-        duration: 0.35,
+        duration: 0.28,
         ease: [0.16, 1, 0.3, 1],
       }}
-      layout
     >
       <div className={styles.imageWrapper}>
         <img
