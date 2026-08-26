@@ -1,22 +1,26 @@
 import { type FormEvent, useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
-import { ArrowRight, Plus, Trash2, X } from 'lucide-react';
+import { ArrowRight, Plus, Trash2 } from 'lucide-react';
 
 import { formatPrice } from '../../../lib/formatCurrency';
 import { AdminConfirmDialog } from '../../components/AdminConfirmDialog';
+import { AdminImageUploader } from '../../components/AdminImageUploader';
 import { useAdminStore } from '../../hooks/useAdminStore';
-import type { AdminProduct } from '../../types';
+import type { AdminProduct, ProductImage } from '../../types';
 import {
+  FASHION_SIZE_OPTIONS,
   PRODUCT_STATUS_LABELS,
   createEmptyProductForm,
   getDiscountPercent,
-  parseLines,
-  parseSizes,
+  getLegacySizeOptions,
+  productToFormValues,
   slugifyProductName,
+  toggleSizeSelection,
   validateProductForm,
   type ProductFormErrors,
   type ProductFormValues,
 } from '../../utils/productForm';
+import { syncLegacyImageFields } from '../../utils/productImages';
 
 import styles from './ProductFormPage.module.css';
 
@@ -38,25 +42,41 @@ export function ProductFormPage() {
   const existing = id ? getProduct(id) : undefined;
 
   const [values, setValues] = useState<ProductFormValues>(() =>
-    existing ? productToForm(existing) : createEmptyProductForm({
-      currency: settings.currency || 'تومان',
-      lowStockThreshold: String(settings.lowStockThreshold ?? 5),
-    }),
+    buildInitialValues(existing, settings.currency, settings.lowStockThreshold),
   );
   const [errors, setErrors] = useState<ProductFormErrors>({});
   const [slugTouched, setSlugTouched] = useState(isEdit);
   const [dirty, setDirty] = useState(false);
+  const [saving, setSaving] = useState(false);
   const [archiveOpen, setArchiveOpen] = useState(false);
   const [leaveOpen, setLeaveOpen] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
 
+  // Reload form when route id / product identity changes (edit reliability).
   useEffect(() => {
-    if (isEdit && !existing) return;
-    if (existing) {
-      setValues(productToForm(existing));
+    if (isEdit) {
+      if (!existing) return;
+      setValues(productToFormValues(existing));
       setSlugTouched(true);
       setDirty(false);
+      setErrors({});
+      setSaveError(null);
+      return;
     }
-  }, [existing, isEdit]);
+
+    setValues(
+      createEmptyProductForm({
+        currency: settings.currency || 'تومان',
+        lowStockThreshold: String(settings.lowStockThreshold ?? 5),
+      }),
+    );
+    setSlugTouched(false);
+    setDirty(false);
+    setErrors({});
+    setSaveError(null);
+    // Intentionally keyed by product id so store refreshes do not wipe in-progress edits.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [id, isEdit, existing?.id, existing?.updatedAt]);
 
   useEffect(() => {
     const onBeforeUnload = (event: BeforeUnloadEvent) => {
@@ -75,10 +95,10 @@ export function ProductFormPage() {
       ? getDiscountPercent(priceNumber, originalNumber)
       : 0;
 
-  const galleryPreview = useMemo(
-    () => parseLines(values.galleryText),
-    [values.galleryText],
-  );
+  const sizeChoices = useMemo(() => {
+    const legacy = getLegacySizeOptions(values.sizes);
+    return [...FASHION_SIZE_OPTIONS, ...legacy];
+  }, [values.sizes]);
 
   if (isEdit && !existing) {
     return (
@@ -97,6 +117,7 @@ export function ProductFormPage() {
     value: ProductFormValues[K],
   ) => {
     setDirty(true);
+    setSaveError(null);
     setValues((current) => {
       const next = { ...current, [key]: value };
       if (key === 'name' && !slugTouched && typeof value === 'string') {
@@ -109,26 +130,43 @@ export function ProductFormPage() {
 
   const handleSubmit = (event: FormEvent) => {
     event.preventDefault();
+    if (saving) return;
+
     const nextErrors = validateProductForm(values);
     setErrors(nextErrors);
     if (Object.keys(nextErrors).length > 0) return;
 
-    const payload = formToProductPayload(values);
+    setSaving(true);
+    setSaveError(null);
 
-    if (isEdit && existing) {
-      updateProduct(existing.id, payload);
+    try {
+      const payload = formToProductPayload(values);
+
+      if (isEdit && existing) {
+        const updated = updateProduct(existing.id, payload);
+        if (!updated) {
+          setSaveError('ذخیره تغییرات انجام نشد. محصول پیدا نشد.');
+          setSaving(false);
+          return;
+        }
+        setDirty(false);
+        navigate('/admin/products', {
+          state: { toast: 'تغییرات محصول ذخیره شد.' },
+        });
+        return;
+      }
+
+      createProduct(payload);
       setDirty(false);
       navigate('/admin/products', {
-        state: { toast: 'تغییرات محصول ذخیره شد.' },
+        state: { toast: 'محصول جدید با موفقیت ذخیره شد.' },
       });
-      return;
+    } catch {
+      setSaveError(
+        'ذخیره انجام نشد. ممکن است فضای ذخیره‌سازی مرورگر کافی نباشد (به‌ویژه برای تصاویر بزرگ).',
+      );
+      setSaving(false);
     }
-
-    createProduct(payload);
-    setDirty(false);
-    navigate('/admin/products', {
-      state: { toast: 'محصول جدید با موفقیت ذخیره شد.' },
-    });
   };
 
   const handleArchive = () => {
@@ -153,7 +191,7 @@ export function ProductFormPage() {
             {isEdit ? 'ویرایش محصول' : 'افزودن محصول'}
           </h2>
           <p className={styles.subtitle}>
-            اطلاعات محصول را کامل کنید و ذخیره نمایید.
+            نام و قیمت را وارد کنید، عکس را آپلود کنید، سایز و رنگ را انتخاب کنید.
           </p>
         </div>
       </header>
@@ -223,155 +261,123 @@ export function ProductFormPage() {
 
             <section className={styles.card}>
               <h3 className={styles.sectionTitle}>تصاویر</h3>
-
-              <label className={styles.field}>
-                <span>آدرس تصویر اصلی</span>
-                <input
-                  value={values.imageSrc}
-                  onChange={(event) => updateField('imageSrc', event.target.value)}
-                  placeholder="https://..."
-                  dir="ltr"
-                />
-                {errors.imageSrc ? <em>{errors.imageSrc}</em> : null}
-              </label>
-
-              <label className={styles.field}>
-                <span>متن جایگزین تصویر</span>
-                <input
-                  value={values.imageAlt}
-                  onChange={(event) => updateField('imageAlt', event.target.value)}
-                  placeholder={values.name || 'توضیح تصویر'}
-                />
-              </label>
-
-              {values.imageSrc ? (
-                <div className={styles.primaryPreview}>
-                  <img src={values.imageSrc} alt={values.imageAlt || values.name} />
-                  <span>تصویر اصلی</span>
-                  <button
-                    type="button"
-                    className={styles.removeImage}
-                    onClick={() => updateField('imageSrc', '')}
-                    aria-label="حذف تصویر اصلی"
-                  >
-                    <X size={14} />
-                  </button>
-                </div>
-              ) : null}
-
-              <label className={styles.field}>
-                <span>گالری (هر آدرس در یک خط)</span>
-                <textarea
-                  rows={4}
-                  value={values.galleryText}
-                  onChange={(event) =>
-                    updateField('galleryText', event.target.value)
-                  }
-                  placeholder={'https://...\nhttps://...'}
-                  dir="ltr"
-                />
-                {errors.galleryText ? <em>{errors.galleryText}</em> : null}
-              </label>
-
-              {galleryPreview.length > 0 ? (
-                <div className={styles.galleryPreview}>
-                  {galleryPreview.map((url) => (
-                    <div key={url} className={styles.galleryItem}>
-                      <img src={url} alt="" />
-                      <button
-                        type="button"
-                        aria-label="حذف تصویر گالری"
-                        onClick={() =>
-                          updateField(
-                            'galleryText',
-                            galleryPreview.filter((item) => item !== url).join('\n'),
-                          )
-                        }
-                      >
-                        <Trash2 size={13} />
-                      </button>
-                    </div>
-                  ))}
-                </div>
-              ) : null}
+              <AdminImageUploader
+                images={values.images}
+                productName={values.name}
+                error={errors.images}
+                onChange={(images: ProductImage[]) => updateField('images', images)}
+              />
             </section>
 
             <section className={styles.card}>
               <h3 className={styles.sectionTitle}>گزینه‌های محصول</h3>
 
-              <label className={styles.field}>
-                <span>سایزها (با ویرگول جدا کنید)</span>
-                <input
-                  value={values.sizesText}
-                  onChange={(event) => updateField('sizesText', event.target.value)}
-                  placeholder="S, M, L, XL"
-                />
-              </label>
-
-              <div className={styles.colorsHeader}>
-                <span>رنگ‌ها</span>
-                <button
-                  type="button"
-                  className={styles.addColor}
-                  onClick={() =>
-                    updateField('colors', [
-                      ...values.colors,
-                      { name: '', hex: '#B89B5E' },
-                    ])
-                  }
-                >
-                  <Plus size={14} />
-                  افزودن رنگ
-                </button>
-              </div>
-
-              <div className={styles.colorsList}>
-                {values.colors.length === 0 ? (
-                  <p className={styles.hint}>هنوز رنگی اضافه نشده است.</p>
-                ) : (
-                  values.colors.map((color, index) => (
-                    <div key={`color-${index}`} className={styles.colorRow}>
-                      <input
-                        value={color.name}
-                        onChange={(event) => {
-                          const next = values.colors.slice();
-                          next[index] = { ...next[index], name: event.target.value };
-                          updateField('colors', next);
-                        }}
-                        placeholder="نام رنگ"
-                      />
-                      <input
-                        value={color.hex}
-                        onChange={(event) => {
-                          const next = values.colors.slice();
-                          next[index] = { ...next[index], hex: event.target.value };
-                          updateField('colors', next);
-                        }}
-                        placeholder="#B89B5E"
-                        dir="ltr"
-                      />
-                      <span
-                        className={styles.swatch}
-                        style={{ backgroundColor: color.hex || '#ccc' }}
-                        aria-hidden="true"
-                      />
+              <div className={styles.optionsBlock}>
+                <div className={styles.optionsLabel}>سایزها</div>
+                <div className={styles.sizeChips} role="group" aria-label="سایزهای محصول">
+                  {sizeChoices.map((size) => {
+                    const selected = values.sizes.includes(size);
+                    return (
                       <button
+                        key={size}
                         type="button"
-                        aria-label="حذف رنگ"
+                        className={`${styles.sizeChip} ${
+                          selected ? styles.sizeChipSelected : ''
+                        }`}
+                        aria-pressed={selected}
                         onClick={() =>
-                          updateField(
-                            'colors',
-                            values.colors.filter((_, i) => i !== index),
-                          )
+                          updateField('sizes', toggleSizeSelection(values.sizes, size))
                         }
                       >
-                        <Trash2 size={14} />
+                        {size}
                       </button>
-                    </div>
-                  ))
-                )}
+                    );
+                  })}
+                </div>
+                <p className={styles.hint}>
+                  فقط سایزهای قابل فروش را انتخاب کنید. برای لغو، دوباره روی سایز کلیک کنید.
+                </p>
               </div>
-              {errors.colors ? <em className={styles.errorText}>{errors.colors}</em> : null}
+
+              <div className={styles.optionsBlock}>
+                <div className={styles.colorsHeader}>
+                  <span>رنگ‌ها</span>
+                  <button
+                    type="button"
+                    className={styles.addColor}
+                    onClick={() =>
+                      updateField('colors', [
+                        ...values.colors,
+                        { name: '', hex: '#1A1A1A' },
+                      ])
+                    }
+                  >
+                    <Plus size={14} />
+                    افزودن رنگ
+                  </button>
+                </div>
+
+                <div className={styles.colorsList}>
+                  {values.colors.length === 0 ? (
+                    <p className={styles.hint}>هنوز رنگی اضافه نشده است.</p>
+                  ) : (
+                    values.colors.map((color, index) => (
+                      <div key={`color-${index}`} className={styles.colorRow}>
+                        <span
+                          className={styles.swatch}
+                          style={{ backgroundColor: color.hex || '#ccc' }}
+                          aria-hidden="true"
+                        />
+                        <input
+                          value={color.name}
+                          onChange={(event) => {
+                            const next = values.colors.slice();
+                            next[index] = {
+                              ...next[index],
+                              name: event.target.value,
+                            };
+                            updateField('colors', next);
+                          }}
+                          placeholder="نام رنگ (مثلاً مشکی)"
+                          aria-label={`نام رنگ ${index + 1}`}
+                        />
+                        <label className={styles.colorPickerWrap}>
+                          <span className={styles.srOnly}>انتخاب رنگ</span>
+                          <input
+                            type="color"
+                            value={toColorInputValue(color.hex)}
+                            onChange={(event) => {
+                              const next = values.colors.slice();
+                              next[index] = {
+                                ...next[index],
+                                hex: event.target.value.toUpperCase(),
+                              };
+                              updateField('colors', next);
+                            }}
+                            aria-label={`انتخابگر رنگ ${index + 1}`}
+                          />
+                        </label>
+                        <button
+                          type="button"
+                          aria-label="حذف رنگ"
+                          onClick={() =>
+                            updateField(
+                              'colors',
+                              values.colors.filter((_, i) => i !== index),
+                            )
+                          }
+                        >
+                          <Trash2 size={14} />
+                          <span>حذف</span>
+                        </button>
+                      </div>
+                    ))
+                  )}
+                </div>
+                {errors.colors ? (
+                  <em className={styles.errorText}>{errors.colors}</em>
+                ) : null}
+              </div>
             </section>
           </div>
 
@@ -496,13 +502,24 @@ export function ProductFormPage() {
               </p>
             </section>
 
+            {saveError ? <p className={styles.saveError}>{saveError}</p> : null}
+
             <div className={styles.formActions}>
-              <button type="submit" className={styles.primaryButton}>
-                {isEdit ? 'ذخیره تغییرات' : 'ذخیره محصول'}
+              <button
+                type="submit"
+                className={styles.primaryButton}
+                disabled={saving}
+              >
+                {saving
+                  ? 'در حال ذخیره...'
+                  : isEdit
+                    ? 'ذخیره تغییرات'
+                    : 'ذخیره محصول'}
               </button>
               <button
                 type="button"
                 className={styles.secondaryButton}
+                disabled={saving}
                 onClick={() => {
                   if (dirty) {
                     setLeaveOpen(true);
@@ -517,6 +534,7 @@ export function ProductFormPage() {
                 <button
                   type="button"
                   className={styles.dangerButton}
+                  disabled={saving}
                   onClick={() => setArchiveOpen(true)}
                 >
                   آرشیو محصول
@@ -558,26 +576,15 @@ export function ProductFormPage() {
   );
 }
 
-function productToForm(product: AdminProduct): ProductFormValues {
+function buildInitialValues(
+  existing: AdminProduct | undefined,
+  currency: string,
+  lowStockThreshold: number,
+): ProductFormValues {
+  if (existing) return productToFormValues(existing);
   return createEmptyProductForm({
-    name: product.name,
-    slug: product.slug,
-    categoryId: product.categoryId,
-    description: product.description ?? '',
-    price: String(product.price),
-    originalPrice:
-      product.originalPrice !== undefined ? String(product.originalPrice) : '',
-    currency: product.currency,
-    imageSrc: product.imageSrc ?? '',
-    imageAlt: product.imageAlt ?? '',
-    galleryText: (product.gallery ?? []).join('\n'),
-    sizesText: (product.sizes ?? []).join(', '),
-    colors: product.colors ?? [],
-    stock: String(product.stock),
-    lowStockThreshold: String(product.lowStockThreshold),
-    status: product.status,
-    badge: product.badge ?? '',
-    sku: product.sku ?? '',
+    currency: currency || 'تومان',
+    lowStockThreshold: String(lowStockThreshold ?? 5),
   });
 }
 
@@ -586,9 +593,11 @@ function formToProductPayload(values: ProductFormValues) {
   const colors = values.colors
     .map((color) => ({
       name: color.name.trim(),
-      hex: color.hex.trim(),
+      hex: color.hex.trim().toUpperCase(),
     }))
     .filter((color) => color.name);
+
+  const legacyImages = syncLegacyImageFields(values.images);
 
   return {
     name: values.name.trim(),
@@ -598,10 +607,14 @@ function formToProductPayload(values: ProductFormValues) {
     price: Number(values.price),
     originalPrice: original ? Number(original) : undefined,
     currency: values.currency.trim() || 'تومان',
-    imageSrc: values.imageSrc.trim() || undefined,
-    imageAlt: values.imageAlt.trim() || values.name.trim(),
-    gallery: parseLines(values.galleryText),
-    sizes: parseSizes(values.sizesText),
+    images: values.images.map((image) => ({
+      ...image,
+      alt: image.alt || values.name.trim(),
+    })),
+    imageSrc: legacyImages.imageSrc,
+    imageAlt: legacyImages.imageAlt || values.name.trim(),
+    gallery: legacyImages.gallery,
+    sizes: values.sizes,
     colors,
     stock: Number(values.stock),
     lowStockThreshold: Number(values.lowStockThreshold),
@@ -609,4 +622,15 @@ function formToProductPayload(values: ProductFormValues) {
     badge: values.badge.trim() || undefined,
     sku: values.sku.trim() || undefined,
   };
+}
+
+/** Native color inputs require #RRGGBB. */
+function toColorInputValue(hex: string): string {
+  const value = hex.trim();
+  if (/^#[0-9a-f]{6}$/i.test(value)) return value.toUpperCase();
+  if (/^#[0-9a-f]{3}$/i.test(value)) {
+    const [, r, g, b] = value;
+    return `#${r}${r}${g}${g}${b}${b}`.toUpperCase();
+  }
+  return '#1A1A1A';
 }

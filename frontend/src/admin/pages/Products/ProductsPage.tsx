@@ -374,9 +374,14 @@ export function ProductsPage() {
 }
 
 function ProductThumb({ product }: { product: AdminProduct }) {
-  return product.imageSrc ? (
+  const thumb =
+    product.imageSrc ||
+    product.images?.find((image) => image.isPrimary)?.url ||
+    product.images?.[0]?.url;
+
+  return thumb ? (
     <img
-      src={product.imageSrc}
+      src={thumb}
       alt={product.imageAlt || product.name}
       className={styles.thumb}
     />

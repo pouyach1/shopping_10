@@ -1,5 +1,5 @@
 export type { AdminSession, AdminNavId, AdminNavItem } from './admin';
-export type { ProductStatus, AdminProduct } from './product';
+export type { ProductStatus, ProductImage, AdminProduct } from './product';
 export type { AdminCategory } from './category';
 export type { AdminCustomer } from './customer';
 export type {

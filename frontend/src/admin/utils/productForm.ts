@@ -1,4 +1,5 @@
-import type { ProductStatus } from '../types/product';
+import type { ProductImage, ProductStatus } from '../types/product';
+import { normalizeProductImages } from './productImages';
 
 export const PRODUCT_STATUS_LABELS: Record<ProductStatus, string> = {
   active: 'فعال',
@@ -13,6 +14,19 @@ export const STOCK_FILTER_LABELS: Record<StockFilter, string> = {
   low: 'کم‌موجودی',
   out: 'ناموجود',
 };
+
+/** Predefined fashion size chips for the product form. */
+export const FASHION_SIZE_OPTIONS = [
+  'XS',
+  'S',
+  'M',
+  'L',
+  'XL',
+  'XXL',
+  'فری‌سایز',
+] as const;
+
+export type FashionSizeOption = (typeof FASHION_SIZE_OPTIONS)[number];
 
 export function slugifyProductName(name: string): string {
   return name
@@ -39,16 +53,8 @@ export function isOutOfStock(stock: number): boolean {
   return stock <= 0;
 }
 
-export function isValidImageUrl(value: string): boolean {
-  const trimmed = value.trim();
-  if (!trimmed) return true;
-  if (trimmed.startsWith('/') || trimmed.startsWith('data:')) return true;
-  try {
-    const url = new URL(trimmed);
-    return url.protocol === 'http:' || url.protocol === 'https:';
-  } catch {
-    return false;
-  }
+export function isValidHexColor(value: string): boolean {
+  return /^#([0-9a-f]{3}|[0-9a-f]{6})$/i.test(value.trim());
 }
 
 export interface ProductFormValues {
@@ -59,10 +65,8 @@ export interface ProductFormValues {
   price: string;
   originalPrice: string;
   currency: string;
-  imageSrc: string;
-  imageAlt: string;
-  galleryText: string;
-  sizesText: string;
+  images: ProductImage[];
+  sizes: string[];
   colors: { name: string; hex: string }[];
   stock: string;
   lowStockThreshold: string;
@@ -79,8 +83,7 @@ export interface ProductFormErrors {
   originalPrice?: string;
   stock?: string;
   lowStockThreshold?: string;
-  imageSrc?: string;
-  galleryText?: string;
+  images?: string;
   colors?: string;
 }
 
@@ -95,10 +98,8 @@ export function createEmptyProductForm(
     price: '',
     originalPrice: '',
     currency: 'تومان',
-    imageSrc: '',
-    imageAlt: '',
-    galleryText: '',
-    sizesText: '',
+    images: [],
+    sizes: [],
     colors: [],
     stock: '0',
     lowStockThreshold: '5',
@@ -154,32 +155,78 @@ export function validateProductForm(values: ProductFormValues): ProductFormError
     errors.lowStockThreshold = 'آستانه کم‌موجودی معتبر نیست.';
   }
 
-  if (!isValidImageUrl(values.imageSrc)) {
-    errors.imageSrc = 'آدرس تصویر اصلی معتبر نیست.';
-  }
-
-  const galleryUrls = parseLines(values.galleryText);
-  if (galleryUrls.some((url) => !isValidImageUrl(url))) {
-    errors.galleryText = 'یکی از آدرس‌های گالری معتبر نیست.';
-  }
-
-  if (values.colors.some((color) => color.name.trim() && !/^#([0-9a-f]{3}|[0-9a-f]{6})$/i.test(color.hex.trim()))) {
-    errors.colors = 'کد رنگ باید به‌صورت هگز معتبر باشد (مثال: #B89B5E).';
+  if (
+    values.colors.some(
+      (color) => color.name.trim() && !isValidHexColor(color.hex),
+    )
+  ) {
+    errors.colors = 'یکی از رنگ‌ها مقدار معتبری ندارد. لطفاً دوباره انتخاب کنید.';
   }
 
   return errors;
 }
 
-export function parseLines(value: string): string[] {
-  return value
-    .split('\n')
-    .map((line) => line.trim())
-    .filter(Boolean);
+/** Extra sizes present on a product but not in the fashion chip list (e.g. shoe sizes). */
+export function getLegacySizeOptions(selected: string[]): string[] {
+  const known = new Set<string>(FASHION_SIZE_OPTIONS);
+  return selected.filter((size) => !known.has(size));
 }
 
-export function parseSizes(value: string): string[] {
-  return value
-    .split(/[,\n،]/)
-    .map((item) => item.trim())
-    .filter(Boolean);
+export function toggleSizeSelection(selected: string[], size: string): string[] {
+  if (selected.includes(size)) {
+    return selected.filter((item) => item !== size);
+  }
+  return [...selected, size];
+}
+
+export function productToFormValues(
+  product: Parameters<typeof normalizeProductImages>[0] & {
+    name: string;
+    slug: string;
+    categoryId: string;
+    description?: string;
+    price: number;
+    originalPrice?: number;
+    currency: string;
+    sizes?: string[];
+    colors?: { name: string; hex: string }[];
+    stock: number;
+    lowStockThreshold: number;
+    status: ProductStatus;
+    badge?: string;
+    sku?: string;
+  },
+): ProductFormValues {
+  return createEmptyProductForm({
+    name: product.name,
+    slug: product.slug,
+    categoryId: product.categoryId,
+    description: product.description ?? '',
+    price: String(product.price),
+    originalPrice:
+      product.originalPrice !== undefined ? String(product.originalPrice) : '',
+    currency: product.currency,
+    images: normalizeProductImages(product),
+    sizes: product.sizes ?? [],
+    colors: (product.colors ?? []).map((color) => ({
+      name: color.name,
+      hex: normalizeHex(color.hex),
+    })),
+    stock: String(product.stock),
+    lowStockThreshold: String(product.lowStockThreshold),
+    status: product.status,
+    badge: product.badge ?? '',
+    sku: product.sku ?? '',
+  });
+}
+
+function normalizeHex(value: string): string {
+  const trimmed = value.trim();
+  if (/^#([0-9a-f]{3}|[0-9a-f]{6})$/i.test(trimmed)) {
+    return trimmed.toUpperCase();
+  }
+  if (/^([0-9a-f]{3}|[0-9a-f]{6})$/i.test(trimmed)) {
+    return `#${trimmed.toUpperCase()}`;
+  }
+  return '#B89B5E';
 }

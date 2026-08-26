@@ -20,6 +20,7 @@ import type {
 } from '../types/order';
 import type { AdminProduct } from '../types/product';
 import type { AdminSettings } from '../types/settings';
+import { normalizeAdminProduct } from '../utils/productImages';
 
 import {
   createSeedAdminData,
@@ -46,14 +47,29 @@ function emit(): void {
 function persist(): void {
   try {
     localStorage.setItem(ADMIN_DATA_STORAGE_KEY, JSON.stringify(state));
-  } catch {
+  } catch (error) {
+    const isQuota =
+      error instanceof DOMException &&
+      (error.name === 'QuotaExceededError' ||
+        error.name === 'NS_ERROR_DOM_QUOTA_REACHED');
+
+    if (isQuota) {
+      throw new Error('STORAGE_QUOTA_EXCEEDED');
+    }
+
     // Storage unavailable — keep in-memory state only.
   }
 }
 
 function setState(next: AdminDataState): void {
+  const previous = state;
   state = next;
-  persist();
+  try {
+    persist();
+  } catch (error) {
+    state = previous;
+    throw error;
+  }
   emit();
 }
 
@@ -144,11 +160,18 @@ function syncCustomerStats(
   });
 }
 
-function withSyncedCustomerStats(data: AdminDataState): AdminDataState {
+function withNormalizedProducts(data: AdminDataState): AdminDataState {
   return {
     ...data,
-    customers: syncCustomerStats(data.customers, data.orders),
+    products: data.products.map((product) => normalizeAdminProduct(product)),
   };
+}
+
+function withSyncedCustomerStats(data: AdminDataState): AdminDataState {
+  return withNormalizedProducts({
+    ...data,
+    customers: syncCustomerStats(data.customers, data.orders),
+  });
 }
 
 function cloneState(): AdminDataState {
@@ -220,12 +243,12 @@ export function createProduct(
   },
 ): AdminProduct {
   const timestamp = nowIso();
-  const product: AdminProduct = {
+  const product = normalizeAdminProduct({
     ...input,
     id: input.id ?? createId('prod'),
     createdAt: input.createdAt ?? timestamp,
     updatedAt: input.updatedAt ?? timestamp,
-  };
+  });
 
   const next = cloneState();
   next.products = [product, ...next.products];
@@ -242,13 +265,13 @@ export function updateProduct(
 
   const next = cloneState();
   const current = next.products[index];
-  next.products[index] = {
+  next.products[index] = normalizeAdminProduct({
     ...current,
     ...updates,
     id: current.id,
     createdAt: current.createdAt,
     updatedAt: nowIso(),
-  };
+  });
   setState(next);
   return next.products[index];
 }
