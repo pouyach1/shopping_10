@@ -1,31 +1,5 @@
 .home {
-  min-height: 100vh;
-  background-color: var(--color-background);
   display: flex;
   flex-direction: column;
-}
-
-.favoritesTestimonials {
-  background-color: var(--color-cream-50);
-  padding: var(--spacing-4xl) var(--spacing-md);
-}
-
-.favoritesTestimonialsInner {
-  max-width: 1280px;
-  margin: 0 auto;
-  display: grid;
-  grid-template-columns: 1fr;
-  gap: var(--spacing-3xl);
-}
-
-@media (min-width: 1024px) {
-  .favoritesTestimonials {
-    padding: var(--spacing-6xl) var(--spacing-xl);
-  }
-
-  .favoritesTestimonialsInner {
-    grid-template-columns: 1fr 1fr;
-    gap: var(--spacing-5xl);
-    align-items: center;
-  }
+  background-color: var(--color-background);
 }

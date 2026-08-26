@@ -1,5 +1,7 @@
-import { useScrollReveal } from '../../../hooks/useScrollReveal';
+import { Link } from 'react-router-dom';
+
 import type { CategoryItem } from '../../../pages/Home/types';
+
 import styles from './Categories.module.css';
 
 interface CategoriesProps {
@@ -9,43 +11,45 @@ interface CategoriesProps {
 }
 
 export function Categories({ title, description, categories }: CategoriesProps) {
-  const { ref, isVisible } = useScrollReveal<HTMLElement>({ threshold: 0.1 });
-
   return (
-    <section
-      ref={ref}
-      className={`${styles.categories} ${isVisible ? styles.visible : ''}`}
-      aria-label={title}
-    >
-      <div className={styles.categoriesInner}>
-        <h2 className={styles.title}>{title}</h2>
-        {description && <p className={styles.description}>{description}</p>}
-        <div className={styles.divider} aria-hidden="true" />
-        <div className={styles.grid}>
-          {categories.map((category, index) => (
-            <a
+    <section className={styles.categories} aria-labelledby="home-categories-title">
+      <div className={styles.inner}>
+        <div className={styles.header}>
+          <h2 id="home-categories-title" className={styles.title}>
+            {title}
+          </h2>
+          {description ? (
+            <p className={styles.description}>{description}</p>
+          ) : null}
+        </div>
+
+        <ul className={styles.grid}>
+          {categories.map((category) => (
+            <li
               key={category.id}
-              href={category.href}
-              className={styles.categoryItem}
-              style={{ transitionDelay: `${index * 80}ms` }}
+              className={
+                category.id === 'accessories'
+                  ? styles.spanWide
+                  : undefined
+              }
             >
-              <div className={styles.imageWrapper}>
+              <Link to={category.href} className={styles.card}>
                 <img
                   src={category.imageSrc}
                   alt={category.imageAlt}
                   className={styles.image}
                   loading="lazy"
+                  decoding="async"
                 />
-                <div className={styles.overlay} aria-hidden="true" />
-                <div className={styles.cardContent}>
-                  <span className={styles.categoryName}>{category.name}</span>
-                  <span className={styles.cardDivider} aria-hidden="true" />
-                  <span className={styles.shopNow}>SHOP NOW</span>
-                </div>
-              </div>
-            </a>
+                <span className={styles.shade} aria-hidden="true" />
+                <span className={styles.meta}>
+                  <span className={styles.name}>{category.name}</span>
+                  <span className={styles.cta}>مشاهده</span>
+                </span>
+              </Link>
+            </li>
           ))}
-        </div>
+        </ul>
       </div>
     </section>
   );

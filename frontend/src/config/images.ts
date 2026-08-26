@@ -5,7 +5,7 @@
  * برای تغییر تصاویر، فقط import و مقدار مربوطه را تغییر بده.
  */
 
-import hero from '../assets/hero.png';
+import hero from '../assets/hero.webp';
 
 import women from '../assets/images/categories/women.webp';
 import men from '../assets/images/categories/men.webp';

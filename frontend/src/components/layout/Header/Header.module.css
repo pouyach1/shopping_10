@@ -137,22 +137,57 @@
 }
 
 .iconButton {
-  display: flex;
+  display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 40px;
-  height: 40px;
+  width: 44px;
+  height: 44px;
   border: none;
   background: none;
   cursor: pointer;
   color: #1A1A1A;
   border-radius: 50%;
   position: relative;
+  text-decoration: none;
+  flex-shrink: 0;
 }
 
 .iconButton:hover {
   background-color: #F9FAFB;
   color: #B89B5E;
+}
+
+.iconButton:focus-visible,
+.menuToggle:focus-visible {
+  outline: 2px solid #1a1a1a;
+  outline-offset: 2px;
+}
+
+.countBadge {
+  position: absolute;
+  top: 4px;
+  left: 4px;
+  min-width: 16px;
+  height: 16px;
+  padding: 0 4px;
+  background-color: #1A1A1A;
+  color: #FFFFFF;
+  font-family: 'Vazirmatn', sans-serif;
+  font-size: 0.625rem;
+  font-weight: 600;
+  border-radius: 999px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+}
+
+.accountWrap {
+  position: relative;
+}
+
+.hideOnMobile {
+  display: none;
 }
 
 .cartBadge {
@@ -187,13 +222,14 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 40px;
-  height: 40px;
+  width: 44px;
+  height: 44px;
   border: none;
   background: none;
   cursor: pointer;
   color: #1A1A1A;
   border-radius: 50%;
+  flex-shrink: 0;
 }
 
 .menuToggle:hover {
@@ -203,7 +239,7 @@
 .accountDropdown {
   position: absolute;
   top: calc(100% + 8px);
-  left: 32px;
+  inset-inline-end: 0;
   background-color: #FFFFFF;
   border: 1px solid #E5E7EB;
   border-radius: 8px;
@@ -223,6 +259,7 @@
   display: flex;
   align-items: center;
   gap: 8px;
+  width: 100%;
   padding: 8px 12px;
   font-family: 'Vazirmatn', sans-serif;
   font-size: 0.8125rem;
@@ -232,9 +269,8 @@
   border: none;
   background: none;
   cursor: pointer;
-  width: 100%;
+  border-radius: 6px;
   text-align: right;
-  border-radius: 4px;
 }
 
 .dropdownItem:hover {
@@ -483,6 +519,10 @@
   .mobileMenu {
     display: none;
   }
+
+  .hideOnMobile {
+    display: inline-flex;
+  }
 }
 
 /* Reduced motion */
@@ -500,20 +540,4 @@
 }
 
 
-/* Remove browser focus ring from header icon buttons */
-.iconButton:focus,
-.iconButton:focus-visible {
-  outline: none;
-  box-shadow: none;
-}
-
-
-.iconButton,
-.iconButton:hover,
-.iconButton:active,
-.iconButton:focus,
-.iconButton:focus-visible {
-  outline: none !important;
-  box-shadow: none !important;
-  border-color: transparent !important;
-}
+/* Focus styles are defined on .iconButton:focus-visible above */
