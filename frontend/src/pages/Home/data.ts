@@ -2,6 +2,8 @@ import type { NavItem, FeatureItem, CategoryItem, FooterColumn } from './types';
 import type { Product } from '../../types/product';
 import { siteImages } from '../../config/images';
 import { homeContent } from '../../config/content';
+import { FREE_SHIPPING_THRESHOLD } from '../../config/shipping';
+import { formatPrice } from '../../lib/formatCurrency';
 
 export const navItems: NavItem[] = [
   { id: 'shop', label: 'فروشگاه', href: '/shop' },
@@ -17,7 +19,7 @@ export const featureItems: FeatureItem[] = [
     id: 'shipping',
     icon: 'Truck',
     title: 'ارسال رایگان',
-    description: 'سفارش‌های بالای ۵ میلیون تومان',
+    description: `از ${formatPrice(FREE_SHIPPING_THRESHOLD)} تومان به بالا`,
     href: '/shipping',
   },
   {

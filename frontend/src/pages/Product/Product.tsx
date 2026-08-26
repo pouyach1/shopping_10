@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import {
   ChevronLeft,
   ChevronRight,
@@ -20,8 +20,10 @@ import {
 import type { Product } from '../../types/product';
 import type { CartItem } from '../../types/cart';
 import { ProductCard } from '../../components/product/ProductCard';
+import { Toast } from '../../components/ui/Toast';
 import { siteImages } from '../../config/images';
 import { useCart } from '../../hooks/useCart';
+import { useWishlist } from '../../hooks/useWishlist';
 import { formatPrice } from '../../lib/formatCurrency';
 import styles from './Product.module.css';
 
@@ -212,14 +214,34 @@ export function Product({ slug }: ProductPageProps) {
 
 function ProductView({ product }: { product: ProductDetails }) {
   const { addItem } = useCart();
+  const { isInWishlist, toggleProduct } = useWishlist();
+  const wishlisted = isInWishlist(product.id);
 
   const [selectedImage, setSelectedImage] = useState(0);
   const [selectedColor, setSelectedColor] = useState(product.colors[0]);
   const [selectedSize, setSelectedSize] = useState(product.sizes[1]);
   const [quantity, setQuantity] = useState(1);
-  const [isWishlisted, setIsWishlisted] = useState(false);
   const [isZoomOpen, setIsZoomOpen] = useState(false);
   const [activeTab, setActiveTab] = useState('details');
+  const [cartToastOpen, setCartToastOpen] = useState(false);
+
+  const closeCartToast = useCallback(() => {
+    setCartToastOpen(false);
+  }, []);
+
+  const handleWishlist = () => {
+    toggleProduct({
+      id: product.id,
+      name: product.name,
+      price: product.price,
+      originalPrice: product.originalPrice,
+      currency: product.currency,
+      imageSrc: product.imageSrc,
+      imageAlt: product.imageAlt,
+      badge: product.badge,
+      href: product.href,
+    });
+  };
 
   const handleAddToCart = () => {
     const variantKey = `${product.id}__${selectedColor.name}__${selectedSize}`;
@@ -239,7 +261,7 @@ function ProductView({ product }: { product: ProductDetails }) {
     };
 
     addItem(newItem);
-    alert('محصول به سبد خرید اضافه شد');
+    setCartToastOpen(true);
   };
 
   const gallery = useMemo(
@@ -368,20 +390,20 @@ function ProductView({ product }: { product: ProductDetails }) {
               <button
                 type="button"
                 className={`${styles.wishlist} ${
-                  isWishlisted ? styles.wishlistActive : ''
+                  wishlisted ? styles.wishlistActive : ''
                 }`}
-                onClick={() => setIsWishlisted((current) => !current)}
+                onClick={handleWishlist}
                 aria-label={
-                  isWishlisted
+                  wishlisted
                     ? 'حذف از علاقه‌مندی‌ها'
                     : 'افزودن به علاقه‌مندی‌ها'
                 }
-                aria-pressed={isWishlisted}
+                aria-pressed={wishlisted}
               >
                 <Heart
                   size={21}
                   strokeWidth={1.6}
-                  fill={isWishlisted ? 'currentColor' : 'none'}
+                  fill={wishlisted ? 'currentColor' : 'none'}
                 />
               </button>
             </div>
@@ -636,6 +658,13 @@ function ProductView({ product }: { product: ProductDetails }) {
           />
         </div>
       )}
+
+      <Toast
+        open={cartToastOpen}
+        onClose={closeCartToast}
+        message="محصول به سبد خرید اضافه شد"
+        action={{ label: 'مشاهده سبد خرید', to: '/cart' }}
+      />
     </div>
   );
 }

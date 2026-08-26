@@ -1,3 +1,4 @@
+import type { CSSProperties } from 'react';
 import {
   Check,
   ChevronLeft,
@@ -14,11 +15,18 @@ import {
 } from '../types';
 
 import { formatPrice } from '../../../lib/formatCurrency';
+import {
+  FREE_SHIPPING_THRESHOLD,
+  qualifiesForFreeShipping,
+  resolveShippingCost,
+} from '../../../config/shipping';
 import styles from './ShippingMethod.module.css';
 
 interface ShippingMethodProps {
   value: ShippingMethodId;
   onChange: (value: ShippingMethodId) => void;
+  /** Cart merchandise subtotal — drives free-shipping eligibility. */
+  subtotal: number;
 }
 
 function getMethodIcon(id: ShippingMethodId) {
@@ -83,7 +91,11 @@ function getAccent(id: ShippingMethodId) {
 export function ShippingMethod({
   value,
   onChange,
+  subtotal,
 }: ShippingMethodProps) {
+  const isFreeShipping = qualifiesForFreeShipping(subtotal);
+  const remaining = Math.max(0, FREE_SHIPPING_THRESHOLD - subtotal);
+
   return (
     <section className={styles.section} dir="rtl">
       <header className={styles.header}>
@@ -111,7 +123,9 @@ export function ShippingMethod({
           </div>
 
           <p className={styles.subtitle}>
-            بهترین روش دریافت سفارش خود را انتخاب کنید.
+            {isFreeShipping
+              ? 'ارسال این سفارش رایگان است. روش تحویل را انتخاب کنید.'
+              : `بهترین روش دریافت سفارش خود را انتخاب کنید. با ${formatPrice(remaining)} تومان خرید بیشتر، ارسال رایگان می‌شود.`}
           </p>
         </div>
       </header>
@@ -120,6 +134,7 @@ export function ShippingMethod({
         {SHIPPING_METHODS.map((method, index) => {
           const selected = method.id === value;
           const badge = getBadge(method.id);
+          const payable = resolveShippingCost(method.price, subtotal);
 
           return (
             <button
@@ -132,7 +147,7 @@ export function ShippingMethod({
               aria-pressed={selected}
               style={{
                 '--item-index': index,
-              } as React.CSSProperties}
+              } as CSSProperties}
             >
               <span
                 className={`${styles.optionAccent} ${getAccent(
@@ -207,14 +222,14 @@ export function ShippingMethod({
                   </span>
 
                   <span className={styles.price}>
-                    {method.price === 0 ? (
+                    {payable === 0 ? (
                       <strong className={styles.freePrice}>
                         رایگان
                       </strong>
                     ) : (
                       <>
                         <strong>
-                          {formatPrice(method.price)}
+                          {formatPrice(payable)}
                         </strong>
 
                         <small>
@@ -266,8 +281,9 @@ export function ShippingMethod({
         </span>
 
         <span className={styles.footerText}>
-          هزینه ارسال پس از انتخاب روش، به مبلغ نهایی
-          سفارش اضافه می‌شود.
+          {isFreeShipping
+            ? `سفارش‌های از ${formatPrice(FREE_SHIPPING_THRESHOLD)} تومان به بالا ارسال رایگان دارند.`
+            : 'هزینه ارسال پس از انتخاب روش، به مبلغ نهایی سفارش اضافه می‌شود.'}
         </span>
 
         <span className={styles.footerLine} />

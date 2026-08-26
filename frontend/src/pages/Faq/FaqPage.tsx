@@ -1,6 +1,9 @@
 import { Accordion, type AccordionItem } from '../../components/ui/Accordion';
 import { Link } from 'react-router-dom';
 
+import { FREE_SHIPPING_THRESHOLD } from '../../config/shipping';
+import { formatPrice } from '../../lib/formatCurrency';
+
 import styles from '../content/ContentPage.module.css';
 
 const faqItems: AccordionItem[] = [
@@ -9,8 +12,9 @@ const faqItems: AccordionItem[] = [
     question: 'هزینه و زمان ارسال چقدر است؟',
     answer: (
       <p>
-        سفارش‌های بالای ۵ میلیون تومان ارسال رایگان دارند. ارسال عادی ۲ تا ۴
-        روز کاری و ارسال سریع ۱ تا ۲ روز کاری است. جزئیات کامل در صفحه{' '}
+        سفارش‌های از {formatPrice(FREE_SHIPPING_THRESHOLD)} تومان به بالا ارسال
+        رایگان دارند. ارسال عادی ۲ تا ۴ روز کاری و ارسال سریع ۱ تا ۲ روز کاری
+        است. جزئیات کامل در صفحه{' '}
         <Link to="/shipping">ارسال و تحویل</Link> آمده است.
       </p>
     ),

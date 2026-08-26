@@ -1,4 +1,5 @@
 import { siteImages } from '../../config/images';
+import { FREE_SHIPPING_THRESHOLD } from '../../config/shipping';
 import { SHIPPING_METHODS } from '../../components/cart/types';
 
 import type { AdminCategory } from '../types/category';
@@ -789,7 +790,7 @@ export const seedSettings: AdminSettings = {
     price: method.price,
     active: true,
   })),
-  freeShippingThreshold: 5000000,
+  freeShippingThreshold: FREE_SHIPPING_THRESHOLD,
   onlinePaymentEnabled: true,
   codEnabled: true,
   lowStockThreshold: 5,

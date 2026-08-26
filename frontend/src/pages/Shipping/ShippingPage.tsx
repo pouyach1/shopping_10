@@ -1,5 +1,8 @@
 import { Link } from 'react-router-dom';
 
+import { FREE_SHIPPING_THRESHOLD } from '../../config/shipping';
+import { formatPrice } from '../../lib/formatCurrency';
+
 import styles from '../content/ContentPage.module.css';
 
 export function ShippingPage() {
@@ -46,8 +49,8 @@ export function ShippingPage() {
             <article className={styles.card}>
               <h3 className={styles.cardTitle}>ارسال رایگان</h3>
               <p className={styles.cardBody}>
-                برای سفارش‌های بالای ۵ میلیون تومان، ارسال در سراسر کشور رایگان
-                است.
+                برای سفارش‌های از {formatPrice(FREE_SHIPPING_THRESHOLD)} تومان
+                به بالا، ارسال در سراسر کشور رایگان است.
               </p>
             </article>
           </div>

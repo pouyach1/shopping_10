@@ -20,6 +20,7 @@ import {
 } from '../types';
 import type { CustomerData } from '../../../types/user';
 import { formatPrice } from '../../../lib/formatCurrency';
+import { formatCityProvince } from '../../../lib/iranLocations';
 
 interface OrderSummaryProps {
   subtotal: number;
@@ -64,17 +65,17 @@ export function OrderSummary({
    * که آدرس دقیق هنوز وارد نشده باشد.
    */
   const hasExactAddress = Boolean(customer.address?.trim());
+  const cityProvince = formatCityProvince(customer.city, customer.province);
 
   const destination = hasExactAddress
     ? customer.address.trim()
-    : [customer.city, customer.province]
-        .filter(Boolean)
-        .join('، ');
+    : cityProvince;
 
   const hasRecipient =
     Boolean(fullName) ||
     Boolean(customer.phone) ||
-    Boolean(destination);
+    Boolean(destination) ||
+    Boolean(cityProvince);
 
   return (
     <aside className={styles.summary} dir="rtl">
@@ -198,18 +199,16 @@ export function OrderSummary({
             customer.province ||
             customer.postalCode) && (
             <div className={styles.locationMeta}>
-              {(customer.city || customer.province) && (
+              {cityProvince ? (
                 <span>
                   <MapPin
                     size={12}
                     strokeWidth={1.5}
                   />
 
-                  {[customer.city, customer.province]
-                    .filter(Boolean)
-                    .join('، ')}
+                  {cityProvince}
                 </span>
-              )}
+              ) : null}
 
               {customer.postalCode && (
                 <span>
