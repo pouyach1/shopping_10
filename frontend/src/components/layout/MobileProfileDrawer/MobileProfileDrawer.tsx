@@ -92,6 +92,10 @@ export function MobileProfileDrawer({ open, onClose }: MobileProfileDrawerProps)
     return () => {
       window.clearTimeout(focusTimer);
       window.removeEventListener('popstate', onPopState);
+      if (historyPushed.current && window.history.state?.luxoraProfileDrawer) {
+        historyPushed.current = false;
+        window.history.replaceState(null, '');
+      }
       style.overflow = previousOverflow;
       style.position = previousPosition;
       style.top = previousTop;
@@ -101,21 +105,21 @@ export function MobileProfileDrawer({ open, onClose }: MobileProfileDrawerProps)
     };
   }, [open, onClose]);
 
-  const handleClose = () => {
+  const clearHistoryFlag = () => {
     if (historyPushed.current && window.history.state?.luxoraProfileDrawer) {
-      historyPushed.current = false;
-      window.history.back();
-      return;
+      window.history.replaceState(null, '');
     }
+    historyPushed.current = false;
+  };
+
+  const handleClose = () => {
+    clearHistoryFlag();
     onClose();
   };
 
   /** Close without consuming history — used when navigating to another route. */
   const handleNavigateAway = () => {
-    historyPushed.current = false;
-    if (window.history.state?.luxoraProfileDrawer) {
-      window.history.replaceState(null, '');
-    }
+    clearHistoryFlag();
     onClose();
   };
 
