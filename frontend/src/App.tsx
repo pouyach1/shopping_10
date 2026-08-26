@@ -28,6 +28,7 @@ import { AdminLogin } from './admin/pages/AdminLogin';
 import { Dashboard } from './admin/pages/Dashboard';
 import { ComingSoon } from './admin/pages/ComingSoon';
 import { ProductsPage, ProductFormPage } from './admin/pages/Products';
+import { OrdersPage, OrderDetailPage } from './admin/pages/Orders';
 import { AdminThemeProvider } from './admin/theme';
 
 import './styles/global.css';
@@ -53,10 +54,8 @@ export default function App() {
           <Route path="products" element={<ProductsPage />} />
           <Route path="products/new" element={<ProductFormPage />} />
           <Route path="products/:id" element={<ProductFormPage />} />
-          <Route
-            path="orders"
-            element={<ComingSoon title="سفارش‌ها" />}
-          />
+          <Route path="orders" element={<OrdersPage />} />
+          <Route path="orders/:id" element={<OrderDetailPage />} />
           <Route
             path="customers"
             element={<ComingSoon title="مشتریان" />}

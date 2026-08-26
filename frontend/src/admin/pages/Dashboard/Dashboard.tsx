@@ -4,21 +4,13 @@ import {
   Package,
   ShoppingBag,
 } from 'lucide-react';
+import { Link } from 'react-router-dom';
 
 import { formatPrice } from '../../../lib/formatCurrency';
 import { useAdminStore } from '../../hooks/useAdminStore';
-import type { OrderStatus } from '../../types/order';
+import { ORDER_STATUS_LABELS } from '../../utils/orderLabels';
 
 import styles from './Dashboard.module.css';
-
-const ORDER_STATUS_LABELS: Record<OrderStatus, string> = {
-  pending: 'در انتظار',
-  confirmed: 'تأیید شده',
-  processing: 'در حال آماده‌سازی',
-  shipped: 'ارسال شده',
-  delivered: 'تحویل شده',
-  cancelled: 'لغو شده',
-};
 
 export function Dashboard() {
   const {
@@ -135,9 +127,9 @@ export function Dashboard() {
         <section className={styles.panel} aria-label="سفارش‌های اخیر">
           <div className={styles.panelHeader}>
             <h3 className={styles.panelTitle}>سفارش‌های اخیر</h3>
-            <span className={styles.panelHint}>
-              {formatPrice(stats.lowStockCount)} محصول کم‌موجودی
-            </span>
+            <Link to="/admin/orders" className={styles.panelHint}>
+              مشاهده همه
+            </Link>
           </div>
           <ul className={styles.list}>
             {recentOrders.map((order) => {
@@ -146,7 +138,9 @@ export function Dashboard() {
               return (
                 <li key={order.id} className={styles.listRow}>
                   <div>
-                    <strong>{order.orderNumber}</strong>
+                    <Link to={`/admin/orders/${order.id}`}>
+                      <strong>{order.orderNumber}</strong>
+                    </Link>
                     <span>{customer?.name ?? 'مشتری'}</span>
                   </div>
                   <div className={styles.listMeta}>

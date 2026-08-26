@@ -196,6 +196,20 @@
 .panelHint {
   font-size: 0.75rem;
   color: var(--admin-text-muted);
+  text-decoration: none;
+}
+
+.panelHint:hover {
+  color: var(--admin-accent);
+}
+
+.listRow a {
+  color: inherit;
+  text-decoration: none;
+}
+
+.listRow a:hover strong {
+  color: var(--admin-accent);
 }
 
 .list {
