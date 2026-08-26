@@ -1,7 +1,22 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
-import { Search, Heart, ShoppingBag, Menu, X, User, ChevronDown, LogOut, Package, UserCircle } from 'lucide-react';
+import { Link, useNavigate } from 'react-router-dom';
+import {
+  Search,
+  Heart,
+  ShoppingBag,
+  Menu,
+  X,
+  User,
+  ChevronDown,
+  LogOut,
+  UserCircle,
+} from 'lucide-react';
+
 import type { NavItem } from '../../../pages/Home/types';
 import { SearchOverlay } from '../../search/SearchOverlay/SearchOverlay';
+import { useCart } from '../../../hooks/useCart';
+import { useWishlist } from '../../../hooks/useWishlist';
+
 import styles from './Header.module.css';
 
 interface HeaderProps {
@@ -23,27 +38,22 @@ interface MegaMenuColumn {
   items: MegaMenuItem[];
 }
 
-/* Mega links only use routes that exist in App.tsx:
-   /shop, /category/:slug (women|men|bags|shoes|accessories) */
 const megaMenuData: Record<string, MegaMenuColumn[]> = {
   shop: [
     {
       id: 'women',
       title: 'زنانه',
       items: [
-        { id: 'w-dresses', label: 'پیراهن', href: '/category/women' },
-        { id: 'w-tops', label: 'بالاتنه', href: '/category/women' },
-        { id: 'w-pants', label: 'شلوار', href: '/category/women' },
-        { id: 'w-outerwear', label: 'پالتو و کت', href: '/category/women' },
+        { id: 'w-all', label: 'همه زنانه', href: '/category/women' },
+        { id: 'w-shop', label: 'فروشگاه', href: '/shop' },
       ],
     },
     {
       id: 'men',
       title: 'مردانه',
       items: [
-        { id: 'm-shirts', label: 'پیراهن', href: '/category/men' },
-        { id: 'm-trousers', label: 'شلوار', href: '/category/men' },
-        { id: 'm-jackets', label: 'کاپشن', href: '/category/men' },
+        { id: 'm-all', label: 'همه مردانه', href: '/category/men' },
+        { id: 'm-shop', label: 'فروشگاه', href: '/shop' },
       ],
     },
     {
@@ -51,17 +61,8 @@ const megaMenuData: Record<string, MegaMenuColumn[]> = {
       title: 'اکسسوری',
       items: [
         { id: 'a-bags', label: 'کیف', href: '/category/bags' },
-        { id: 'a-belts', label: 'کمربند', href: '/category/accessories' },
-        { id: 'a-scarves', label: 'شال و روسری', href: '/category/accessories' },
-      ],
-    },
-    {
-      id: 'new',
-      title: 'جدیدها',
-      items: [
-        { id: 'n-new-arrivals', label: 'تازه‌واردها', href: '/shop' },
-        { id: 'n-bestsellers', label: 'پرفروش‌ها', href: '/shop' },
-        { id: 'n-limited', label: 'نسخه محدود', href: '/shop' },
+        { id: 'a-shoes', label: 'کفش', href: '/category/shoes' },
+        { id: 'a-accessories', label: 'اکسسوری', href: '/category/accessories' },
       ],
     },
   ],
@@ -84,20 +85,19 @@ const megaMenuData: Record<string, MegaMenuColumn[]> = {
         { id: 'o-accessories', label: 'اکسسوری', href: '/category/accessories' },
       ],
     },
-    {
-      id: 'collections',
-      title: 'مجموعه‌ها',
-      items: [
-        { id: 'col-shop', label: 'فروشگاه', href: '/shop' },
-        { id: 'col-women', label: 'زنانه', href: '/category/women' },
-        { id: 'col-men', label: 'مردانه', href: '/category/men' },
-        { id: 'col-bags', label: 'کیف‌ها', href: '/category/bags' },
-      ],
-    },
   ],
 };
 
-export function Header({ navItems, onCart, logo = 'لوکسورا', logoLatin = 'LUXORA' }: HeaderProps) {
+export function Header({
+  navItems,
+  onCart,
+  logo = 'لوکسورا',
+  logoLatin = 'LUXORA',
+}: HeaderProps) {
+  const navigate = useNavigate();
+  const { itemCount: cartCount } = useCart();
+  const { itemCount: wishlistCount } = useWishlist();
+
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(() => {
     return sessionStorage.getItem('luxora-search-open') === 'true';
@@ -105,7 +105,6 @@ export function Header({ navItems, onCart, logo = 'لوکسورا', logoLatin = 
   const [accountDropdownOpen, setAccountDropdownOpen] = useState(false);
   const [megaMenuOpen, setMegaMenuOpen] = useState<string | null>(null);
   const [isSticky, setIsSticky] = useState(false);
-  const [isLoggedIn, setIsLoggedIn] = useState(false);
   const megaMenuTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const toggleMobileMenu = useCallback(() => {
@@ -128,10 +127,6 @@ export function Header({ navItems, onCart, logo = 'لوکسورا', logoLatin = 
     setSearchOpen(false);
   }, []);
 
-  const toggleAccountDropdown = useCallback(() => {
-    setAccountDropdownOpen((prev) => !prev);
-  }, []);
-
   const handleMegaMenuEnter = useCallback((menuId: string) => {
     if (megaMenuTimeoutRef.current) {
       clearTimeout(megaMenuTimeoutRef.current);
@@ -150,32 +145,25 @@ export function Header({ navItems, onCart, logo = 'لوکسورا', logoLatin = 
 
   useEffect(() => {
     const handleEscape = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') {
-        if (searchOpen) {
-          closeSearch();
-        }
-        if (mobileMenuOpen) {
-          closeMobileMenu();
-        }
-        if (accountDropdownOpen) {
-          setAccountDropdownOpen(false);
-        }
-        if (megaMenuOpen) {
-          setMegaMenuOpen(null);
-        }
-      }
+      if (e.key !== 'Escape') return;
+      if (searchOpen) closeSearch();
+      if (mobileMenuOpen) closeMobileMenu();
+      if (accountDropdownOpen) setAccountDropdownOpen(false);
+      if (megaMenuOpen) setMegaMenuOpen(null);
     };
-    if (searchOpen || mobileMenuOpen || accountDropdownOpen || megaMenuOpen) {
-      document.addEventListener('keydown', handleEscape);
-    }
+    document.addEventListener('keydown', handleEscape);
     return () => document.removeEventListener('keydown', handleEscape);
-  }, [searchOpen, mobileMenuOpen, accountDropdownOpen, megaMenuOpen, closeSearch, closeMobileMenu]);
+  }, [
+    searchOpen,
+    mobileMenuOpen,
+    accountDropdownOpen,
+    megaMenuOpen,
+    closeSearch,
+    closeMobileMenu,
+  ]);
 
   useEffect(() => {
-    const handleScroll = () => {
-      const scrollY = window.scrollY;
-      setIsSticky(scrollY > 80);
-    };
+    const handleScroll = () => setIsSticky(window.scrollY > 80);
     handleScroll();
     window.addEventListener('scroll', handleScroll, { passive: true });
     return () => window.removeEventListener('scroll', handleScroll);
@@ -189,45 +177,17 @@ export function Header({ navItems, onCart, logo = 'لوکسورا', logoLatin = 
     };
   }, []);
 
-  const handleWishlistClick = useCallback(() => {
-    window.location.href = '/wishlist';
-  }, []);
-
-  const handleCartClick = useCallback(() => {
-    window.location.href = '/cart';
-    if (onCart) {
-      onCart();
-    }
-  }, [onCart]);
-
-  const handleAccountClick = useCallback(() => {
-    if (isLoggedIn) {
-      toggleAccountDropdown();
-    } else {
-      window.location.href = '/login';
-    }
-  }, [isLoggedIn, toggleAccountDropdown]);
-
-  const handleLogout = useCallback(() => {
-    setIsLoggedIn(false);
-    setAccountDropdownOpen(false);
-    window.location.href = '/';
-  }, []);
-
-  const hasMegaMenu = (itemId: string): boolean => {
-    return itemId === 'shop' || itemId === 'categories';
-  };
+  const hasMegaMenu = (itemId: string): boolean =>
+    itemId === 'shop' || itemId === 'categories';
 
   return (
     <>
-      <header
-        className={`${styles.header} ${isSticky ? styles.sticky : ''}`}
-      >
+      <header className={`${styles.header} ${isSticky ? styles.sticky : ''}`}>
         <div className={styles.headerInner}>
-          <a href="/" className={styles.logo} aria-label={logo}>
+          <Link to="/" className={styles.logo} aria-label={logo}>
             <span className={styles.logoText}>{logo}</span>
             <span className={styles.logoLatin}>{logoLatin}</span>
-          </a>
+          </Link>
 
           <nav className={styles.desktopNav} aria-label="منوی اصلی">
             <ul className={styles.navList}>
@@ -235,72 +195,123 @@ export function Header({ navItems, onCart, logo = 'لوکسورا', logoLatin = 
                 <li
                   key={item.id}
                   className={styles.navItem}
-                  onMouseEnter={() => hasMegaMenu(item.id) ? handleMegaMenuEnter(item.id) : undefined}
-                  onMouseLeave={() => hasMegaMenu(item.id) ? handleMegaMenuLeave() : undefined}
+                  onMouseEnter={() =>
+                    hasMegaMenu(item.id)
+                      ? handleMegaMenuEnter(item.id)
+                      : undefined
+                  }
+                  onMouseLeave={() =>
+                    hasMegaMenu(item.id) ? handleMegaMenuLeave() : undefined
+                  }
                 >
-                  <a href={item.href} className={styles.navLink}>
+                  <Link to={item.href} className={styles.navLink}>
                     {item.label}
-                    {hasMegaMenu(item.id) && (
-                      <ChevronDown size={14} strokeWidth={1.5} className={styles.chevron} aria-hidden="true" />
-                    )}
-                  </a>
+                    {hasMegaMenu(item.id) ? (
+                      <ChevronDown
+                        size={14}
+                        strokeWidth={1.5}
+                        className={styles.chevron}
+                        aria-hidden="true"
+                      />
+                    ) : null}
+                  </Link>
                 </li>
               ))}
             </ul>
           </nav>
 
           <div className={styles.actions}>
-            <button className={styles.iconButton} onClick={openSearch} aria-label="جستجو">
+            <button
+              type="button"
+              className={styles.iconButton}
+              onClick={openSearch}
+              aria-label="جستجو"
+            >
               <Search size={20} strokeWidth={1.5} />
             </button>
-            <button
-              className={styles.iconButton}
-              onClick={handleWishlistClick}
-              aria-label="علاقه‌مندی‌ها"
+
+            <Link
+              to="/wishlist"
+              className={`${styles.iconButton} ${styles.hideOnMobile}`}
+              aria-label={
+                wishlistCount > 0
+                  ? `علاقه‌مندی‌ها، ${wishlistCount} مورد`
+                  : 'علاقه‌مندی‌ها'
+              }
             >
               <Heart size={20} strokeWidth={1.5} />
-            </button>
-            <button className={styles.iconButton} onClick={handleCartClick} aria-label="سبد خرید">
-              <ShoppingBag size={20} strokeWidth={1.5} />
-            </button>
-            <button
+              {wishlistCount > 0 ? (
+                <span className={styles.countBadge}>{wishlistCount}</span>
+              ) : null}
+            </Link>
+
+            <Link
+              to="/cart"
               className={styles.iconButton}
-              onClick={handleAccountClick}
-              aria-label="حساب کاربری"
-              aria-expanded={accountDropdownOpen}
+              aria-label={
+                cartCount > 0 ? `سبد خرید، ${cartCount} کالا` : 'سبد خرید'
+              }
+              onClick={() => onCart?.()}
             >
-              <User size={20} strokeWidth={1.5} />
-            </button>
+              <ShoppingBag size={20} strokeWidth={1.5} />
+              {cartCount > 0 ? (
+                <span className={styles.countBadge}>{cartCount}</span>
+              ) : null}
+            </Link>
+
+            <div className={`${styles.accountWrap} ${styles.hideOnMobile}`}>
+              <button
+                type="button"
+                className={styles.iconButton}
+                onClick={() => setAccountDropdownOpen((open) => !open)}
+                aria-label="حساب کاربری"
+                aria-expanded={accountDropdownOpen}
+              >
+                <User size={20} strokeWidth={1.5} />
+              </button>
+              {accountDropdownOpen ? (
+                <div className={styles.accountDropdown}>
+                  <Link
+                    to="/profile"
+                    className={styles.dropdownItem}
+                    onClick={() => setAccountDropdownOpen(false)}
+                  >
+                    <UserCircle size={16} strokeWidth={1.5} />
+                    پروفایل
+                  </Link>
+                  <button
+                    type="button"
+                    className={styles.dropdownItem}
+                    onClick={() => {
+                      setAccountDropdownOpen(false);
+                      navigate('/');
+                    }}
+                  >
+                    <LogOut size={16} strokeWidth={1.5} />
+                    بستن
+                  </button>
+                </div>
+              ) : null}
+            </div>
+
             <button
+              type="button"
               className={styles.menuToggle}
               onClick={toggleMobileMenu}
               aria-label={mobileMenuOpen ? 'بستن منو' : 'باز کردن منو'}
               aria-expanded={mobileMenuOpen}
               aria-controls="mobile-menu"
             >
-              {mobileMenuOpen ? <X size={24} strokeWidth={1.5} /> : <Menu size={24} strokeWidth={1.5} />}
+              {mobileMenuOpen ? (
+                <X size={24} strokeWidth={1.5} />
+              ) : (
+                <Menu size={24} strokeWidth={1.5} />
+              )}
             </button>
           </div>
         </div>
 
-        {accountDropdownOpen && isLoggedIn && (
-          <div className={styles.accountDropdown}>
-            <a href="/profile" className={styles.dropdownItem}>
-              <UserCircle size={16} strokeWidth={1.5} />
-              پروفایل
-            </a>
-            <a href="/orders" className={styles.dropdownItem}>
-              <Package size={16} strokeWidth={1.5} />
-              سفارش‌ها
-            </a>
-            <button onClick={handleLogout} className={styles.dropdownItem}>
-              <LogOut size={16} strokeWidth={1.5} />
-              خروج
-            </button>
-          </div>
-        )}
-
-        {megaMenuOpen && megaMenuData[megaMenuOpen] && (
+        {megaMenuOpen && megaMenuData[megaMenuOpen] ? (
           <div
             className={styles.megaMenu}
             onMouseEnter={() => handleMegaMenuEnter(megaMenuOpen)}
@@ -313,9 +324,9 @@ export function Header({ navItems, onCart, logo = 'لوکسورا', logoLatin = 
                   <ul className={styles.megaMenuList}>
                     {column.items.map((item) => (
                       <li key={item.id}>
-                        <a href={item.href} className={styles.megaMenuLink}>
+                        <Link to={item.href} className={styles.megaMenuLink}>
                           {item.label}
-                        </a>
+                        </Link>
                       </li>
                     ))}
                   </ul>
@@ -323,12 +334,16 @@ export function Header({ navItems, onCart, logo = 'لوکسورا', logoLatin = 
               ))}
             </div>
           </div>
-        )}
+        ) : null}
       </header>
 
-      {mobileMenuOpen && (
-        <div className={styles.mobileOverlay} onClick={closeMobileMenu} role="presentation" />
-      )}
+      {mobileMenuOpen ? (
+        <div
+          className={styles.mobileOverlay}
+          onClick={closeMobileMenu}
+          role="presentation"
+        />
+      ) : null}
 
       <div
         id="mobile-menu"
@@ -341,20 +356,51 @@ export function Header({ navItems, onCart, logo = 'لوکسورا', logoLatin = 
           <ul className={styles.mobileNavList}>
             {navItems.map((item) => (
               <li key={item.id}>
-                <a href={item.href} className={styles.mobileNavLink} onClick={closeMobileMenu}>
+                <Link
+                  to={item.href}
+                  className={styles.mobileNavLink}
+                  onClick={closeMobileMenu}
+                >
                   {item.label}
-                </a>
+                </Link>
               </li>
             ))}
             <li>
-              <a href="/wishlist" className={styles.mobileNavLink} onClick={closeMobileMenu}>
+              <Link
+                to="/wishlist"
+                className={styles.mobileNavLink}
+                onClick={closeMobileMenu}
+              >
                 علاقه‌مندی‌ها
-              </a>
+                {wishlistCount > 0 ? ` (${wishlistCount})` : ''}
+              </Link>
             </li>
             <li>
-              <a href="/profile" className={styles.mobileNavLink} onClick={closeMobileMenu}>
+              <Link
+                to="/profile"
+                className={styles.mobileNavLink}
+                onClick={closeMobileMenu}
+              >
                 حساب کاربری
-              </a>
+              </Link>
+            </li>
+            <li>
+              <Link
+                to="/shipping"
+                className={styles.mobileNavLink}
+                onClick={closeMobileMenu}
+              >
+                ارسال و تحویل
+              </Link>
+            </li>
+            <li>
+              <Link
+                to="/returns"
+                className={styles.mobileNavLink}
+                onClick={closeMobileMenu}
+              >
+                مرجوعی کالا
+              </Link>
             </li>
           </ul>
         </nav>

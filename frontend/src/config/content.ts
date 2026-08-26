@@ -1,49 +1,33 @@
 /**
- * LUXORA CONTENT CONFIG
- *
- * تمام محتوای قابل تغییر صفحه اصلی را اینجا نگه می‌داریم.
- * برای تغییر عکس‌ها، فقط مسیرهای همین فایل را تغییر بده.
+ * LUXORA CONTENT CONFIG — Persian-first Home copy.
  */
 
 export const homeContent = {
   hero: {
-    eyebrow: 'SPRING / SUMMER 2026',
-    title: 'ELEGANCE,\\nREIMAGINED',
-    description: 'Timeless silhouettes. Modern craftsmanship.\\nDesigned for the now and forever.',
+    eyebrow: 'لوکسورا',
+    title: 'جزئیاتی که استایل شما را می‌سازند',
+    description:
+      'مجموعه‌ای منتخب از پوشاک و اکسسوری برای کسانی که به کیفیت و جزئیات اهمیت می‌دهند.',
     primaryCta: {
-      label: 'SHOP THE COLLECTION',
-      href: '/shop',
-    },
-    secondaryCta: {
-      label: 'LOOKBOOK',
+      label: 'مشاهده فروشگاه',
       href: '/shop',
     },
   },
 
   categories: {
-    title: 'EXPLORE OUR WORLD',
-    description: 'Curated collections for every style',
+    title: 'دسته‌بندی‌ها',
+    description: 'مسیر سریع به آنچه می‌خواهید',
   },
 
   bestSellers: {
-    title: 'پرفروش‌ترین‌های این هفته',
-    description: 'محبوب‌ترین انتخاب‌های مشتریان ما',
-  },
-
-  favorites: {
-    title: 'محبوب‌ترین‌ها',
-  },
-
-  testimonials: {
-    title: 'مشتریان ما چه می‌گویند',
-  },
-
-  instagram: {
-    title: 'استایل ما را دنبال کنید',
-    handle: '@luxora',
+    title: 'پرفروش‌ترین‌ها',
+    description: 'انتخاب‌های محبوب مشتریان برای شروع خرید',
   },
 
   promo: {
-    title: 'استایل خود را دوباره تعریف کنید',
+    title: 'اکسسوری‌های فصل',
+    description: 'کیف، کفش و جزئیاتی که استایل روزمره را کامل می‌کنند.',
+    ctaLabel: 'مشاهده اکسسوری‌ها',
+    ctaHref: '/category/accessories',
   },
 } as const;

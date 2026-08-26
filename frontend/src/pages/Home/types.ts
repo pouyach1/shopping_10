@@ -10,6 +10,7 @@ export interface FeatureItem {
   icon: string;
   title: string;
   description: string;
+  href?: string;
 }
 
 export interface CategoryItem {
