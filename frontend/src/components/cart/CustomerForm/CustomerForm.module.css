@@ -200,35 +200,32 @@ to {
 @media(max-width:768px){
 
 .section {
-
- padding:24px 18px;
-
- border-radius:16px;
-
+ padding: 0;
+ border: 0;
+ border-radius: 0;
+ box-shadow: none;
+ background: transparent;
 }
-
 
 .grid {
-
  grid-template-columns:1fr;
-
- gap:18px;
-
+ gap:14px;
 }
-
 
 .title {
-
- font-size:22px;
-
+ font-size:1.15rem;
+ margin-bottom: 1rem;
 }
 
-
 .field input,
-.field select {
+.field select,
+.field textarea {
+ height:48px;
+ font-size: 16px; /* avoid iOS zoom */
+}
 
- height:50px;
-
+.field label {
+ font-size: 0.8125rem;
 }
 
 }

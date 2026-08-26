@@ -1,58 +1,45 @@
-import { Menu, ArrowLeft, User, Heart, ShoppingBag } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
+import { ArrowLeft, Heart, ShoppingBag, User } from 'lucide-react';
+
 import styles from './LuxuryHeader.module.css';
 
 export function LuxuryHeader() {
-
   const navigate = useNavigate();
-
-  const goTo = (path: string) => {
-    navigate(path);
-  };
 
   return (
     <header className={styles.header}>
-
-      <button className={styles.iconButton}>
-        <Menu size={20}/>
+      <button
+        type="button"
+        className={styles.iconButton}
+        aria-label="بازگشت"
+        onClick={() => navigate(-1)}
+      >
+        <ArrowLeft size={20} strokeWidth={1.5} aria-hidden="true" />
       </button>
 
-      <div className={styles.brand}>
+      <Link to="/" className={styles.brand} aria-label="لوکسورا">
         LUXORA
-      </div>
+      </Link>
 
       <div className={styles.actions}>
-
-        <button
+        <Link
+          to="/profile"
           className={styles.iconButton}
-          onClick={() => goTo('/profile')}
+          aria-label="حساب کاربری"
         >
-          <User size={18}/>
-        </button>
-
-        <button
+          <User size={20} strokeWidth={1.5} aria-hidden="true" />
+        </Link>
+        <Link
+          to="/wishlist"
           className={styles.iconButton}
-          onClick={() => goTo('/')}
+          aria-label="علاقه‌مندی‌ها"
         >
-          <ArrowLeft size={18}/>
-        </button>
-
-        <button
-          className={styles.iconButton}
-          onClick={() => goTo('/wishlist')}
-        >
-          <Heart size={18}/>
-        </button>
-
-        <button
-          className={styles.iconButton}
-          onClick={() => goTo('/cart')}
-        >
-          <ShoppingBag size={18}/>
-        </button>
-
+          <Heart size={20} strokeWidth={1.5} aria-hidden="true" />
+        </Link>
+        <Link to="/cart" className={styles.iconButton} aria-label="سبد خرید">
+          <ShoppingBag size={20} strokeWidth={1.5} aria-hidden="true" />
+        </Link>
       </div>
-
     </header>
   );
 }

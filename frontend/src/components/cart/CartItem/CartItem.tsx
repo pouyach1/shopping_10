@@ -73,6 +73,11 @@ export function CartItem({
           </span>
         </div>
 
+        <p className={styles.unitPrice}>
+          {formatPrice(item.price)}
+          <span>{item.currency}</span>
+        </p>
+
         <div className={styles.quantityControl}>
           <button
             type="button"
@@ -81,10 +86,10 @@ export function CartItem({
             aria-label="کاهش تعداد"
             disabled={item.quantity <= 1}
           >
-            <Minus size={13} strokeWidth={1.5} />
+            <Minus size={16} strokeWidth={1.6} aria-hidden="true" />
           </button>
 
-          <span className={styles.quantityValue}>
+          <span className={styles.quantityValue} aria-live="polite">
             {item.quantity}
           </span>
 
@@ -94,7 +99,7 @@ export function CartItem({
             onClick={increaseQuantity}
             aria-label="افزایش تعداد"
           >
-            <Plus size={13} strokeWidth={1.5} />
+            <Plus size={16} strokeWidth={1.6} aria-hidden="true" />
           </button>
         </div>
       </div>
@@ -108,9 +113,9 @@ export function CartItem({
         type="button"
         className={styles.remove}
         onClick={() => onRemove(item.id)}
-        aria-label="حذف از سبد"
+        aria-label={`حذف ${item.name} از سبد`}
       >
-        <X size={15} strokeWidth={1.5} />
+        <X size={18} strokeWidth={1.6} aria-hidden="true" />
       </button>
     </motion.article>
   );

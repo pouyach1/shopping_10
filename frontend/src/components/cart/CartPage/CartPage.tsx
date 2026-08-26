@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { ChevronDown } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
@@ -16,12 +16,13 @@ import {
   type PaymentMethodId,
   type ShippingMethodId,
 } from '../types';
+import type { CartItem as CartItemType } from '../../../types/cart';
 import type { CustomerData } from '../../../types/user';
 import { useCart } from '../../../hooks/useCart';
 import { saveOrderSnapshot } from '../../../lib/orderSnapshot';
+import { formatPrice } from '../../../lib/formatCurrency';
 
 import styles from './CartPage.module.css';
-
 
 const SHIPPING_PRICES: Record<ShippingMethodId, number> = {
   'post-express': 65000,
@@ -30,12 +31,7 @@ const SHIPPING_PRICES: Record<ShippingMethodId, number> = {
   express: 120000,
 };
 
-const easeLuxury = [
-  0.16,
-  1,
-  0.3,
-  1,
-] as const;
+const easeLuxury = [0.16, 1, 0.3, 1] as const;
 
 const REQUIRED_CUSTOMER_FIELDS: { key: keyof CustomerData; label: string }[] = [
   { key: 'firstName', label: 'نام' },
@@ -46,47 +42,89 @@ const REQUIRED_CUSTOMER_FIELDS: { key: keyof CustomerData; label: string }[] = [
   { key: 'address', label: 'آدرس' },
 ];
 
-
 export function CartPage() {
-  const { items, removeItem, updateQuantity, subtotal, itemCount, clearCart } =
-    useCart();
+  const {
+    items,
+    removeItem,
+    updateQuantity,
+    subtotal,
+    itemCount,
+    clearCart,
+    addItem,
+  } = useCart();
   const navigate = useNavigate();
 
-  const [customer, setCustomer] =
-    useState<CustomerData>(EMPTY_CUSTOMER);
-
+  const [customer, setCustomer] = useState<CustomerData>(EMPTY_CUSTOMER);
   const [shippingMethod, setShippingMethod] =
     useState<ShippingMethodId>('post-express');
-
   const [paymentMethod, setPaymentMethod] =
     useState<PaymentMethodId>('zarinpal');
+  /** Open by default so mobile shoppers see items immediately. */
+  const [orderAccordionOpen, setOrderAccordionOpen] = useState(true);
+  const [checkoutError, setCheckoutError] = useState<string | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [undoItem, setUndoItem] = useState<CartItemType | null>(null);
+  const undoTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const [orderAccordionOpen, setOrderAccordionOpen] =
-    useState(false);
+  const shipping = SHIPPING_PRICES[shippingMethod];
+  const total = subtotal + shipping;
 
+  useEffect(() => {
+    return () => {
+      if (undoTimerRef.current) clearTimeout(undoTimerRef.current);
+    };
+  }, []);
 
-  const shipping =
-    SHIPPING_PRICES[shippingMethod];
+  const clearUndoTimer = () => {
+    if (undoTimerRef.current) {
+      clearTimeout(undoTimerRef.current);
+      undoTimerRef.current = null;
+    }
+  };
 
+  const handleRemoveItem = (id: string) => {
+    const removed = items.find((item) => item.id === id);
+    removeItem(id);
+    if (!removed) return;
 
-  const total =
-    subtotal + shipping;
+    clearUndoTimer();
+    setUndoItem(removed);
+    undoTimerRef.current = setTimeout(() => {
+      setUndoItem(null);
+      undoTimerRef.current = null;
+    }, 4500);
+  };
 
+  const handleUndoRemove = () => {
+    if (!undoItem) return;
+    addItem(undoItem);
+    clearUndoTimer();
+    setUndoItem(null);
+  };
 
   const handleCheckout = () => {
+    if (isSubmitting) return;
+
     if (items.length === 0) {
-      alert('سبد خرید شما خالی است.');
+      setCheckoutError('سبد خرید شما خالی است.');
       return;
     }
 
     const missing = REQUIRED_CUSTOMER_FIELDS.filter(
-      (field) => !customer[field.key].trim(),
+      (field) => !String(customer[field.key] ?? '').trim(),
     ).map((field) => field.label);
 
     if (missing.length > 0) {
-      alert('لطفاً اطلاعات زیر را تکمیل کنید:\n' + missing.join('، '));
+      setCheckoutError(
+        `لطفاً اطلاعات ضروری را تکمیل کنید: ${missing.join('، ')}`,
+      );
+      const form = document.getElementById('checkout-customer');
+      form?.scrollIntoView({ behavior: 'smooth', block: 'start' });
       return;
     }
+
+    setCheckoutError(null);
+    setIsSubmitting(true);
 
     const orderId = `LX-${Date.now().toString(36).toUpperCase()}`;
 
@@ -104,241 +142,197 @@ export function CartPage() {
     navigate('/order/confirmation');
   };
 
-
   return (
-    <main
-      className={styles.page}
-      dir="rtl"
-    >
+    <div className={styles.page} dir="rtl">
       <motion.div
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
-        transition={{
-          duration: 0.8,
-          ease: easeLuxury,
-        }}
+        transition={{ duration: 0.5, ease: easeLuxury }}
       >
         <LuxuryHeader />
       </motion.div>
 
-
       {items.length === 0 ? (
         <EmptyCart />
       ) : (
-        <div className={styles.container}>
-
-          <motion.div
-            initial={{
-              opacity: 0,
-              y: 20,
-            }}
-            animate={{
-              opacity: 1,
-              y: 0,
-            }}
-            transition={{
-              duration: 0.8,
-              ease: easeLuxury,
-              delay: 0.1,
-            }}
+        <>
+          <div
+            className={`${styles.container} ${styles.containerWithSticky}`}
           >
-
-            <div className={styles.checkoutSteps}>
-
-              <div className={styles.step}>
-                <span className={styles.circle}>
-                  1
-                </span>
-
-                <span>
-                  سبد خرید
-                </span>
-              </div>
-
-
-              <div className={styles.line} />
-
-
-              <div
-                className={`${styles.step} ${styles.active}`}
-              >
-                <span className={styles.circle}>
-                  2
-                </span>
-
-                <span>
-                  تکمیل سفارش
-                </span>
-              </div>
-
-
-              <div className={styles.line} />
-
-
-              <div className={styles.step}>
-                <span className={styles.circle}>
-                  3
-                </span>
-
-                <span>
-                  تایید نهایی
-                </span>
-              </div>
-
-            </div>
-
-
-            <h1 className={styles.title}>
-              پرداخت و ثبت سفارش
-            </h1>
-
-          </motion.div>
-
-
-          <div className={styles.grid}>
-
-            <motion.section
-              className={styles.leftColumn}
-              initial={{
-                opacity: 0,
-                y: 20,
-              }}
-              animate={{
-                opacity: 1,
-                y: 0,
-              }}
-              transition={{
-                duration: 0.8,
-                ease: easeLuxury,
-                delay: 0.25,
-              }}
+            <motion.div
+              initial={{ opacity: 0, y: 16 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.55, ease: easeLuxury, delay: 0.05 }}
             >
-
-              <div className={styles.card}>
-                <CustomerForm
-                  data={customer}
-                  onChange={setCustomer}
-                />
+              <div className={styles.checkoutSteps}>
+                <div className={`${styles.step} ${styles.active}`}>
+                  <span className={styles.circle}>1</span>
+                  <span>سبد خرید</span>
+                </div>
+                <div className={styles.line} />
+                <div className={styles.step}>
+                  <span className={styles.circle}>2</span>
+                  <span>تکمیل سفارش</span>
+                </div>
+                <div className={styles.line} />
+                <div className={styles.step}>
+                  <span className={styles.circle}>3</span>
+                  <span>تایید نهایی</span>
+                </div>
               </div>
 
+              <h1 className={styles.title}>سبد خرید و ثبت سفارش</h1>
+            </motion.div>
 
-              <div className={styles.card}>
-                <ShippingMethod
-                  value={shippingMethod}
-                  onChange={setShippingMethod}
-                />
-              </div>
-
-
-              <div className={styles.card}>
-                <PaymentMethod
-                  value={paymentMethod}
-                  onChange={setPaymentMethod}
-                />
-              </div>
-
-            </motion.section>
-
-
-
-            <motion.aside
-              className={styles.rightColumn}
-              initial={{
-                opacity: 0,
-              }}
-              animate={{
-                opacity: 1,
-              }}
-              transition={{
-                duration: 0.8,
-                ease: easeLuxury,
-                delay: 0.4,
-              }}
-            >
-
-              <div
-                className={`${styles.card} ${styles.orderCard}`}
+            <div className={styles.grid}>
+              <motion.section
+                className={styles.leftColumn}
+                initial={{ opacity: 0, y: 16 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.55, ease: easeLuxury, delay: 0.12 }}
               >
+                <div className={styles.card} id="checkout-customer">
+                  <CustomerForm data={customer} onChange={(next) => {
+                    setCustomer(next);
+                    if (checkoutError) setCheckoutError(null);
+                  }} />
+                </div>
 
-                <button
-                  type="button"
-                  className={styles.orderToggle}
-                  onClick={() =>
-                    setOrderAccordionOpen(
-                      (previous) => !previous,
-                    )
-                  }
-                  aria-expanded={
-                    orderAccordionOpen
-                  }
-                >
-
-                  <span>
-                    سفارش شما ({itemCount})
-                  </span>
-
-                  <ChevronDown
-                    size={18}
-                    strokeWidth={1.5}
-                    className={`${styles.chevron} ${
-                      orderAccordionOpen
-                        ? styles.chevronOpen
-                        : ''
-                    }`}
+                <div className={styles.card}>
+                  <ShippingMethod
+                    value={shippingMethod}
+                    onChange={setShippingMethod}
                   />
+                </div>
 
-                </button>
+                <div className={styles.card}>
+                  <PaymentMethod
+                    value={paymentMethod}
+                    onChange={setPaymentMethod}
+                  />
+                </div>
+              </motion.section>
 
+              <motion.aside
+                className={styles.rightColumn}
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ duration: 0.55, ease: easeLuxury, delay: 0.18 }}
+              >
+                <div className={`${styles.card} ${styles.orderCard}`}>
+                  <button
+                    type="button"
+                    className={styles.orderToggle}
+                    onClick={() =>
+                      setOrderAccordionOpen((previous) => !previous)
+                    }
+                    aria-expanded={orderAccordionOpen}
+                  >
+                    <span>سفارش شما ({itemCount})</span>
+                    <ChevronDown
+                      size={18}
+                      strokeWidth={1.5}
+                      className={`${styles.chevron} ${
+                        orderAccordionOpen ? styles.chevronOpen : ''
+                      }`}
+                      aria-hidden="true"
+                    />
+                  </button>
 
-                <motion.div
-                  initial={false}
-                  animate={{
-                    height: 'auto',
-                    opacity: 1,
-                  }}
-                  className={`${styles.orderContent} ${
-                    orderAccordionOpen ? styles.orderContentOpen : ''
-                  }`}
-                >
-                  <div className={styles.itemsList}>
-                    <AnimatePresence initial={false}>
-                      {items.map((item) => (
-                        <CartItemComponent
-                          key={item.id}
-                          item={item}
-                          onRemove={removeItem}
-                          onQuantityChange={updateQuantity}
-                        />
-                      ))}
-                    </AnimatePresence>
+                  <div
+                    className={`${styles.orderContent} ${
+                      orderAccordionOpen ? styles.orderContentOpen : ''
+                    }`}
+                  >
+                    <div className={styles.itemsList}>
+                      <AnimatePresence initial={false}>
+                        {items.map((item) => (
+                          <CartItemComponent
+                            key={item.id}
+                            item={item}
+                            onRemove={handleRemoveItem}
+                            onQuantityChange={updateQuantity}
+                          />
+                        ))}
+                      </AnimatePresence>
+                    </div>
                   </div>
-                </motion.div>
+                </div>
 
-              </div>
+                <div className={styles.card}>
+                  <OrderSummary
+                    subtotal={subtotal}
+                    shipping={shipping}
+                    total={total}
+                    customer={customer}
+                    shippingMethod={shippingMethod}
+                    paymentMethod={paymentMethod}
+                    onCheckout={handleCheckout}
+                    hideMobileCheckout
+                  />
+                </div>
 
-
-
-              <div className={styles.card}>
-
-                <OrderSummary
-                  subtotal={subtotal}
-                  shipping={shipping}
-                  total={total}
-                  customer={customer}
-                  shippingMethod={shippingMethod}
-                  paymentMethod={paymentMethod}
-                  onCheckout={handleCheckout}
-                />
-
-              </div>
-
-            </motion.aside>
-
+                {checkoutError ? (
+                  <p className={styles.inlineError} role="alert">
+                    {checkoutError}
+                  </p>
+                ) : null}
+              </motion.aside>
+            </div>
           </div>
 
-        </div>
+          <div className={styles.stickyBar} role="region" aria-label="خلاصه پرداخت">
+            <div className={styles.stickyMeta}>
+              <span className={styles.stickyLabel}>مبلغ نهایی</span>
+              <strong className={styles.stickyTotal}>
+                {formatPrice(total)}
+                <span> تومان</span>
+              </strong>
+              <span className={styles.stickyCount}>
+                {itemCount} کالا
+              </span>
+            </div>
+            <button
+              type="button"
+              className={styles.stickyCta}
+              onClick={handleCheckout}
+              disabled={isSubmitting}
+            >
+              {isSubmitting ? 'در حال ثبت...' : 'ادامه فرایند خرید'}
+            </button>
+            {checkoutError ? (
+              <p className={styles.stickyError} role="alert">
+                {checkoutError}
+              </p>
+            ) : null}
+          </div>
+        </>
       )}
 
-    </main>
+      <AnimatePresence>
+        {undoItem ? (
+          <motion.div
+            className={`${styles.undoToast} ${
+              items.length === 0 ? styles.undoToastSolo : ''
+            }`}
+            role="status"
+            aria-live="polite"
+            initial={{ opacity: 0, y: 12 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: 8 }}
+            transition={{ duration: 0.22, ease: easeLuxury }}
+          >
+            <span>کالا از سبد حذف شد</span>
+            <button
+              type="button"
+              className={styles.undoButton}
+              onClick={handleUndoRemove}
+            >
+              بازگردانی
+            </button>
+          </motion.div>
+        ) : null}
+      </AnimatePresence>
+    </div>
   );
 }

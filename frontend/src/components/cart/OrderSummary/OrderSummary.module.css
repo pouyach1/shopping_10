@@ -788,6 +788,9 @@
   border-radius: 8px;
 }
 
+.checkoutDesktopOnly {
+  /* shown on desktop; hidden when sticky mobile bar is active */
+}
 
 /* =========================
    RESPONSIVE
@@ -796,6 +799,35 @@
 @media (max-width: 900px) {
   .recipientGrid {
     grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 768px) {
+  .checkoutDesktopOnly {
+    display: none;
+  }
+
+  .totalLabel {
+    font-size: 0.875rem;
+  }
+
+  .total > strong {
+    font-size: 1.25rem;
+  }
+
+  .total > div small,
+  .total > strong small,
+  .security,
+  .gift strong,
+  .gift span,
+  .addressText {
+    font-size: 0.75rem;
+  }
+
+  .checkout {
+    min-height: 52px;
+    height: auto;
+    font-size: 0.9375rem;
   }
 }
 
@@ -814,13 +846,5 @@
 
   .methods {
     grid-template-columns: 1fr;
-  }
-
-  .total > strong {
-    font-size: 18px;
-  }
-
-  .addressText {
-    font-size: 9px;
   }
 }
