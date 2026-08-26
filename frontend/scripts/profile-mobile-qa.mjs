@@ -96,23 +96,20 @@ async function login(page) {
   await page.getByRole('heading', { name: 'پروفایل من' }).waitFor({ timeout: 8000 });
 }
 
-async function seedStores(page) {
-  await page.evaluate(
-    ({ wishlistKey, cartKey, wishlist, cart }) => {
-      localStorage.setItem(wishlistKey, JSON.stringify(wishlist));
-      localStorage.setItem(cartKey, JSON.stringify(cart));
-    },
-    {
-      wishlistKey: WISHLIST_STORAGE_KEY,
-      cartKey: CART_STORAGE_KEY,
-      wishlist: seedWishlist,
-      cart: seedCart,
-    },
-  );
-}
-
 const browser = await chromium.launch({ headless: true });
 const page = await browser.newPage({ viewport: { width: 390, height: 844 } });
+await page.addInitScript(
+  ({ wishlistKey, cartKey, wishlist, cart }) => {
+    localStorage.setItem(wishlistKey, JSON.stringify(wishlist));
+    localStorage.setItem(cartKey, JSON.stringify(cart));
+  },
+  {
+    wishlistKey: WISHLIST_STORAGE_KEY,
+    cartKey: CART_STORAGE_KEY,
+    wishlist: seedWishlist,
+    cart: seedCart,
+  },
+);
 const consoleErrors = [];
 page.on('console', (msg) => {
   if (msg.type() === 'error') consoleErrors.push(msg.text());
@@ -126,7 +123,6 @@ assert.ok(loginTitle && loginTitle.y >= 56, `login under header y=${loginTitle?.
 await noOverflow(page, 'login@390');
 console.log('PASS logged-out login shell');
 
-await seedStores(page);
 await login(page);
 await page.getByRole('navigation', { name: /بخش‌های حساب/ }).waitFor();
 
@@ -203,8 +199,9 @@ console.log('PASS account + history + refresh');
 await page.goto(BASE + '/profile');
 await page.getByRole('navigation', { name: /بخش‌های حساب/ }).waitFor();
 await page.getByRole('button', { name: 'باز کردن منو' }).click();
-await page.getByRole('dialog', { name: 'LUXORA' }).waitFor();
-await page.getByRole('link', { name: /سارا محمدی|حساب/ }).click();
+const drawer = page.getByRole('dialog', { name: 'LUXORA' });
+await drawer.waitFor();
+await drawer.getByRole('link', { name: 'حساب (سارا محمدی)' }).click();
 await page.waitForURL((url) => url.pathname === '/profile');
 assert.equal(await page.getByRole('dialog', { name: 'LUXORA' }).count(), 0);
 console.log('PASS mobile nav drawer → profile');
@@ -236,7 +233,6 @@ for (const { width, height } of viewports) {
     `main offenders logged-out@${width}: ${JSON.stringify(offendersOut)}`,
   );
 
-  await seedStores(page);
   await login(page);
   await noOverflow(page, `hub@${width}`);
   const offendersHub = await profileOffenders(page, width);
