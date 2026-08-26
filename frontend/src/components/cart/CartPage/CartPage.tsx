@@ -154,11 +154,7 @@ export function CartPage() {
           <div
             className={`${styles.container} ${styles.containerWithSticky}`}
           >
-            <motion.div
-              initial={{ opacity: 0, y: 16 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.55, ease: easeLuxury, delay: 0.05 }}
-            >
+            <div>
               <div className={styles.checkoutSteps}>
                 <div className={`${styles.step} ${styles.active}`}>
                   <span className={styles.circle}>1</span>
@@ -177,15 +173,10 @@ export function CartPage() {
               </div>
 
               <h1 className={styles.title}>سبد خرید و ثبت سفارش</h1>
-            </motion.div>
+            </div>
 
             <div className={styles.grid}>
-              <motion.section
-                className={styles.leftColumn}
-                initial={{ opacity: 0, y: 16 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.55, ease: easeLuxury, delay: 0.12 }}
-              >
+              <section className={styles.leftColumn}>
                 <div className={styles.card} id="checkout-customer">
                   <CustomerForm data={customer} onChange={(next) => {
                     setCustomer(next);
@@ -207,14 +198,9 @@ export function CartPage() {
                     onChange={setPaymentMethod}
                   />
                 </div>
-              </motion.section>
+              </section>
 
-              <motion.aside
-                className={styles.rightColumn}
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                transition={{ duration: 0.55, ease: easeLuxury, delay: 0.18 }}
-              >
+              <aside className={styles.rightColumn}>
                 <div className={`${styles.card} ${styles.orderCard}`}>
                   <button
                     type="button"
@@ -273,7 +259,7 @@ export function CartPage() {
                     {checkoutError}
                   </p>
                 ) : null}
-              </motion.aside>
+              </aside>
             </div>
           </div>
 
