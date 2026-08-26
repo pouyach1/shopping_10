@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Heart } from 'lucide-react';
 
@@ -25,6 +26,13 @@ export function ProductCard({ product }: ProductCardProps) {
 
   const { isInWishlist, toggleProduct } = useWishlist();
   const wishlisted = isInWishlist(product.id);
+  const [heartPulse, setHeartPulse] = useState(false);
+
+  const handleWishlist = () => {
+    toggleProduct(product);
+    setHeartPulse(true);
+    window.setTimeout(() => setHeartPulse(false), 320);
+  };
 
   return (
     <article className={styles.card}>
@@ -49,14 +57,14 @@ export function ProductCard({ product }: ProductCardProps) {
           type="button"
           className={`${styles.wishlistButton} ${
             wishlisted ? styles.wishlistActive : ''
-          }`}
+          } ${heartPulse ? styles.wishlistPulse : ''}`}
           aria-label={
             wishlisted
               ? `حذف ${name} از علاقه‌مندی‌ها`
               : `افزودن ${name} به علاقه‌مندی‌ها`
           }
           aria-pressed={wishlisted}
-          onClick={() => toggleProduct(product)}
+          onClick={handleWishlist}
         >
           <Heart
             size={19}

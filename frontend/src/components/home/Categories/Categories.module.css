@@ -52,6 +52,7 @@
   background: #e8e4dc;
   text-decoration: none;
   color: #fff;
+  transition: transform var(--motion-standard, 280ms) var(--ease-out-expo, cubic-bezier(0.22, 1, 0.36, 1));
 }
 
 .spanWide .card {
@@ -63,7 +64,7 @@
   height: 100%;
   object-fit: cover;
   display: block;
-  transition: transform 450ms cubic-bezier(0.22, 1, 0.36, 1);
+  transition: transform 480ms var(--ease-out-expo, cubic-bezier(0.22, 1, 0.36, 1));
 }
 
 .shade {
@@ -75,6 +76,7 @@
     rgba(0, 0, 0, 0.12) 55%,
     rgba(0, 0, 0, 0.05) 100%
   );
+  transition: opacity var(--motion-standard, 280ms) ease;
 }
 
 .meta {
@@ -98,17 +100,35 @@
   font-family: 'Vazirmatn', Tahoma, sans-serif;
   font-size: 0.75rem;
   font-weight: 500;
-  opacity: 0.92;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.7);
-}
-
-.card:hover .image {
-  transform: scale(1.04);
+  opacity: 0.85;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.55);
+  transition:
+    opacity var(--motion-micro, 180ms) ease,
+    border-color var(--motion-micro, 180ms) ease;
 }
 
 .card:focus-visible {
   outline: 2px solid #1a1a1a;
   outline-offset: 3px;
+}
+
+.card:active {
+  transform: scale(0.985);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .card:hover .image {
+    transform: scale(1.04);
+  }
+
+  .card:hover .cta {
+    opacity: 1;
+    border-color: rgba(255, 255, 255, 0.95);
+  }
+
+  .card:hover .shade {
+    opacity: 0.92;
+  }
 }
 
 @media (min-width: 768px) {
@@ -145,11 +165,15 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .image {
+  .image,
+  .shade,
+  .cta,
+  .card {
     transition: none;
   }
 
-  .card:hover .image {
+  .card:hover .image,
+  .card:active {
     transform: none;
   }
 }

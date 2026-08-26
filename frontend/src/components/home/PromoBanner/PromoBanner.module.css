@@ -3,6 +3,10 @@
   background: #f7f4ef;
 }
 
+.revealWrap {
+  display: block;
+}
+
 .bannerInner {
   max-width: 1280px;
   margin: 0 auto;
@@ -19,6 +23,8 @@
   height: 100%;
   object-fit: cover;
   object-position: center 35%;
+  transform: scale(1.02);
+  transition: transform 900ms var(--ease-out-expo, cubic-bezier(0.22, 1, 0.36, 1));
 }
 
 .overlay {
@@ -77,15 +83,31 @@
   font-size: 0.875rem;
   font-weight: 600;
   text-decoration: none;
+  transition:
+    background-color var(--motion-micro, 180ms) ease,
+    transform var(--motion-micro, 180ms) var(--ease-out-expo, cubic-bezier(0.22, 1, 0.36, 1)),
+    box-shadow var(--motion-micro, 180ms) ease;
 }
 
 .cta:hover {
   background: #fff;
+  transform: translateY(-1px);
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.18);
+}
+
+.cta:active {
+  transform: scale(0.98);
 }
 
 .cta:focus-visible {
   outline: 2px solid #fff;
   outline-offset: 3px;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .bannerInner:hover .backgroundImage {
+    transform: scale(1.045);
+  }
 }
 
 @media (min-width: 768px) {
@@ -106,5 +128,20 @@
 @media (min-width: 1024px) {
   .promoBanner {
     padding-inline: 3rem;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .backgroundImage,
+  .cta {
+    transition: none;
+    transform: none;
+  }
+
+  .bannerInner:hover .backgroundImage,
+  .cta:hover,
+  .cta:active {
+    transform: none;
+    box-shadow: none;
   }
 }

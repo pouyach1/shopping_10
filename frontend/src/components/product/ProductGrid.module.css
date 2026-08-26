@@ -5,6 +5,10 @@
   margin-inline: auto;
 }
 
+.cell {
+  min-width: 0;
+}
+
 .gapSm {
   gap: 12px;
 }
