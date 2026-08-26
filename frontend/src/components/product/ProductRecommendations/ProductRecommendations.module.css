@@ -1,0 +1,154 @@
+.stack {
+  display: flex;
+  flex-direction: column;
+  gap: 72px;
+  margin-top: 96px;
+}
+
+.section {
+  min-width: 0;
+}
+
+.header {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 24px;
+  margin-bottom: 28px;
+}
+
+.headingGroup {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+}
+
+.eyebrow {
+  color: #a09d96;
+  font-family: 'Inter', sans-serif;
+  font-size: 9px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+}
+
+.title {
+  margin: 0;
+  color: #1a1b1e;
+  font-family: 'Vazirmatn', sans-serif;
+  font-size: clamp(22px, 3vw, 30px);
+  font-weight: 500;
+  line-height: 1.35;
+}
+
+.subtitle {
+  margin: 0;
+  max-width: 36ch;
+  color: #6f6d67;
+  font-family: 'Vazirmatn', sans-serif;
+  font-size: 13px;
+  font-weight: 400;
+  line-height: 1.7;
+}
+
+.shopLink {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  flex-shrink: 0;
+
+  color: #555651;
+  font-family: 'Vazirmatn', sans-serif;
+  font-size: 11px;
+  text-decoration: none;
+  transition: color 180ms ease;
+}
+
+.shopLink:hover {
+  color: #1a1b1e;
+}
+
+.shopLink:focus-visible {
+  outline: 2px solid #b89b5e;
+  outline-offset: 3px;
+}
+
+/* Complementary: quieter than related, still intentional */
+.secondary .title {
+  font-size: clamp(20px, 2.6vw, 26px);
+}
+
+.secondary .header {
+  margin-bottom: 22px;
+}
+
+/* Discovery: lightest presence — does not compete with ATC / primary rails */
+.discovery {
+  padding-top: 8px;
+  border-top: 1px solid rgba(26, 27, 30, 0.06);
+}
+
+.discovery .title {
+  font-size: clamp(17px, 2.2vw, 22px);
+  font-weight: 500;
+  color: #3a3a37;
+}
+
+.discovery .header {
+  margin-bottom: 18px;
+}
+
+.gridWrap {
+  min-width: 0;
+  width: 100%;
+}
+
+.discoveryGrid {
+  min-width: 0;
+  width: 100%;
+  max-width: 560px;
+}
+
+.discoveryGrid > * {
+  max-width: none;
+  margin-inline: 0;
+}
+
+@media (max-width: 767px) {
+  .stack {
+    gap: 56px;
+    margin-top: 64px;
+  }
+
+  .header {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 12px;
+    margin-bottom: 20px;
+  }
+
+  .subtitle {
+    font-size: 12px;
+  }
+
+  .discovery {
+    padding-top: 4px;
+  }
+
+  .discoveryGrid {
+    max-width: none;
+  }
+}
+
+@media (max-width: 420px) {
+  .stack {
+    gap: 48px;
+    margin-top: 56px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .shopLink {
+    transition: none;
+  }
+}
