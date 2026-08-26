@@ -21,7 +21,8 @@
 }
 
 .page {
-  animation: pageEnter var(--motion-standard, 280ms) var(--ease-out-expo, cubic-bezier(0.22, 1, 0.36, 1)) both;
+  /* No fill-mode forwards/both — retaining transform:translate(0,0) creates a containing block and breaks position:sticky descendants (e.g. Profile sidebar). */
+  animation: pageEnter var(--motion-standard, 280ms) var(--ease-out-expo, cubic-bezier(0.22, 1, 0.36, 1));
 }
 
 @keyframes pageEnter {
@@ -31,7 +32,7 @@
   }
   to {
     opacity: 1;
-    transform: translate3d(0, 0, 0);
+    transform: none;
   }
 }
 
