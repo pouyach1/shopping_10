@@ -1,6 +1,6 @@
 /**
- * Phase 1 admin types — session only.
- * Domain entities (Product, Order, etc.) arrive in later phases.
+ * Admin shell types (session + navigation).
+ * Domain entities live in sibling type modules under `admin/types/`.
  */
 
 export interface AdminSession {
