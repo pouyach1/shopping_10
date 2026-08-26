@@ -575,7 +575,7 @@ function ProfileAccount() {
         ) : null}
 
         {section === 'overview' ? (
-          <Reveal variant="subtle" className={styles.panel}>
+          <section className={styles.panel}>
             <header className={styles.panelHeader}>
               <div>
                 <h2 className={styles.panelTitle}>نمای کلی حساب</h2>
@@ -672,11 +672,11 @@ function ProfileAccount() {
                 </ul>
               )}
             </section>
-          </Reveal>
+          </section>
         ) : null}
 
         {section === 'orders' ? (
-          <Reveal variant="subtle" className={styles.panel}>
+          <section className={styles.panel}>
             <section aria-labelledby="profile-orders-title">
               <div className={styles.sectionHeading}>
                 <div>
@@ -719,11 +719,11 @@ function ProfileAccount() {
                 </ul>
               )}
             </section>
-          </Reveal>
+          </section>
         ) : null}
 
         {section === 'account' ? (
-          <Reveal variant="subtle" className={styles.panel}>
+          <section className={styles.panel}>
             <header className={styles.panelHeader}>
               <div>
                 <h2 className={styles.panelTitle}>اطلاعات حساب</h2>
@@ -851,7 +851,7 @@ function ProfileAccount() {
                 </div>
               </dl>
             )}
-          </Reveal>
+          </section>
         ) : null}
       </div>
     </div>

@@ -14,9 +14,8 @@
 }
 
 .header.sticky {
-  background-color: rgba(255, 255, 255, 0.92);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
+  /* Solid surface — translucent/blur let Profile rows (e.g. سبد خرید) ghost through while scrolling. */
+  background-color: #ffffff;
   border-bottom-color: rgba(229, 231, 235, 0.85);
   box-shadow: 0 1px 0 rgba(26, 26, 26, 0.04), 0 8px 24px rgba(26, 26, 26, 0.04);
 }
