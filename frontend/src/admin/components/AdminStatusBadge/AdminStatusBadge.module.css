@@ -1,0 +1,31 @@
+.badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.2rem 0.55rem;
+  border-radius: var(--radius-md, 0.5rem);
+  font-size: 0.7rem;
+  font-weight: 600;
+  letter-spacing: 0;
+  text-transform: none;
+  border: 1px solid transparent;
+  white-space: nowrap;
+}
+
+.active {
+  background: color-mix(in srgb, var(--admin-success) 16%, transparent);
+  color: var(--admin-success);
+  border-color: color-mix(in srgb, var(--admin-success) 28%, transparent);
+}
+
+.draft {
+  background: var(--admin-surface-hover);
+  color: var(--admin-text-secondary);
+  border-color: var(--admin-border);
+}
+
+.archived {
+  background: color-mix(in srgb, var(--admin-text-muted) 14%, transparent);
+  color: var(--admin-text-muted);
+  border-color: var(--admin-border);
+}
