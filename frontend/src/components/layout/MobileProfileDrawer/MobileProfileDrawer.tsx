@@ -193,7 +193,7 @@ export function MobileProfileDrawer({ open, onClose }: MobileProfileDrawerProps)
               <>
                 <ProfileNavSection title="خرید و سفارش" titleId={shopHeadingId}>
                   <ProfileNavItem
-                    to="/profile?section=orders"
+                    to="/profile/orders"
                     icon={<Package size={18} strokeWidth={1.6} />}
                     label="سفارش‌های من"
                     description={
@@ -241,11 +241,11 @@ export function MobileProfileDrawer({ open, onClose }: MobileProfileDrawerProps)
                     to="/profile"
                     icon={<UserRound size={18} strokeWidth={1.6} />}
                     label="حساب من"
-                    description="نمای کلی و مدیریت حساب"
+                    description="پروفایل و بخش‌های حساب"
                     onNavigate={handleNavigateAway}
                   />
                   <ProfileNavItem
-                    to="/profile?section=account"
+                    to="/profile/account"
                     icon={<Pencil size={18} strokeWidth={1.6} />}
                     label="اطلاعات حساب"
                     description="نام، تماس و آدرس"

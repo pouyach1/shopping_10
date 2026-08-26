@@ -199,8 +199,8 @@ for (const vp of [
   if (!page.url().includes('/profile')) {
     failures.push(`${tag}: orders link did not go to profile`);
   }
-  if (!page.url().includes('section=orders')) {
-    failures.push(`${tag}: orders deep link missing section=orders`);
+  if (!page.url().includes('/profile/orders')) {
+    failures.push(`${tag}: orders deep link missing /profile/orders`);
   }
   // body unlocked after navigate
   const bodyAfterNav = await page.evaluate(() => ({
@@ -307,10 +307,8 @@ for (const vp of [
   const profileOk = await page.evaluate(() => {
     const main = document.querySelector('main');
     if (!main) return false;
-    const heading = [...main.querySelectorAll('h1')].find((h) =>
-      (h.textContent || '').includes('سارا'),
-    );
-    return Boolean(heading && getComputedStyle(heading).display !== 'none');
+    const text = main.textContent || '';
+    return text.includes('سارا محمدی') && text.includes('پروفایل من');
   });
   if (!profileOk) {
     const snippet = await page.locator('main').innerText().catch(() => '');

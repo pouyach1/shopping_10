@@ -22,7 +22,16 @@ export function SiteLayout() {
         id="main-content"
         className={`${styles.main} ${isHome ? '' : styles.mainOffset}`.trim()}
       >
-        <div key={location.pathname} className={styles.page}>
+        <div
+          // Nested /profile/* routes share one page enter so section slides
+          // are not cancelled by remounting the whole storefront page.
+          key={
+            location.pathname.startsWith('/profile')
+              ? '/profile'
+              : location.pathname
+          }
+          className={styles.page}
+        >
           <Outlet />
         </div>
       </main>
