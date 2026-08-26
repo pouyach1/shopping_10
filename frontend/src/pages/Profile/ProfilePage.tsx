@@ -1,5 +1,5 @@
 import { type FormEvent, useEffect, useId, useRef, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import {
   ChevronLeft,
   Eye,
@@ -352,8 +352,15 @@ function ProfileAccount() {
   const { customer, session, logout, updateProfile } = useProfileAuth();
   const { itemCount: wishlistCount } = useWishlist();
   const { itemCount: cartCount } = useCart();
+  const [searchParams] = useSearchParams();
 
-  const [section, setSection] = useState<AccountSection>('overview');
+  const sectionParam = searchParams.get('section');
+  const initialSection: AccountSection =
+    sectionParam === 'orders' || sectionParam === 'account'
+      ? sectionParam
+      : 'overview';
+
+  const [section, setSection] = useState<AccountSection>(initialSection);
   const [expandedOrderId, setExpandedOrderId] = useState<string | null>(null);
   const [editing, setEditing] = useState(false);
   const [name, setName] = useState('');
@@ -374,6 +381,13 @@ function ProfileAccount() {
     setEmail(customer.email ?? '');
     setAddress(customer.address ?? '');
   }, [customer]);
+
+  useEffect(() => {
+    const next = searchParams.get('section');
+    if (next === 'orders' || next === 'account' || next === 'overview') {
+      setSection(next);
+    }
+  }, [searchParams]);
 
   if (!customer || !session) return null;
 
