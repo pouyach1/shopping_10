@@ -15,6 +15,7 @@ export interface CustomerOrderSummary {
   createdAt: string;
   total: number;
   status: CustomerOrderStatus;
+  itemCount: number;
 }
 
 export const CUSTOMER_ORDER_STATUS_LABELS: Record<
@@ -35,6 +36,7 @@ const DEMO_ORDERS: CustomerOrderSummary[] = [
     createdAt: '2026-08-18T10:30:00.000Z',
     total: 4280000,
     status: 'delivered',
+    itemCount: 3,
   },
   {
     id: 'ord-c-02',
@@ -42,6 +44,7 @@ const DEMO_ORDERS: CustomerOrderSummary[] = [
     createdAt: '2026-08-22T14:05:00.000Z',
     total: 1890000,
     status: 'shipped',
+    itemCount: 1,
   },
   {
     id: 'ord-c-03',
@@ -49,6 +52,7 @@ const DEMO_ORDERS: CustomerOrderSummary[] = [
     createdAt: '2026-08-25T09:12:00.000Z',
     total: 2590000,
     status: 'processing',
+    itemCount: 2,
   },
 ];
 
@@ -67,4 +71,19 @@ export function formatCustomerOrderDate(iso: string): string {
   } catch {
     return iso;
   }
+}
+
+export function formatMemberSince(iso: string): string {
+  try {
+    return new Intl.DateTimeFormat('fa-IR', {
+      year: 'numeric',
+      month: 'long',
+    }).format(new Date(iso));
+  } catch {
+    return '';
+  }
+}
+
+export function toPersianItemCount(count: number): string {
+  return new Intl.NumberFormat('fa-IR').format(count);
 }
