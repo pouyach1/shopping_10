@@ -36,7 +36,7 @@
   color: var(--gold);
 
   font-family: Arial, sans-serif;
-  font-size: 8px;
+  font-size: 0.6875rem;
   font-weight: 700;
   letter-spacing: 2px;
   line-height: 1;
@@ -219,7 +219,7 @@
 .infoLabel {
   color: #9a958b;
 
-  font-size: 8px;
+  font-size: 0.75rem;
   font-weight: 500;
 }
 
@@ -230,7 +230,7 @@
 
   color: #2b2925;
 
-  font-size: 11px;
+  font-size: 0.8125rem;
   font-weight: 600;
 
   text-overflow: ellipsis;
@@ -292,14 +292,14 @@
 .destinationHeading > span {
   color: #38352f;
 
-  font-size: 11px;
+  font-size: 0.8125rem;
   font-weight: 650;
 }
 
 .destinationHeading small {
   color: #99938a;
 
-  font-size: 8px;
+  font-size: 0.75rem;
   line-height: 1.6;
 }
 
@@ -317,7 +317,7 @@
   border: 1px solid rgba(177, 138, 36, 0.14);
   border-radius: 999px;
 
-  font-size: 7px;
+  font-size: 0.6875rem;
   font-weight: 600;
 
   white-space: nowrap;
@@ -334,8 +334,8 @@
   border: 1px solid rgba(31, 29, 25, 0.06);
   border-radius: 9px;
 
-  font-size: 10px;
-  line-height: 2;
+  font-size: 0.8125rem;
+  line-height: 1.8;
 
   overflow-wrap: anywhere;
 }
@@ -356,7 +356,7 @@
 
   color: #918b82;
 
-  font-size: 8px;
+  font-size: 0.75rem;
 }
 
 .locationMeta svg {
@@ -383,7 +383,7 @@
   border: 1px dashed rgba(31, 29, 25, 0.12);
   border-radius: 10px;
 
-  font-size: 8px;
+  font-size: 0.75rem;
   line-height: 1.8;
 }
 
@@ -463,7 +463,7 @@
 .methodContent span {
   color: #99938a;
 
-  font-size: 8px;
+  font-size: 0.75rem;
 }
 
 .methodContent strong {
@@ -471,7 +471,7 @@
 
   color: #34312b;
 
-  font-size: 10px;
+  font-size: 0.8125rem;
   font-weight: 650;
 
   text-overflow: ellipsis;
@@ -503,23 +503,28 @@
   justify-content: space-between;
   gap: 20px;
 
-  color: #8a857d;
+  color: #6f6b64;
 
-  font-size: 10px;
+  font-size: 0.875rem;
 }
 
 .priceRow strong {
   color: #34312d;
 
-  font-size: 10px;
+  font-size: 0.875rem;
   font-weight: 600;
 }
 
 .priceRow small {
   color: #8e8980;
 
-  font-size: 8px;
+  font-size: 0.75rem;
   font-weight: 400;
+}
+
+.freeShipping {
+  color: #6d5a28 !important;
+  font-weight: 650 !important;
 }
 
 
@@ -561,20 +566,20 @@
 .totalLabel {
   color: #34312d;
 
-  font-size: 12px;
+  font-size: 0.9375rem;
   font-weight: 650;
 }
 
 .total > div small {
   color: #9b958b;
 
-  font-size: 8px;
+  font-size: 0.75rem;
 }
 
 .total > strong {
   color: #1f1d19;
 
-  font-size: 21px;
+  font-size: 1.375rem;
   font-weight: 700;
   letter-spacing: -0.5px;
 }
@@ -584,7 +589,7 @@
 
   color: #8d877e;
 
-  font-size: 9px;
+  font-size: 0.8125rem;
   font-weight: 500;
 }
 
@@ -652,14 +657,14 @@
 .gift strong {
   color: #775a17;
 
-  font-size: 9px;
+  font-size: 0.8125rem;
   font-weight: 650;
 }
 
 .gift span {
   color: #97804b;
 
-  font-size: 8px;
+  font-size: 0.75rem;
   line-height: 1.7;
 }
 
@@ -676,7 +681,7 @@
 
   color: #938e86;
 
-  font-size: 8px;
+  font-size: 0.75rem;
   line-height: 1.7;
 }
 
@@ -719,7 +724,7 @@
   color: #ffffff;
 
   font-family: 'Vazirmatn', sans-serif;
-  font-size: 11px;
+  font-size: 0.9375rem;
   font-weight: 650;
 
   cursor: pointer;
@@ -792,6 +797,10 @@
   /* shown on desktop; hidden when sticky mobile bar is active */
 }
 
+.desktopOnlyBlock {
+  /* visible by default; collapsed on mobile to reduce checkout density */
+}
+
 /* =========================
    RESPONSIVE
 ========================= */
@@ -807,21 +816,24 @@
     display: none;
   }
 
-  .totalLabel {
-    font-size: 0.875rem;
+  .desktopOnlyBlock {
+    display: none;
   }
 
-  .total > strong {
+  .summary {
+    gap: 14px;
+  }
+
+  .title {
     font-size: 1.25rem;
   }
 
-  .total > div small,
-  .total > strong small,
-  .security,
-  .gift strong,
-  .gift span,
-  .addressText {
-    font-size: 0.75rem;
+  .totalLabel {
+    font-size: 0.9375rem;
+  }
+
+  .total > strong {
+    font-size: 1.35rem;
   }
 
   .checkout {
@@ -833,7 +845,7 @@
 
 @media (max-width: 560px) {
   .summary {
-    gap: 15px;
+    gap: 14px;
   }
 
   .recipientCard {

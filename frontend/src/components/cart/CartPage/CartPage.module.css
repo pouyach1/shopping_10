@@ -183,7 +183,7 @@
   }
 
   .containerWithSticky {
-    padding-bottom: 150px;
+    padding-bottom: 180px;
   }
 
   .title {
@@ -289,17 +289,20 @@
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    min-height: 48px;
-    padding: 0.7rem 1.15rem;
+    min-height: 50px;
+    max-width: 100%;
+    padding: 0.7rem 1rem;
     border: 0;
-    border-radius: 999px;
+    border-radius: 12px;
     background: #1a1a1a;
     color: #fff;
     font-family: inherit;
-    font-size: 0.875rem;
+    font-size: 0.8125rem;
     font-weight: 600;
+    line-height: 1.35;
     cursor: pointer;
-    white-space: nowrap;
+    white-space: normal;
+    text-align: center;
     transition: background-color 180ms ease, transform 180ms ease;
   }
 
@@ -354,7 +357,7 @@
 .undoToast {
   position: fixed;
   inset-inline: 14px;
-  bottom: calc(88px + env(safe-area-inset-bottom, 0px));
+  bottom: calc(108px + env(safe-area-inset-bottom, 0px));
   z-index: 260;
   display: flex;
   align-items: center;

@@ -294,7 +294,9 @@ export function CartPage() {
               onClick={handleCheckout}
               disabled={isSubmitting}
             >
-              {isSubmitting ? 'در حال ثبت...' : 'ادامه فرایند خرید'}
+              {isSubmitting
+                ? 'در حال ثبت...'
+                : `ثبت و پرداخت سفارش — ${formatPrice(total)} تومان`}
             </button>
             {checkoutError ? (
               <p className={styles.stickyError} role="alert">

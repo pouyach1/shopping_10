@@ -352,9 +352,8 @@
   margin: 0.15rem 0 0;
   font-size: 0.75rem;
   color: #6b6b6b;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 
 .memberSince {
@@ -389,8 +388,8 @@
 
 .sideNav {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 0.45rem;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.5rem;
 }
 
 .sideNavItem {
@@ -400,14 +399,15 @@
   justify-content: center;
   gap: 0.35rem;
   min-height: 64px;
-  padding: 0.55rem 0.4rem;
+  padding: 0.65rem 0.45rem;
   border: 1px solid rgba(26, 26, 26, 0.08);
   border-radius: 0.85rem;
   background: #fbfbf9;
   color: #1a1a1a;
   font-family: inherit;
-  font-size: 0.7rem;
+  font-size: 0.75rem;
   font-weight: 500;
+  line-height: 1.35;
   text-align: center;
   cursor: pointer;
   transition:
