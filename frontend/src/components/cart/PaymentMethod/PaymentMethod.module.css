@@ -51,6 +51,7 @@
   align-items: center;
   gap: 13px;
   border: 1px solid rgba(30, 30, 30, 0.12);
+  border-radius: 12px;
   background: #fff;
   color: #222;
   text-align: right;

@@ -866,11 +866,11 @@
   }
 
   .title {
-    font-size: 16px;
+    font-size: 1.05rem;
   }
 
   .subtitle {
-    font-size: 9px;
+    font-size: 0.75rem;
   }
 
   .headerCount {
@@ -894,25 +894,19 @@
   }
 
   .price strong {
-    font-size: 10.5px;
+    font-size: 0.8125rem;
   }
 
+  .priceLabel,
   .price small {
-    font-size: 7px;
-  }
-
-  .priceLabel {
-    font-size: 7px;
+    font-size: 0.6875rem;
   }
 
   .radio {
     position: relative;
-
     left: auto;
     top: auto;
-
     transform: none;
-
     margin-top: 9px;
   }
 
@@ -921,20 +915,20 @@
   }
 
   .name {
-    font-size: 11.5px;
+    font-size: 0.8125rem;
   }
 
   .description {
-    font-size: 8.5px;
+    font-size: 0.75rem;
   }
 
   .deliveryInfoItem {
-    font-size: 7.5px;
+    font-size: 0.75rem;
   }
 
   .footerText {
     max-width: none;
-    font-size: 8px;
+    font-size: 0.75rem;
   }
 
   .footerLine {

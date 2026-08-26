@@ -228,14 +228,19 @@
 
 @media (max-width: 640px) {
   .item {
-    grid-template-columns: 72px minmax(0, 1fr);
+    grid-template-columns: 76px minmax(0, 1fr);
     gap: 12px;
-    padding: 16px 0;
+    padding: 14px 12px;
+    margin-bottom: 10px;
+    border: 1px solid #e7e3dc;
+    border-radius: 14px;
+    border-bottom: 1px solid #e7e3dc;
+    background: #fbfbf9;
   }
 
   .imageWrapper {
-    width: 72px;
-    height: 90px;
+    width: 76px;
+    height: 94px;
     border-radius: 10px;
   }
 
@@ -257,8 +262,8 @@
   }
 
   .remove {
-    top: 8px;
-    left: -4px;
+    top: 10px;
+    left: 8px;
   }
 }
 

@@ -8,6 +8,7 @@ import styles from './SiteLayout.module.css';
 
 export function SiteLayout() {
   const location = useLocation();
+  const isHome = location.pathname === '/';
 
   return (
     <div className={styles.layout}>
@@ -17,7 +18,10 @@ export function SiteLayout() {
 
       <Header navItems={navItems} logo="لوکسورا" logoLatin="LUXORA" />
 
-      <main id="main-content" className={styles.main}>
+      <main
+        id="main-content"
+        className={`${styles.main} ${isHome ? '' : styles.mainOffset}`.trim()}
+      >
         <div key={location.pathname} className={styles.page}>
           <Outlet />
         </div>

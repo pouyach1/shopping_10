@@ -9,6 +9,17 @@
   flex: 1;
 }
 
+/* Non-home routes clear the fixed site header (Home hero is full-bleed). */
+.mainOffset {
+  padding-top: 60px;
+}
+
+@media (min-width: 768px) {
+  .mainOffset {
+    padding-top: 90px;
+  }
+}
+
 .page {
   animation: pageEnter var(--motion-standard, 280ms) var(--ease-out-expo, cubic-bezier(0.22, 1, 0.36, 1)) both;
 }
