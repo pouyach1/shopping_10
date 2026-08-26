@@ -161,7 +161,8 @@ await page.waitForURL('**/cart');
 
 // Logout
 await page.goto(BASE + '/profile', { waitUntil: 'domcontentloaded' });
-await page.getByRole('button', { name: /^خروج$/ }).click();
+await page.getByText('حساب کاربری').first().waitFor();
+await page.getByRole('button', { name: /خروج از حساب|^خروج$/ }).click();
 await page.getByRole('heading', { name: /ورود به حساب/ }).waitFor();
 console.log('PASS profile login / nav / logout');
 

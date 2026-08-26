@@ -9,7 +9,6 @@ import {
   Package,
   Pencil,
   ShoppingBag,
-  Store,
   UserRound,
 } from 'lucide-react';
 
@@ -40,7 +39,7 @@ type FieldErrors = {
   form?: string;
 };
 
-type AccountSection = 'overview' | 'orders' | 'wishlist' | 'cart' | 'account';
+type AccountSection = 'overview' | 'orders' | 'account';
 
 function getInitials(name: string): string {
   const parts = name.trim().split(/\s+/).filter(Boolean);
@@ -421,24 +420,41 @@ function ProfileAccount() {
   const navItems: Array<{
     id: AccountSection;
     label: string;
+    description: string;
     icon: typeof Package;
   }> = [
-    { id: 'overview', label: 'نمای کلی', icon: UserRound },
-    { id: 'orders', label: 'سفارش‌ها', icon: Package },
-    { id: 'wishlist', label: 'علاقه‌مندی‌ها', icon: Heart },
-    { id: 'cart', label: 'سبد خرید', icon: ShoppingBag },
-    { id: 'account', label: 'اطلاعات حساب', icon: Pencil },
+    {
+      id: 'overview',
+      label: 'نمای کلی',
+      description: 'خلاصه حساب و وضعیت خرید',
+      icon: UserRound,
+    },
+    {
+      id: 'orders',
+      label: 'سفارش‌های من',
+      description:
+        orders.length > 0
+          ? `${toPersianItemCount(orders.length)} سفارش`
+          : 'هنوز سفارشی ثبت نشده',
+      icon: Package,
+    },
+    {
+      id: 'account',
+      label: 'اطلاعات حساب',
+      description: 'نام، تماس و آدرس',
+      icon: Pencil,
+    },
   ];
 
   return (
     <div className={styles.accountLayout}>
       <aside className={styles.sidebar}>
-        <div className={styles.identityCard}>
+        <header className={styles.identityCard}>
           <div className={styles.avatar} aria-hidden="true">
             {getInitials(customer.name)}
           </div>
           <div className={styles.identityCopy}>
-            <p className={styles.identityEyebrow}>حساب کاربری</p>
+            <p className={styles.identityEyebrow}>حساب کاربری لوکسورا</p>
             <h1 className={styles.identityName}>{customer.name}</h1>
             <p className={styles.identityContact} dir="ltr">
               {customer.phone ?? customer.email ?? customer.identifier}
@@ -448,50 +464,107 @@ function ProfileAccount() {
                 {customer.email}
               </p>
             ) : null}
-            {memberSince ? (
-              <p className={styles.memberSince}>عضویت از {memberSince}</p>
-            ) : null}
+            <div className={styles.identityMeta}>
+              <span className={styles.statusPill}>حساب فعال</span>
+              {memberSince ? (
+                <span className={styles.memberSince}>عضویت از {memberSince}</span>
+              ) : null}
+            </div>
           </div>
           <button
             type="button"
             className={styles.editChip}
             onClick={openEdit}
           >
-            <Pencil size={14} strokeWidth={1.7} aria-hidden="true" />
+            <Pencil size={15} strokeWidth={1.7} aria-hidden="true" />
             ویرایش پروفایل
           </button>
-        </div>
+        </header>
 
         <nav className={styles.sideNav} aria-label="بخش‌های حساب">
           {navItems.map((item) => {
             const Icon = item.icon;
+            const active = section === item.id;
             return (
               <button
                 key={item.id}
                 type="button"
-                className={`${styles.sideNavItem} ${
-                  section === item.id ? styles.sideNavActive : ''
+                className={`${styles.navRow} ${
+                  active ? styles.navRowActive : ''
                 }`}
                 onClick={() => {
                   setSection(item.id);
                   if (item.id === 'account') setEditing(true);
+                  else setEditing(false);
                 }}
-                aria-current={section === item.id ? 'page' : undefined}
+                aria-current={active ? 'page' : undefined}
               >
-                <Icon size={17} strokeWidth={1.6} aria-hidden="true" />
-                <span>{item.label}</span>
+                <span className={styles.navIcon} aria-hidden="true">
+                  <Icon size={18} strokeWidth={1.6} />
+                </span>
+                <span className={styles.navCopy}>
+                  <strong>{item.label}</strong>
+                  <span>{item.description}</span>
+                </span>
+                <ChevronLeft
+                  className={styles.navChevron}
+                  size={18}
+                  strokeWidth={1.6}
+                  aria-hidden="true"
+                />
               </button>
             );
           })}
-          <button
-            type="button"
-            className={`${styles.sideNavItem} ${styles.sideNavDanger}`}
-            onClick={logout}
-          >
-            <LogOut size={17} strokeWidth={1.6} aria-hidden="true" />
-            <span>خروج</span>
-          </button>
+
+          <Link to="/wishlist" className={styles.navRow}>
+            <span className={styles.navIcon} aria-hidden="true">
+              <Heart size={18} strokeWidth={1.6} />
+            </span>
+            <span className={styles.navCopy}>
+              <strong>علاقه‌مندی‌ها</strong>
+              <span>
+                {wishlistCount > 0
+                  ? `${toPersianItemCount(wishlistCount)} محصول ذخیره شده`
+                  : 'لیست علاقه‌مندی خالی است'}
+              </span>
+            </span>
+            <ChevronLeft
+              className={styles.navChevron}
+              size={18}
+              strokeWidth={1.6}
+              aria-hidden="true"
+            />
+          </Link>
+
+          <Link to="/cart" className={styles.navRow}>
+            <span className={styles.navIcon} aria-hidden="true">
+              <ShoppingBag size={18} strokeWidth={1.6} />
+            </span>
+            <span className={styles.navCopy}>
+              <strong>سبد خرید</strong>
+              <span>
+                {cartCount > 0
+                  ? `${toPersianItemCount(cartCount)} محصول آماده خرید`
+                  : 'سبد خرید خالی است'}
+              </span>
+            </span>
+            <ChevronLeft
+              className={styles.navChevron}
+              size={18}
+              strokeWidth={1.6}
+              aria-hidden="true"
+            />
+          </Link>
         </nav>
+
+        <button
+          type="button"
+          className={styles.logoutButton}
+          onClick={logout}
+        >
+          <LogOut size={17} strokeWidth={1.6} aria-hidden="true" />
+          خروج از حساب
+        </button>
       </aside>
 
       <div className={styles.mainColumn}>
@@ -501,111 +574,119 @@ function ProfileAccount() {
           </p>
         ) : null}
 
-        {(section === 'overview' || section === 'orders') && (
+        {section === 'overview' ? (
           <Reveal variant="subtle" className={styles.panel}>
-            {section === 'overview' ? (
-              <>
-                <header className={styles.panelHeader}>
-                  <div>
-                    <h2 className={styles.panelTitle}>نمای کلی حساب</h2>
-                    <p className={styles.panelLead}>
-                      وضعیت خرید و دسترسی سریع به بخش‌های مهم.
-                    </p>
-                  </div>
-                </header>
+            <header className={styles.panelHeader}>
+              <div>
+                <h2 className={styles.panelTitle}>نمای کلی حساب</h2>
+                <p className={styles.panelLead}>
+                  وضعیت خرید و دسترسی سریع به بخش‌های مهم.
+                </p>
+              </div>
+            </header>
 
-                <div className={styles.statGrid}>
-                  <button
-                    type="button"
-                    className={styles.statCard}
-                    onClick={() => setSection('orders')}
-                  >
-                    <Package size={18} strokeWidth={1.6} aria-hidden="true" />
-                    <strong>{toPersianItemCount(orders.length)}</strong>
-                    <span>سفارش</span>
-                  </button>
-                  <button
-                    type="button"
-                    className={styles.statCard}
-                    onClick={() => setSection('wishlist')}
-                  >
-                    <Heart size={18} strokeWidth={1.6} aria-hidden="true" />
-                    <strong>{toPersianItemCount(wishlistCount)}</strong>
-                    <span>علاقه‌مندی</span>
-                  </button>
-                  <button
-                    type="button"
-                    className={styles.statCard}
-                    onClick={() => setSection('cart')}
-                  >
-                    <ShoppingBag size={18} strokeWidth={1.6} aria-hidden="true" />
-                    <strong>{toPersianItemCount(cartCount)}</strong>
-                    <span>سبد خرید</span>
-                  </button>
-                  <div className={styles.statCard}>
-                    <Store size={18} strokeWidth={1.6} aria-hidden="true" />
-                    <strong>
-                      {orderTotalSpent > 0
-                        ? formatPrice(orderTotalSpent)
-                        : '۰'}
-                    </strong>
-                    <span>مجموع خرید (تومان)</span>
-                  </div>
-                </div>
+            <div className={styles.statGrid}>
+              <button
+                type="button"
+                className={styles.statCard}
+                onClick={() => setSection('orders')}
+              >
+                <span className={styles.statIcon} aria-hidden="true">
+                  <Package size={17} strokeWidth={1.6} />
+                </span>
+                <strong>{toPersianItemCount(orders.length)}</strong>
+                <span>سفارش</span>
+              </button>
+              <Link to="/wishlist" className={styles.statCard}>
+                <span className={styles.statIcon} aria-hidden="true">
+                  <Heart size={17} strokeWidth={1.6} />
+                </span>
+                <strong>{toPersianItemCount(wishlistCount)}</strong>
+                <span>علاقه‌مندی</span>
+              </Link>
+              <Link to="/cart" className={styles.statCard}>
+                <span className={styles.statIcon} aria-hidden="true">
+                  <ShoppingBag size={17} strokeWidth={1.6} />
+                </span>
+                <strong>{toPersianItemCount(cartCount)}</strong>
+                <span>سبد خرید</span>
+              </Link>
+            </div>
 
-                <div className={styles.shortcutGrid}>
-                  <button
-                    type="button"
-                    className={styles.shortcutCard}
-                    onClick={() => setSection('orders')}
-                  >
-                    <div>
-                      <strong>سفارش‌های من</strong>
-                      <span>
-                        {orders.length > 0
-                          ? `${toPersianItemCount(orders.length)} سفارش اخیر`
-                          : 'هنوز سفارشی ثبت نشده'}
-                      </span>
-                    </div>
-                    <ChevronLeft size={18} aria-hidden="true" />
-                  </button>
-                  <Link to="/wishlist" className={styles.shortcutCard}>
-                    <div>
-                      <strong>علاقه‌مندی‌ها</strong>
-                      <span>
-                        {wishlistCount > 0
-                          ? `${toPersianItemCount(wishlistCount)} محصول ذخیره شده`
-                          : 'لیست علاقه‌مندی خالی است'}
-                      </span>
-                    </div>
-                    <ChevronLeft size={18} aria-hidden="true" />
-                  </Link>
-                  <Link to="/cart" className={styles.shortcutCard}>
-                    <div>
-                      <strong>سبد خرید</strong>
-                      <span>
-                        {cartCount > 0
-                          ? `${toPersianItemCount(cartCount)} محصول آماده خرید`
-                          : 'سبد خرید خالی است'}
-                      </span>
-                    </div>
-                    <ChevronLeft size={18} aria-hidden="true" />
-                  </Link>
-                </div>
-              </>
+            {orderTotalSpent > 0 ? (
+              <p className={styles.spendNote}>
+                مجموع خریدهای ثبت‌شده:{' '}
+                <strong>{formatPrice(orderTotalSpent)} تومان</strong>
+              </p>
             ) : null}
 
             <section
               className={styles.ordersBlock}
-              aria-labelledby="profile-orders-title"
+              aria-labelledby="profile-orders-preview-title"
             >
               <div className={styles.sectionHeading}>
-                <h2 id="profile-orders-title" className={styles.panelTitle}>
-                  سفارش‌های من
+                <h2
+                  id="profile-orders-preview-title"
+                  className={styles.panelTitle}
+                >
+                  سفارش‌های اخیر
                 </h2>
-                <p className={styles.panelLead}>
-                  پیگیری وضعیت و جزئیات سفارش‌های اخیر
-                </p>
+                {orders.length > 0 ? (
+                  <button
+                    type="button"
+                    className={styles.textButton}
+                    onClick={() => setSection('orders')}
+                  >
+                    مشاهده همه
+                  </button>
+                ) : null}
+              </div>
+
+              {orders.length === 0 ? (
+                <div className={styles.emptyState}>
+                  <span className={styles.emptyIcon} aria-hidden="true">
+                    <Package size={22} strokeWidth={1.5} />
+                  </span>
+                  <h3>هنوز سفارشی ثبت نکرده‌اید</h3>
+                  <p>
+                    اولین انتخابتان را از مجموعه لوکسورا پیدا کنید.
+                  </p>
+                  <Link to="/shop" className={styles.primaryButton}>
+                    مشاهده فروشگاه
+                  </Link>
+                </div>
+              ) : (
+                <ul className={styles.orderList}>
+                  {orders.slice(0, 2).map((order) => (
+                    <OrderCard
+                      key={order.id}
+                      order={order}
+                      expanded={expandedOrderId === order.id}
+                      onToggle={() =>
+                        setExpandedOrderId((current) =>
+                          current === order.id ? null : order.id,
+                        )
+                      }
+                    />
+                  ))}
+                </ul>
+              )}
+            </section>
+          </Reveal>
+        ) : null}
+
+        {section === 'orders' ? (
+          <Reveal variant="subtle" className={styles.panel}>
+            <section aria-labelledby="profile-orders-title">
+              <div className={styles.sectionHeading}>
+                <div>
+                  <h2 id="profile-orders-title" className={styles.panelTitle}>
+                    سفارش‌های من
+                  </h2>
+                  <p className={styles.panelLead}>
+                    پیگیری وضعیت و جزئیات سفارش‌های اخیر
+                  </p>
+                </div>
               </div>
 
               {orders.length === 0 ? (
@@ -638,50 +719,6 @@ function ProfileAccount() {
                 </ul>
               )}
             </section>
-          </Reveal>
-        )}
-
-        {section === 'wishlist' ? (
-          <Reveal variant="subtle" className={styles.panel}>
-            <div className={styles.emptyState}>
-              <span className={styles.emptyIcon} aria-hidden="true">
-                <Heart size={22} strokeWidth={1.5} />
-              </span>
-              <h3>علاقه‌مندی‌های شما</h3>
-              <p>
-                {wishlistCount > 0
-                  ? `${toPersianItemCount(wishlistCount)} محصول ذخیره شده — برای ادامه خرید به لیست علاقه‌مندی‌ها بروید.`
-                  : 'هنوز چیزی به علاقه‌مندی‌ها اضافه نکرده‌اید.'}
-              </p>
-              <Link
-                to={wishlistCount > 0 ? '/wishlist' : '/shop'}
-                className={styles.primaryButton}
-              >
-                {wishlistCount > 0 ? 'مشاهده علاقه‌مندی‌ها' : 'کشف محصولات'}
-              </Link>
-            </div>
-          </Reveal>
-        ) : null}
-
-        {section === 'cart' ? (
-          <Reveal variant="subtle" className={styles.panel}>
-            <div className={styles.emptyState}>
-              <span className={styles.emptyIcon} aria-hidden="true">
-                <ShoppingBag size={22} strokeWidth={1.5} />
-              </span>
-              <h3>سبد خرید شما</h3>
-              <p>
-                {cartCount > 0
-                  ? `${toPersianItemCount(cartCount)} محصول آماده خرید است.`
-                  : 'سبد خرید شما منتظر انتخاب‌های شماست.'}
-              </p>
-              <Link
-                to={cartCount > 0 ? '/cart' : '/shop'}
-                className={styles.primaryButton}
-              >
-                {cartCount > 0 ? 'مشاهده سبد' : 'شروع خرید'}
-              </Link>
-            </div>
           </Reveal>
         ) : null}
 
