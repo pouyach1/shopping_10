@@ -537,4 +537,259 @@ describe('Phase 6.5 — Commerce integrity', () => {
     expect(over.status).toBe(409);
     expect(over.body.code).toBe('REFUND_EXCEEDS_PAID_AMOUNT');
   });
+
+  it('P1: webhook + cancel race — never paid+cancelled with restored stock', async () => {
+    const admin = await adminToken();
+    const productId = await seedProduct(admin, 1);
+    const { token } = await register();
+    const { orderNumber, total } = await createPayableOrder(token, productId);
+    const pay = await request(app)
+      .post('/api/v1/payments')
+      .set('Authorization', `Bearer ${token}`)
+      .set('Idempotency-Key', `pay-wc-${Math.random().toString(36).slice(2)}`)
+      .send({ orderNumber });
+    const authority = pay.body.data.payment.authority as string;
+    const raw = JSON.stringify({
+      eventId: `wh-cancel-${Math.random().toString(36).slice(2)}`,
+      authority,
+      status: 'paid',
+      amount: total,
+    });
+    const sig = signMockWebhook(env.PAYMENT_WEBHOOK_SECRET, raw);
+
+    await Promise.all([
+      request(app)
+        .post('/api/v1/payments/webhooks/mock')
+        .set('Content-Type', 'application/json')
+        .set('x-luxora-webhook-signature', sig)
+        .send(raw),
+      request(app)
+        .post(`/api/v1/orders/${orderNumber}/cancel`)
+        .set('Authorization', `Bearer ${token}`)
+        .send({}),
+    ]);
+
+    const order = await Order.findOne({ orderNumber });
+    const product = await Product.findById(productId);
+    expect(['paid', 'cancelled']).toContain(order!.status);
+    if (order!.status === 'paid') {
+      expect(order!.inventoryDecremented).toBe(true);
+      expect(product!.stock).toBe(0);
+    } else {
+      expect(order!.inventoryDecremented).toBe(false);
+      expect(product!.stock).toBe(1);
+    }
+  });
+
+  it('P1: idempotency same key + same body replays; concurrent same key one order', async () => {
+    const admin = await adminToken();
+    const productId = await seedProduct(admin, 5);
+    const { token } = await register();
+    await request(app)
+      .post('/api/v1/cart/items')
+      .set('Authorization', `Bearer ${token}`)
+      .send({ productId, quantity: 1, size: 'M', color: 'مشکی' });
+
+    const key = `idem-same-${Math.random().toString(36).slice(2)}`;
+    const body = {
+      shippingMethodId: 'post-express',
+      paymentMethod: 'online',
+      shippingAddress: address,
+    };
+
+    const [a, b] = await Promise.all([
+      request(app)
+        .post('/api/v1/orders')
+        .set('Authorization', `Bearer ${token}`)
+        .set('Idempotency-Key', key)
+        .send(body),
+      request(app)
+        .post('/api/v1/orders')
+        .set('Authorization', `Bearer ${token}`)
+        .set('Idempotency-Key', key)
+        .send(body),
+    ]);
+    expect([a.status, b.status].every((s) => s === 201)).toBe(true);
+    expect(a.body.data.order.orderNumber).toBe(b.body.data.order.orderNumber);
+
+    const replay = await request(app)
+      .post('/api/v1/orders')
+      .set('Authorization', `Bearer ${token}`)
+      .set('Idempotency-Key', key)
+      .send(body);
+    expect(replay.status).toBe(201);
+    expect(replay.body.data.order.orderNumber).toBe(a.body.data.order.orderNumber);
+  });
+
+  it('P1: cancel after coupon redemption releases usage once', async () => {
+    const admin = await adminToken();
+    const productId = await seedProduct(admin, 3);
+    await request(app)
+      .post('/api/v1/admin/coupons')
+      .set('Authorization', `Bearer ${admin}`)
+      .send({
+        code: 'RELEASE1',
+        type: 'fixed',
+        value: 10_000,
+        usageLimit: 1,
+      });
+
+    const { token } = await register();
+    await request(app)
+      .post('/api/v1/cart/items')
+      .set('Authorization', `Bearer ${token}`)
+      .send({ productId, quantity: 1, size: 'M', color: 'مشکی' });
+    const created = await request(app)
+      .post('/api/v1/orders')
+      .set('Authorization', `Bearer ${token}`)
+      .set('Idempotency-Key', `ord-cp-${Math.random().toString(36).slice(2)}`)
+      .send({
+        shippingMethodId: 'post-express',
+        paymentMethod: 'online',
+        shippingAddress: address,
+        couponCode: 'RELEASE1',
+      });
+    expect(created.status).toBe(201);
+    const { Coupon } = await import('../src/models/Coupon');
+    expect((await Coupon.findOne({ code: 'RELEASE1' }))!.usageCount).toBe(1);
+
+    const orderNumber = created.body.data.order.orderNumber as string;
+    await Promise.all([
+      request(app)
+        .post(`/api/v1/orders/${orderNumber}/cancel`)
+        .set('Authorization', `Bearer ${token}`)
+        .send({}),
+      paymentService.releaseExpiredReservations(10),
+    ]);
+
+    const coupon = await Coupon.findOne({ code: 'RELEASE1' });
+    expect(coupon!.usageCount).toBe(0);
+
+    // Slot reusable by another customer
+    const other = await register();
+    await request(app)
+      .post('/api/v1/cart/items')
+      .set('Authorization', `Bearer ${other.token}`)
+      .send({ productId, quantity: 1, size: 'M', color: 'مشکی' });
+    const reuse = await request(app)
+      .post('/api/v1/orders')
+      .set('Authorization', `Bearer ${other.token}`)
+      .set('Idempotency-Key', `ord-cp2-${Math.random().toString(36).slice(2)}`)
+      .send({
+        shippingMethodId: 'post-express',
+        paymentMethod: 'online',
+        shippingAddress: address,
+        couponCode: 'RELEASE1',
+      });
+    expect(reuse.status).toBe(201);
+  });
+
+  it('P0-04: retry failed refund with new key succeeds', async () => {
+    const admin = await adminToken();
+    const productId = await seedProduct(admin, 1);
+    const { token } = await register();
+    const { orderNumber, total } = await createPayableOrder(token, productId);
+    const pay = await request(app)
+      .post('/api/v1/payments')
+      .set('Authorization', `Bearer ${token}`)
+      .set('Idempotency-Key', `pay-rr-${Math.random().toString(36).slice(2)}`)
+      .send({ orderNumber });
+    await request(app)
+      .post('/api/v1/payments/callback')
+      .set('Authorization', `Bearer ${token}`)
+      .send({
+        authority: pay.body.data.payment.authority,
+        status: 'OK',
+      });
+
+    const fail = await request(app)
+      .post(`/api/v1/admin/orders/${orderNumber}/refund`)
+      .set('Authorization', `Bearer ${admin}`)
+      .send({
+        amount: total,
+        idempotencyKey: `rf-fail-${Math.random().toString(36).slice(2)}`,
+        simulate: 'refund_failure',
+      });
+    expect(fail.status).toBe(409);
+    expect(fail.body.code).toBe('REFUND_FAILED');
+
+    const paymentAfterFail = await Payment.findOne({ orderNumber });
+    expect(paymentAfterFail!.refundedAmount).toBe(0);
+
+    const retry = await request(app)
+      .post(`/api/v1/admin/orders/${orderNumber}/refund`)
+      .set('Authorization', `Bearer ${admin}`)
+      .send({
+        amount: total,
+        idempotencyKey: `rf-ok-${Math.random().toString(36).slice(2)}`,
+      });
+    expect(retry.status).toBe(201);
+    expect(retry.body.data.refund.status).toBe('succeeded');
+  });
+
+  it('P1: CSRF — cookie auth without Origin rejected; Bearer unaffected', async () => {
+    const admin = await adminToken();
+    const productId = await seedProduct(admin, 1);
+    const reg = await request(app).post('/api/v1/auth/register').send({
+      firstName: 'سارا',
+      lastName: 'محمدی',
+      phone: `0912${String(Math.floor(Math.random() * 1e7)).padStart(7, '0')}`,
+      email: `csrf-${Math.random().toString(36).slice(2)}@luxora.ir`,
+      password: 'demo1234a',
+    });
+    expect(reg.status).toBe(201);
+    const cookies = reg.headers['set-cookie'];
+    expect(cookies).toBeTruthy();
+
+    const cookieOnly = await request(app)
+      .post('/api/v1/cart/items')
+      .set('Cookie', cookies)
+      .send({ productId, quantity: 1, size: 'M', color: 'مشکی' });
+    expect(cookieOnly.status).toBe(403);
+
+    const bearer = await request(app)
+      .post('/api/v1/cart/items')
+      .set('Authorization', `Bearer ${reg.body.data.accessToken}`)
+      .send({ productId, quantity: 1, size: 'M', color: 'مشکی' });
+    expect(bearer.status).toBe(200);
+  });
+
+  it('P1: cancel×20 and expiry×20 never double-restock', async () => {
+    const admin = await adminToken();
+    const productId = await seedProduct(admin, 1);
+    const { token } = await register();
+    const { orderNumber } = await createPayableOrder(token, productId);
+    const order = await Order.findOne({ orderNumber });
+
+    await Promise.all(
+      Array.from({ length: 20 }, () =>
+        request(app)
+          .post(`/api/v1/orders/${orderNumber}/cancel`)
+          .set('Authorization', `Bearer ${token}`)
+          .send({}),
+      ),
+    );
+    await Order.updateOne(
+      { orderNumber },
+      {
+        status: 'awaiting_payment',
+        paymentStatus: 'unpaid',
+        inventoryDecremented: true,
+        inventoryReleaseClaimedAt: null,
+        inventoryReservedUntil: new Date(Date.now() - 1000),
+      },
+    );
+    // Re-decrement to simulate held stock again for expiry storm
+    await Product.findByIdAndUpdate(productId, { $inc: { stock: -1 } });
+    await Promise.all(
+      Array.from({ length: 20 }, () =>
+        paymentService.releaseExpiredReservations(10),
+      ),
+    );
+
+    const product = await Product.findById(productId);
+    // Started 1, order took 1 → 0; cancel restored → 1; we forced -1 → 0; expiry once → 1
+    expect(product!.stock).toBe(1);
+    void order;
+  });
 });

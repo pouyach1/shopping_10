@@ -25,6 +25,7 @@ import {
 } from './paymentTransitions';
 import { getPaymentProvider } from './payments';
 import { claimAndRestoreOrderInventory } from './inventoryRelease.service';
+import { releaseCouponForOrder } from './coupon.service';
 import {
   parseOrThrow,
   createPaymentSchema,
@@ -851,6 +852,11 @@ export async function expireOrderReservation(
   // Shared one-time inventory release (cancel × expiry safe).
   await claimAndRestoreOrderInventory(claimed._id, 'payment_expired', {
     type: 'system',
+  });
+  await releaseCouponForOrder({
+    orderId: String(claimed._id),
+    orderNumber: claimed.orderNumber,
+    reason: 'payment_expired',
   });
 
   await recordAudit({
