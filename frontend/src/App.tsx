@@ -26,6 +26,11 @@ const OrderConfirmation = lazy(() =>
     default: module.OrderConfirmation,
   })),
 );
+const PaymentReturn = lazy(() =>
+  import('./pages/PaymentReturn/PaymentReturn').then((module) => ({
+    default: module.PaymentReturn,
+  })),
+);
 const CartPage = lazy(() =>
   import('./components/cart/CartPage/CartPage').then((module) => ({
     default: module.CartPage,
@@ -172,6 +177,7 @@ export default function App() {
           <Route path="/cart" element={<CartPage />} />
           <Route path="/wishlist" element={<WishlistPage />} />
           <Route path="/order/confirmation" element={<OrderConfirmation />} />
+          <Route path="/payment/callback" element={<PaymentReturn />} />
           <Route path="/profile/*" element={<ProfilePage />} />
           <Route path="/about" element={<AboutPage />} />
           <Route path="/contact" element={<ContactPage />} />

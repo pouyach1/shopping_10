@@ -17,13 +17,16 @@ export function signAccessToken(input: SignTokenInput): string {
   };
 
   return jwt.sign(payload, env.JWT_SECRET, {
+    algorithm: 'HS256',
     expiresIn: env.JWT_EXPIRES_IN as jwt.SignOptions['expiresIn'],
   });
 }
 
 export function verifyAccessToken(token: string): AuthTokenPayload {
   try {
-    const decoded = jwt.verify(token, env.JWT_SECRET);
+    const decoded = jwt.verify(token, env.JWT_SECRET, {
+      algorithms: ['HS256'],
+    });
     if (
       !decoded ||
       typeof decoded !== 'object' ||
