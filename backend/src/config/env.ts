@@ -42,6 +42,28 @@ const envSchema = z
       .int()
       .positive()
       .default(PAYMENT_RESERVATION_TTL_MS),
+    ENABLE_RESERVATION_SCHEDULER: z
+      .enum(['true', 'false'])
+      .default('false')
+      .transform((value) => value === 'true'),
+    RESERVATION_SCHEDULER_INTERVAL_MS: z.coerce
+      .number()
+      .int()
+      .positive()
+      .default(300_000),
+    ENABLE_NOTIFICATION_SCHEDULER: z
+      .enum(['true', 'false'])
+      .default('false')
+      .transform((value) => value === 'true'),
+    NOTIFICATION_SCHEDULER_INTERVAL_MS: z.coerce
+      .number()
+      .int()
+      .positive()
+      .default(60_000),
+    SMS_PROVIDER: z.enum(['mock', 'kavenegar']).default('mock'),
+    SMS_API_KEY: z.string().optional(),
+    EMAIL_PROVIDER: z.enum(['mock', 'smtp']).default('mock'),
+    EMAIL_FROM: z.string().email().optional(),
   })
   .superRefine((value, ctx) => {
     if (value.NODE_ENV === 'production') {
@@ -71,18 +93,28 @@ const envSchema = z
             'PAYMENT_WEBHOOK_SECRET is required in production (16+ characters)',
         });
       }
-      if (value.PAYMENT_PROVIDER === 'zarinpal' && !value.ZARINPAL_MERCHANT_ID) {
-        ctx.addIssue({
-          code: 'custom',
-          path: ['ZARINPAL_MERCHANT_ID'],
-          message: 'ZARINPAL_MERCHANT_ID is required when PAYMENT_PROVIDER=zarinpal',
-        });
+      if (value.PAYMENT_PROVIDER === 'zarinpal') {
+        if (!value.ZARINPAL_MERCHANT_ID || value.ZARINPAL_MERCHANT_ID.length < 36) {
+          ctx.addIssue({
+            code: 'custom',
+            path: ['ZARINPAL_MERCHANT_ID'],
+            message:
+              'ZARINPAL_MERCHANT_ID is required (36-char UUID) when PAYMENT_PROVIDER=zarinpal',
+          });
+        }
       }
       if (value.PAYMENT_PROVIDER === 'mock') {
         ctx.addIssue({
           code: 'custom',
           path: ['PAYMENT_PROVIDER'],
           message: 'PAYMENT_PROVIDER=mock is not allowed in production',
+        });
+      }
+      if (value.SMS_PROVIDER === 'kavenegar' && !value.SMS_API_KEY) {
+        ctx.addIssue({
+          code: 'custom',
+          path: ['SMS_API_KEY'],
+          message: 'SMS_API_KEY is required when SMS_PROVIDER=kavenegar',
         });
       }
     }
@@ -145,6 +177,14 @@ export const env = {
   ZARINPAL_MERCHANT_ID: raw.ZARINPAL_MERCHANT_ID,
   ZARINPAL_SANDBOX: raw.ZARINPAL_SANDBOX,
   PAYMENT_RESERVATION_TTL_MS: raw.PAYMENT_RESERVATION_TTL_MS,
+  ENABLE_RESERVATION_SCHEDULER: raw.ENABLE_RESERVATION_SCHEDULER,
+  RESERVATION_SCHEDULER_INTERVAL_MS: raw.RESERVATION_SCHEDULER_INTERVAL_MS,
+  ENABLE_NOTIFICATION_SCHEDULER: raw.ENABLE_NOTIFICATION_SCHEDULER,
+  NOTIFICATION_SCHEDULER_INTERVAL_MS: raw.NOTIFICATION_SCHEDULER_INTERVAL_MS,
+  SMS_PROVIDER: raw.SMS_PROVIDER,
+  SMS_API_KEY: raw.SMS_API_KEY,
+  EMAIL_PROVIDER: raw.EMAIL_PROVIDER,
+  EMAIL_FROM: raw.EMAIL_FROM ?? 'noreply@luxora.local',
 } as const;
 
 export type Env = typeof env;

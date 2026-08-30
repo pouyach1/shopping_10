@@ -19,9 +19,22 @@ const paymentRateLimiter = rateLimit({
   },
 });
 
+/** Provider webhooks must not share aggressive user-facing limits. */
+const webhookRateLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: env.isTest ? 2000 : 120,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: {
+    status: 'error',
+    code: 'TOO_MANY_REQUESTS',
+    message: 'Webhook rate limit exceeded.',
+  },
+});
+
 router.post(
   '/webhooks/:provider',
-  paymentRateLimiter,
+  webhookRateLimiter,
   paymentsController.webhook,
 );
 
