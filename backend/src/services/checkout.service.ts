@@ -480,72 +480,122 @@ export async function createOrder(
     const reservedUntil = new Date(
       now.getTime() + env.PAYMENT_RESERVATION_TTL_MS,
     );
-    order = await Order.create({
-      orderNumber,
-      user: new Types.ObjectId(userId),
-      status: 'awaiting_payment',
-      paymentStatus: 'unpaid',
-      fulfillmentStatus: 'unfulfilled',
-      items: preview.items.map((item) => ({
-        productId: new Types.ObjectId(item.productId),
-        sku: item.sku,
-        name: item.name,
-        slug: item.slug,
-        imageSrc: item.imageSrc,
-        productKind: item.productKind,
-        size: item.size,
-        color: item.color,
-        colorValue: item.colorValue,
-        quantity: item.quantity,
-        unitPrice: item.unitPrice,
-        unitSalePrice:
-          item.unitFinalPrice < item.unitPrice ? item.unitFinalPrice : undefined,
-        unitFinalPrice: item.unitFinalPrice,
-        lineSubtotal: item.lineSubtotal,
-        lineDiscount: item.lineDiscount,
-        lineTotal: item.lineTotal,
-        currency: item.currency,
-      })),
-      shippingAddress: {
-        recipientName: input.shippingAddress.recipientName,
-        phone: input.shippingAddress.phone,
-        province: input.shippingAddress.province,
-        city: input.shippingAddress.city,
-        addressLine: input.shippingAddress.addressLine,
-        postalCode: input.shippingAddress.postalCode,
-        landline: input.shippingAddress.landline,
-        notes: input.shippingAddress.notes,
-      },
-      shippingMethodId: preview.shippingMethodId as ShippingMethodId,
-      shippingMethodTitle: preview.shippingMethodTitle,
-      paymentMethod: input.paymentMethod,
-      currency: preview.summary.currency,
-      itemCount: preview.summary.itemCount,
-      subtotal: preview.summary.subtotal,
-      discountTotal: preview.summary.discountTotal,
-      couponDiscount: preview.summary.couponDiscount,
-      couponCode: preview.summary.couponCode,
-      shippingCost: preview.summary.shippingCost,
-      total: preview.summary.total,
-      refundedTotal: 0,
-      history: [
-        {
-          fromStatus: null,
-          toStatus: 'awaiting_payment' as const,
-          actorType: 'customer' as const,
-          actorId: userId,
-          reason: 'ثبت سفارش',
-          at: now,
+    try {
+      order = await Order.create({
+        orderNumber,
+        user: new Types.ObjectId(userId),
+        status: 'awaiting_payment',
+        paymentStatus: 'unpaid',
+        fulfillmentStatus: 'unfulfilled',
+        items: preview.items.map((item) => ({
+          productId: new Types.ObjectId(item.productId),
+          sku: item.sku,
+          name: item.name,
+          slug: item.slug,
+          imageSrc: item.imageSrc,
+          productKind: item.productKind,
+          size: item.size,
+          color: item.color,
+          colorValue: item.colorValue,
+          quantity: item.quantity,
+          unitPrice: item.unitPrice,
+          unitSalePrice:
+            item.unitFinalPrice < item.unitPrice
+              ? item.unitFinalPrice
+              : undefined,
+          unitFinalPrice: item.unitFinalPrice,
+          lineSubtotal: item.lineSubtotal,
+          lineDiscount: item.lineDiscount,
+          lineTotal: item.lineTotal,
+          currency: item.currency,
+        })),
+        shippingAddress: {
+          recipientName: input.shippingAddress.recipientName,
+          phone: input.shippingAddress.phone,
+          province: input.shippingAddress.province,
+          city: input.shippingAddress.city,
+          addressLine: input.shippingAddress.addressLine,
+          postalCode: input.shippingAddress.postalCode,
+          landline: input.shippingAddress.landline,
+          notes: input.shippingAddress.notes,
         },
-      ],
-      idempotencyKey,
-      inventoryDecremented: true,
-      inventoryReleaseClaimedAt: null,
-      inventoryHoldId: hold._id,
-      financialIntegrityStatus: 'ok',
-      // Online + COD: never hold inventory forever without a reservation TTL.
-      inventoryReservedUntil: reservedUntil,
-    });
+        shippingMethodId: preview.shippingMethodId as ShippingMethodId,
+        shippingMethodTitle: preview.shippingMethodTitle,
+        paymentMethod: input.paymentMethod,
+        currency: preview.summary.currency,
+        itemCount: preview.summary.itemCount,
+        subtotal: preview.summary.subtotal,
+        discountTotal: preview.summary.discountTotal,
+        couponDiscount: preview.summary.couponDiscount,
+        couponCode: preview.summary.couponCode,
+        shippingCost: preview.summary.shippingCost,
+        total: preview.summary.total,
+        refundedTotal: 0,
+        history: [
+          {
+            fromStatus: null,
+            toStatus: 'awaiting_payment' as const,
+            actorType: 'customer' as const,
+            actorId: userId,
+            reason: 'ثبت سفارش',
+            at: now,
+          },
+        ],
+        idempotencyKey,
+        inventoryDecremented: true,
+        inventoryReleaseClaimedAt: null,
+        inventoryHoldId: hold._id,
+        financialIntegrityStatus: 'ok',
+        inventoryReservedUntil: reservedUntil,
+      });
+    } catch (createError) {
+      // Concurrent same Idempotency-Key: unique (user, idempotencyKey) lost the race.
+      const isDup =
+        typeof createError === 'object' &&
+        createError !== null &&
+        'code' in createError &&
+        (createError as { code?: number }).code === 11000;
+      if (isDup) {
+        await claimReleaseDecrementedHold(hold._id, 'idempotency_race');
+        const existingRecord = await IdempotencyRecord.findOne({
+          key: idempotencyKey,
+          userId,
+        });
+        if (existingRecord) {
+          if (existingRecord.requestHash !== requestHash) {
+            throw conflict(
+              'کلید تکرار با درخواست متفاوت در تداخل است.',
+              undefined,
+              'IDEMPOTENCY_CONFLICT',
+            );
+          }
+          const existingOrder = await Order.findOne({
+            orderNumber: existingRecord.orderNumber,
+          });
+          if (existingOrder) return toPublicOrder(existingOrder);
+        }
+        const byKey = await Order.findOne({
+          user: userId,
+          idempotencyKey,
+        });
+        if (byKey) {
+          // Ensure record exists for future replays.
+          try {
+            await IdempotencyRecord.create({
+              key: idempotencyKey,
+              userId,
+              requestHash,
+              orderNumber: byKey.orderNumber,
+              expiresAt: idempotencyExpiry(),
+            });
+          } catch {
+            /* already present */
+          }
+          return toPublicOrder(byKey);
+        }
+      }
+      throw createError;
+    }
 
     await commitInventoryHold(hold._id, order._id, order.orderNumber);
 

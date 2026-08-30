@@ -256,6 +256,53 @@ export async function redeemCouponForOrder(input: {
   return quote;
 }
 
+/**
+ * One-time reclaim of coupon usage when an unpaid/cancelled order releases stock.
+ * Safe under cancel × expiry concurrency — only the first claim decrements counters.
+ */
+export async function releaseCouponForOrder(input: {
+  orderId: string;
+  orderNumber: string;
+  reason: string;
+}): Promise<{ released: boolean }> {
+  const claimed = await CouponRedemption.findOneAndUpdate(
+    {
+      order: new Types.ObjectId(input.orderId),
+      releasedAt: null,
+    },
+    { $set: { releasedAt: new Date() } },
+    { returnDocument: 'after' },
+  );
+
+  if (!claimed) {
+    return { released: false };
+  }
+
+  await Coupon.findOneAndUpdate(
+    { _id: claimed.coupon, usageCount: { $gt: 0 } },
+    { $inc: { usageCount: -1 } },
+  );
+  await CouponUserUsage.updateOne(
+    {
+      coupon: claimed.coupon,
+      user: claimed.user,
+      count: { $gt: 0 },
+    },
+    { $inc: { count: -1 } },
+  );
+
+  await recordAudit({
+    action: 'coupon.released',
+    actorType: 'system',
+    entityType: 'coupon',
+    entityId: String(claimed.coupon),
+    orderNumber: input.orderNumber,
+    metadata: { reason: input.reason, code: claimed.code },
+  });
+
+  return { released: true };
+}
+
 export async function createCoupon(raw: unknown) {
   const input: CreateCouponInput = parseOrThrow(createCouponSchema, raw);
   const doc = await Coupon.create({

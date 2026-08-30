@@ -220,6 +220,7 @@ export const AUDIT_ACTIONS = [
   'inventory.reservation_released',
   'inventory.hold_recovered',
   'coupon.applied',
+  'coupon.released',
   'refund.created',
   'refund.completed',
   'refund.failed',
