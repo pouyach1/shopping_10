@@ -39,7 +39,7 @@ import { allocateOrderNumber } from './orderNumber.service';
 import { toPublicOrder, type PublicOrder } from './order.mapper';
 import { resolveShippingCost } from './shipping.service';
 import { clearCart } from './cart.service';
-import { quoteCoupon, redeemCouponForOrder } from './coupon.service';
+import { quoteCoupon, redeemCouponForOrder, releaseCouponForOrder } from './coupon.service';
 import { recordAudit } from './audit.service';
 import { emitCommerceEvent } from './notifications';
 import { env } from '../config/env';
@@ -632,6 +632,11 @@ export async function createOrder(
         userId,
       });
       if (raced && raced.requestHash !== requestHash) {
+        await releaseCouponForOrder({
+          orderId: String(order._id),
+          orderNumber: order.orderNumber,
+          reason: 'idempotency_conflict',
+        }).catch(() => undefined);
         await Order.deleteOne({ _id: order._id });
         await restoreMany(stockLines);
         await InventoryHold.updateOne(
@@ -649,6 +654,11 @@ export async function createOrder(
           orderNumber: raced.orderNumber,
         });
         if (other) {
+          await releaseCouponForOrder({
+            orderId: String(order._id),
+            orderNumber: order.orderNumber,
+            reason: 'idempotency_race',
+          }).catch(() => undefined);
           await Order.deleteOne({ _id: order._id });
           await restoreMany(stockLines);
           await InventoryHold.updateOne(
@@ -661,6 +671,11 @@ export async function createOrder(
     }
   } catch (error) {
     if (order) {
+      await releaseCouponForOrder({
+        orderId: String(order._id),
+        orderNumber: order.orderNumber,
+        reason: 'order_create_failed',
+      }).catch(() => undefined);
       await Order.deleteOne({ _id: order._id }).catch(() => undefined);
     }
     const holdFresh = await InventoryHold.findById(hold._id);
@@ -673,10 +688,7 @@ export async function createOrder(
         { $set: { status: 'released', releasedAt: new Date() } },
       );
     } else if (holdFresh?.status === 'open') {
-      await InventoryHold.updateOne(
-        { _id: hold._id },
-        { $set: { status: 'released', releasedAt: new Date() } },
-      );
+      await claimReleaseDecrementedHold(hold._id, 'order_create_failed');
     }
     throw error;
   }

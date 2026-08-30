@@ -44,7 +44,7 @@ const paymentSchema = new Schema<PaymentAttrs>(
       required: true,
       index: true,
     },
-    orderNumber: { type: String, required: true, index: true, maxlength: 40 },
+    orderNumber: { type: String, required: true, maxlength: 40 },
     user: {
       type: Schema.Types.ObjectId,
       ref: 'User',
@@ -98,8 +98,20 @@ const paymentSchema = new Schema<PaymentAttrs>(
 
 paymentSchema.index({ user: 1, idempotencyKey: 1 }, { unique: true, sparse: true });
 paymentSchema.index({ order: 1, status: 1 });
+paymentSchema.index({ orderNumber: 1 });
 paymentSchema.index({ status: 1, expiresAt: 1 });
 paymentSchema.index({ provider: 1, providerTransactionId: 1 });
+/** At most one open payment attempt per order (double-click / concurrent keys). */
+paymentSchema.index(
+  { orderNumber: 1 },
+  {
+    name: 'uniq_open_payment_per_order',
+    unique: true,
+    partialFilterExpression: {
+      status: { $in: ['created', 'pending', 'redirected', 'processing'] },
+    },
+  },
+);
 
 export type PaymentDocument = HydratedDocument<PaymentAttrs>;
 

@@ -23,6 +23,8 @@ export interface InventoryHoldAttrs {
   items: InventoryHoldItem[];
   order?: Types.ObjectId;
   orderNumber?: string;
+  /** Set immediately before stock decrement — ages open holds for recovery. */
+  decrementAttemptedAt?: Date;
   /** After this time, a decremented-but-uncommitted hold is recoverable. */
   recoverAfter: Date;
   releasedAt?: Date;
@@ -56,6 +58,7 @@ const schema = new Schema<InventoryHoldAttrs>(
     items: { type: [itemSchema], required: true },
     order: { type: Schema.Types.ObjectId, ref: 'Order', index: true },
     orderNumber: { type: String, maxlength: 40, index: true },
+    decrementAttemptedAt: { type: Date },
     recoverAfter: { type: Date, required: true, index: true },
     releasedAt: { type: Date },
   },
