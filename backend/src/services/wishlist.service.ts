@@ -4,6 +4,8 @@ import { Wishlist } from '../models/Wishlist';
 import { Product } from '../models/Product';
 import { notFound } from '../utils/AppError';
 import { logger } from '../utils/logger';
+import { requireStoreId } from '../tenant/TenantContext';
+import { storeObjectId, storeScope } from '../tenant/storeScope';
 import {
   parseOrThrow,
   wishlistMergeSchema,
@@ -18,10 +20,14 @@ import {
 } from './commerce.mapper';
 
 async function getOrCreateWishlist(userId: string) {
-  const existing = await Wishlist.findOne({ user: userId });
+  const existing = await Wishlist.findOne(storeScope({ user: userId }));
   if (existing) return existing;
   try {
-    return await Wishlist.create({ user: userId, products: [] });
+    return await Wishlist.create({
+      storeId: storeObjectId(),
+      user: userId,
+      products: [],
+    });
   } catch (error) {
     if (
       typeof error === 'object' &&
@@ -29,7 +35,7 @@ async function getOrCreateWishlist(userId: string) {
       'code' in error &&
       (error as { code?: number }).code === 11000
     ) {
-      const doc = await Wishlist.findOne({ user: userId });
+      const doc = await Wishlist.findOne(storeScope({ user: userId }));
       if (doc) return doc;
     }
     throw error;
@@ -42,13 +48,14 @@ export async function getWishlistDto(userId: string): Promise<WishlistDto> {
     return { items: [], itemCount: 0 };
   }
 
-  const products = await Product.find({
-    _id: { $in: wishlist.products },
-  }).populate('category', 'name slug');
+  const products = await Product.find(
+    storeScope({
+      _id: { $in: wishlist.products },
+    }),
+  ).populate('category', 'name slug');
 
   const byId = new Map(products.map((p) => [String(p._id), p]));
 
-  // Preserve wishlist order as stored.
   const items: WishlistItemDto[] = wishlist.products.map((ref) => {
     const id = String(ref);
     const doc = byId.get(id);
@@ -75,47 +82,50 @@ export async function getWishlistDto(userId: string): Promise<WishlistDto> {
   return { items, itemCount: items.length };
 }
 
-/**
- * Add product to wishlist. Idempotent — duplicate add is a no-op success.
- * Product must exist; archived products may still be saved (user intent).
- */
 export async function addWishlistProduct(
   userId: string,
   productId: string,
 ): Promise<WishlistDto> {
-  const product = await Product.findById(productId).select('_id');
+  const product = await Product.findOne(storeScope({ _id: productId })).select(
+    '_id',
+  );
   if (!product) throw notFound('محصول یافت نشد.');
 
   await Wishlist.findOneAndUpdate(
-    { user: userId },
+    storeScope({ user: userId }),
     {
-      $setOnInsert: { user: userId },
+      $setOnInsert: { storeId: storeObjectId(), user: userId },
       $addToSet: { products: new Types.ObjectId(productId) },
     },
     { upsert: true, returnDocument: 'after' },
   );
 
-  logger.info('wishlist.item_added', { userId, productId });
+  logger.info('wishlist.item_added', {
+    storeId: requireStoreId(),
+    userId,
+    productId,
+  });
   return getWishlistDto(userId);
 }
 
-/**
- * Remove product. Idempotent — missing product returns current wishlist (200).
- */
 export async function removeWishlistProduct(
   userId: string,
   productId: string,
 ): Promise<WishlistDto> {
   await Wishlist.findOneAndUpdate(
-    { user: userId },
+    storeScope({ user: userId }),
     {
-      $setOnInsert: { user: userId },
+      $setOnInsert: { storeId: storeObjectId(), user: userId },
       $pull: { products: new Types.ObjectId(productId) },
     },
     { upsert: true, returnDocument: 'after' },
   );
 
-  logger.info('wishlist.item_removed', { userId, productId });
+  logger.info('wishlist.item_removed', {
+    storeId: requireStoreId(),
+    userId,
+    productId,
+  });
   return getWishlistDto(userId);
 }
 
@@ -127,20 +137,26 @@ export async function mergeWishlistProducts(
   const unique = [...new Set(input.productIds)];
   if (unique.length === 0) return getWishlistDto(userId);
 
-  const existing = await Product.find({
-    _id: { $in: unique.map((id) => new Types.ObjectId(id)) },
-  }).select('_id');
+  const existing = await Product.find(
+    storeScope({
+      _id: { $in: unique.map((id) => new Types.ObjectId(id)) },
+    }),
+  ).select('_id');
   const validIds = existing.map((doc) => doc._id);
 
   await Wishlist.findOneAndUpdate(
-    { user: userId },
+    storeScope({ user: userId }),
     {
-      $setOnInsert: { user: userId },
+      $setOnInsert: { storeId: storeObjectId(), user: userId },
       $addToSet: { products: { $each: validIds } },
     },
     { upsert: true, returnDocument: 'after' },
   );
 
-  logger.info('wishlist.merged', { userId, count: validIds.length });
+  logger.info('wishlist.merged', {
+    storeId: requireStoreId(),
+    userId,
+    count: validIds.length,
+  });
   return getWishlistDto(userId);
 }

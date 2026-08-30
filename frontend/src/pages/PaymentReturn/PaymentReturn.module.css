@@ -1,0 +1,117 @@
+.page {
+  min-height: 70vh;
+  display: grid;
+  place-items: center;
+  padding: 2rem 1rem;
+  background:
+    radial-gradient(ellipse at 20% 0%, rgba(180, 140, 90, 0.12), transparent 50%),
+    linear-gradient(180deg, #f7f3ec 0%, #efe7db 100%);
+}
+
+.card {
+  width: min(100%, 32rem);
+  padding: 2rem 1.5rem;
+  background: rgba(255, 252, 247, 0.92);
+  border: 1px solid rgba(90, 70, 40, 0.12);
+}
+
+.header {
+  text-align: center;
+}
+
+.eyebrow {
+  display: block;
+  font-family: "Cormorant Garamond", "Times New Roman", serif;
+  letter-spacing: 0.28em;
+  font-size: 0.75rem;
+  color: #7a6548;
+  margin-bottom: 0.75rem;
+}
+
+.title {
+  margin: 0;
+  font-family: Vazirmatn, Tahoma, sans-serif;
+  font-size: clamp(1.35rem, 3vw, 1.75rem);
+  font-weight: 700;
+  color: #2c2418;
+}
+
+.divider {
+  display: block;
+  height: 1px;
+  margin: 1.25rem 0;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgba(90, 70, 40, 0.28),
+    transparent
+  );
+}
+
+.message {
+  margin: 0;
+  text-align: center;
+  font-family: Vazirmatn, Tahoma, sans-serif;
+  font-size: 1rem;
+  line-height: 1.8;
+  color: #3d3428;
+}
+
+.message[data-state='success'] {
+  color: #2f5d3a;
+}
+
+.message[data-state='failure'] {
+  color: #8a3b2d;
+}
+
+.meta {
+  margin: 0.75rem 0 0;
+  text-align: center;
+  font-family: Vazirmatn, Tahoma, sans-serif;
+  font-size: 0.875rem;
+  color: #6b5d4a;
+}
+
+.actions {
+  margin-top: 1.75rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.primary,
+.secondary {
+  display: inline-flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 2.75rem;
+  padding: 0.7rem 1rem;
+  font-family: Vazirmatn, Tahoma, sans-serif;
+  font-size: 0.95rem;
+  text-decoration: none;
+  border: none;
+  cursor: pointer;
+}
+
+.primary {
+  background: #2c2418;
+  color: #f7f3ec;
+}
+
+.primary:disabled {
+  opacity: 0.6;
+  cursor: wait;
+}
+
+.secondary {
+  background: transparent;
+  color: #2c2418;
+  border: 1px solid rgba(44, 36, 24, 0.25);
+}
+
+@media (max-width: 360px) {
+  .card {
+    padding: 1.5rem 1rem;
+  }
+}

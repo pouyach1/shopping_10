@@ -21,6 +21,7 @@ export interface ProductColorAttrs {
 }
 
 export interface ProductAttrs {
+  storeId: Types.ObjectId;
   name: string;
   slug: string;
   sku: string;
@@ -28,9 +29,7 @@ export interface ProductAttrs {
   description?: string;
   category: Types.ObjectId;
   productKind: ProductKind;
-  /** Regular / list price (always >= salePrice when sale is set). */
   price: number;
-  /** Optional promotional price. */
   salePrice?: number;
   currency: string;
   images: ProductImageAttrs[];
@@ -68,13 +67,17 @@ const productColorSchema = new Schema<ProductColorAttrs>(
 
 const productSchema = new Schema<ProductAttrs>(
   {
+    storeId: {
+      type: Schema.Types.ObjectId,
+      ref: 'Store',
+      required: true,
+    },
     name: { type: String, required: true, trim: true, maxlength: 200 },
     slug: {
       type: String,
       required: true,
       trim: true,
       lowercase: true,
-      unique: true,
       maxlength: 160,
     },
     sku: {
@@ -82,7 +85,6 @@ const productSchema = new Schema<ProductAttrs>(
       required: true,
       trim: true,
       uppercase: true,
-      unique: true,
       maxlength: 64,
     },
     shortDescription: { type: String, trim: true, maxlength: 400 },
@@ -91,14 +93,12 @@ const productSchema = new Schema<ProductAttrs>(
       type: Schema.Types.ObjectId,
       ref: 'Category',
       required: true,
-      index: true,
     },
     productKind: {
       type: String,
       enum: PRODUCT_KINDS,
       required: true,
       default: 'other',
-      index: true,
     },
     price: { type: Number, required: true, min: 0 },
     salePrice: { type: Number, min: 0 },
@@ -118,9 +118,8 @@ const productSchema = new Schema<ProductAttrs>(
       enum: PRODUCT_STATUSES,
       required: true,
       default: 'draft',
-      index: true,
     },
-    featured: { type: Boolean, default: false, index: true },
+    featured: { type: Boolean, default: false },
     badge: { type: String, trim: true, maxlength: 40 },
     tags: { type: [String], default: [] },
     material: { type: String, trim: true, maxlength: 80 },
@@ -129,14 +128,17 @@ const productSchema = new Schema<ProductAttrs>(
   { timestamps: true },
 );
 
-// Compound indexes aligned to public catalog query patterns.
-productSchema.index({ status: 1, createdAt: -1 });
-productSchema.index({ status: 1, featured: 1, createdAt: -1 });
-productSchema.index({ status: 1, category: 1, createdAt: -1 });
-productSchema.index({ status: 1, price: 1 });
-productSchema.index({ status: 1, salePrice: 1 });
-productSchema.index({ status: 1, productKind: 1 });
-productSchema.index({ name: 'text', shortDescription: 'text', description: 'text', sku: 'text' });
+// Per-store unique identity.
+productSchema.index({ storeId: 1, slug: 1 }, { unique: true });
+productSchema.index({ storeId: 1, sku: 1 }, { unique: true });
+// Catalog list patterns — storeId leading for ~1000-store shared cluster.
+productSchema.index({ storeId: 1, status: 1, createdAt: -1 });
+productSchema.index({ storeId: 1, status: 1, featured: 1, createdAt: -1 });
+productSchema.index({ storeId: 1, status: 1, category: 1, createdAt: -1 });
+productSchema.index({ storeId: 1, status: 1, price: 1 });
+productSchema.index({ storeId: 1, status: 1, salePrice: 1 });
+productSchema.index({ storeId: 1, status: 1, productKind: 1 });
+productSchema.index({ storeId: 1, status: 1, stock: 1 });
 
 export type ProductDocument = HydratedDocument<ProductAttrs>;
 

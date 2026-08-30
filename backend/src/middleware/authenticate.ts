@@ -4,6 +4,11 @@ import { env } from '../config/env';
 import type { UserRole } from '../config/constants';
 import { verifyAccessToken } from '../services/token.service';
 import { getActiveUserById } from '../services/auth.service';
+import { ensureMembership } from '../services/membership.service';
+import {
+  requireTenantContext,
+  patchTenantContext,
+} from '../tenant/TenantContext';
 import { forbidden, unauthorized } from '../utils/AppError';
 import { asyncHandler } from '../utils/asyncHandler';
 
@@ -34,10 +39,40 @@ export const requireAuth = asyncHandler(
       id: String(user._id),
       role: user.role,
     };
+
+    // Ensure customer membership for the resolved store (idempotent).
+    // Elevated roles are never granted here — only seed/migration/grantStoreRole.
+    try {
+      const tenant = requireTenantContext();
+      const membership = await ensureMembership(
+        tenant.storeId,
+        String(user._id),
+        'customer',
+      );
+      patchTenantContext({
+        userId: String(user._id),
+        membershipRole: membership.role,
+      });
+      req.tenant = {
+        ...tenant,
+        userId: String(user._id),
+        membershipRole: membership.role,
+      };
+      req.membership = {
+        role: membership.role,
+        status: membership.status,
+      };
+    } catch {
+      // Tenant unresolved — store-scoped handlers will fail closed.
+    }
+
     next();
   },
 );
 
+/**
+ * Legacy platform role gate — prefer requireStoreRole for store admin APIs.
+ */
 export function requireRole(...roles: UserRole[]) {
   return (req: Request, _res: Response, next: NextFunction): void => {
     if (!req.user) {

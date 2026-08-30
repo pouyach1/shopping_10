@@ -8,6 +8,10 @@ export interface OrderSnapshot {
   total: number;
   customerName: string;
   createdAt: string;
+  /** Present when order came from backend. */
+  paymentStatus?: string;
+  orderStatus?: string;
+  currency?: string;
 }
 
 export function saveOrderSnapshot(snapshot: OrderSnapshot): void {
@@ -42,6 +46,9 @@ export function readOrderSnapshot(): OrderSnapshot | null {
       total: data.total,
       customerName: data.customerName ?? '',
       createdAt: data.createdAt ?? new Date().toISOString(),
+      paymentStatus: data.paymentStatus,
+      orderStatus: data.orderStatus,
+      currency: data.currency,
     };
   } catch {
     return null;

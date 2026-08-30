@@ -2,9 +2,9 @@ import type { NextFunction, Request, Response } from 'express';
 import rateLimit from 'express-rate-limit';
 
 import { env } from '../config/env';
+import { checkDbReady } from '../config/db';
 import { AppError } from '../utils/AppError';
 import { logger } from '../utils/logger';
-import { getDbState } from '../config/db';
 
 export function notFound(_req: Request, _res: Response, next: NextFunction): void {
   next(new AppError(404, 'مسیر درخواستی یافت نشد.', { code: 'NOT_FOUND' }));
@@ -12,26 +12,40 @@ export function notFound(_req: Request, _res: Response, next: NextFunction): voi
 
 export function errorHandler(
   err: unknown,
-  _req: Request,
+  req: Request,
   res: Response,
   _next: NextFunction,
 ): void {
+  const requestId = req.requestId;
+
   if (err instanceof AppError) {
     const appError = err;
     if (appError.statusCode >= 500) {
-      logger.error(appError.message);
+      logger.error(appError.message, {
+        requestId,
+        code: appError.code,
+        details: appError.details,
+      });
     }
+
+    // Never leak provider/Mongo internals or stack-adjacent details in production.
+    const exposeDetails =
+      !env.isProd &&
+      appError.details !== undefined &&
+      appError.statusCode < 500;
 
     res.status(appError.statusCode).json({
       status: 'error',
       code: appError.code,
       message: appError.message,
+      ...(requestId ? { requestId } : {}),
       ...(appError.errors ? { errors: appError.errors } : {}),
+      ...(exposeDetails ? { details: appError.details } : {}),
     });
     return;
   }
 
-  // Mongoose duplicate key
+  // Mongoose duplicate key — never echo the index key contents.
   if (
     typeof err === 'object' &&
     err !== null &&
@@ -42,12 +56,16 @@ export function errorHandler(
       status: 'error',
       code: 'CONFLICT',
       message: 'رکورد تکراری است.',
+      ...(requestId ? { requestId } : {}),
     });
     return;
   }
 
   const message = err instanceof Error ? err.message : 'Internal Server Error';
-  logger.error('Unhandled error', env.isProd ? undefined : message);
+  logger.error('Unhandled error', {
+    requestId,
+    message: env.isProd ? undefined : message,
+  });
 
   res.status(500).json({
     status: 'error',
@@ -55,6 +73,7 @@ export function errorHandler(
     message: env.isProd
       ? 'خطای داخلی سرور رخ داد.'
       : message || 'Internal Server Error',
+    ...(requestId ? { requestId } : {}),
   });
 }
 
@@ -91,12 +110,31 @@ export function healthLive(_req: Request, res: Response): void {
   });
 }
 
-export function healthReady(_req: Request, res: Response): void {
-  const db = getDbState();
-  const ready = db === 'connected';
+export async function healthReady(
+  _req: Request,
+  res: Response,
+): Promise<void> {
+  const dbCheck = await checkDbReady();
+  const ready = dbCheck.ready;
   res.status(ready ? 200 : 503).json({
     status: ready ? 'ready' : 'not_ready',
-    db,
+    db: dbCheck.state,
+    dbPing: dbCheck.ping
+      ? {
+          ok: dbCheck.ping.ok,
+          latencyMs: dbCheck.ping.latencyMs,
+          ...(dbCheck.ping.category ? { category: dbCheck.ping.category } : {}),
+        }
+      : undefined,
+    commerce: {
+      paymentProvider: env.PAYMENT_PROVIDER,
+      smsProvider: env.SMS_PROVIDER,
+      emailProvider: env.EMAIL_PROVIDER,
+      reservationScheduler: env.ENABLE_RESERVATION_SCHEDULER,
+      notificationScheduler: env.ENABLE_NOTIFICATION_SCHEDULER,
+      reconcileScheduler: env.ENABLE_RECONCILE_SCHEDULER,
+    },
+    // Notification providers are optional — never block readiness.
     timestamp: new Date().toISOString(),
   });
 }

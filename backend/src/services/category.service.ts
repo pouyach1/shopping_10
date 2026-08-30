@@ -9,6 +9,8 @@ import {
 import { conflict, notFound } from '../utils/AppError';
 import { logger } from '../utils/logger';
 import { normalizeSlug } from '../utils/slug';
+import { requireStoreId } from '../tenant/TenantContext';
+import { storeObjectId, storeScope } from '../tenant/storeScope';
 import { toPublicCategory, type PublicCategory } from './catalog.mapper';
 
 function isDuplicateKeyError(error: unknown): boolean {
@@ -24,10 +26,12 @@ async function assertUniqueCategorySlug(
   slug: string,
   excludeId?: string,
 ): Promise<void> {
-  const existing = await Category.findOne({
-    slug,
-    ...(excludeId ? { _id: { $ne: excludeId } } : {}),
-  }).lean();
+  const existing = await Category.findOne(
+    storeScope({
+      slug,
+      ...(excludeId ? { _id: { $ne: excludeId } } : {}),
+    }),
+  ).lean();
   if (existing) {
     throw conflict('این اسلاگ دسته‌بندی قبلاً ثبت شده است.', {
       slug: 'این اسلاگ دسته‌بندی قبلاً ثبت شده است.',
@@ -41,6 +45,7 @@ export async function createCategory(raw: unknown): Promise<PublicCategory> {
 
   try {
     const category = await Category.create({
+      storeId: storeObjectId(),
       name: input.name,
       slug: input.slug,
       description: input.description,
@@ -48,7 +53,11 @@ export async function createCategory(raw: unknown): Promise<PublicCategory> {
       isActive: input.isActive ?? true,
       sortOrder: input.sortOrder ?? 0,
     });
-    logger.info('category.created', { id: String(category._id), slug: category.slug });
+    logger.info('category.created', {
+      storeId: requireStoreId(),
+      id: String(category._id),
+      slug: category.slug,
+    });
     return toPublicCategory(category);
   } catch (error) {
     if (isDuplicateKeyError(error)) {
@@ -61,15 +70,21 @@ export async function createCategory(raw: unknown): Promise<PublicCategory> {
 }
 
 export async function listPublicCategories(): Promise<PublicCategory[]> {
-  const categories = await Category.find({ isActive: true })
+  const categories = await Category.find(storeScope({ isActive: true }))
     .sort({ sortOrder: 1, name: 1 })
     .lean();
-  return categories.map((category) => toPublicCategory(category as CategoryDocument));
+  return categories.map((category) =>
+    toPublicCategory(category as CategoryDocument),
+  );
 }
 
 export async function listAdminCategories(): Promise<PublicCategory[]> {
-  const categories = await Category.find().sort({ sortOrder: 1, name: 1 }).lean();
-  return categories.map((category) => toPublicCategory(category as CategoryDocument));
+  const categories = await Category.find(storeScope())
+    .sort({ sortOrder: 1, name: 1 })
+    .lean();
+  return categories.map((category) =>
+    toPublicCategory(category as CategoryDocument),
+  );
 }
 
 export async function getCategoryBySlug(
@@ -77,7 +92,7 @@ export async function getCategoryBySlug(
   options?: { publicOnly?: boolean },
 ): Promise<PublicCategory> {
   const normalized = normalizeSlug(slug);
-  const filter: Record<string, unknown> = { slug: normalized };
+  const filter: Record<string, unknown> = storeScope({ slug: normalized });
   if (options?.publicOnly) filter.isActive = true;
 
   const category = await Category.findOne(filter).lean();
@@ -86,13 +101,15 @@ export async function getCategoryBySlug(
 }
 
 export async function getCategoryById(id: string): Promise<PublicCategory> {
-  const category = await Category.findById(id).lean();
+  const category = await Category.findOne(storeScope({ _id: id })).lean();
   if (!category) throw notFound('دسته‌بندی یافت نشد.');
   return toPublicCategory(category as CategoryDocument);
 }
 
-export async function getCategoryDocumentById(id: string): Promise<CategoryDocument> {
-  const category = await Category.findById(id);
+export async function getCategoryDocumentById(
+  id: string,
+): Promise<CategoryDocument> {
+  const category = await Category.findOne(storeScope({ _id: id }));
   if (!category) throw notFound('دسته‌بندی یافت نشد.');
   return category;
 }
@@ -102,7 +119,7 @@ export async function updateCategory(
   raw: unknown,
 ): Promise<PublicCategory> {
   const input: CategoryUpdateInput = parseOrThrow(categoryUpdateSchema, raw);
-  const category = await Category.findById(id);
+  const category = await Category.findOne(storeScope({ _id: id }));
   if (!category) throw notFound('دسته‌بندی یافت نشد.');
 
   if (input.slug && input.slug !== category.slug) {
@@ -127,6 +144,7 @@ export async function updateCategory(
   }
 
   logger.info('category.updated', {
+    storeId: requireStoreId(),
     id: String(category._id),
     slug: category.slug,
     isActive: category.isActive,

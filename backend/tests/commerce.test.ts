@@ -3,7 +3,9 @@ import { describe, expect, it } from 'vitest';
 
 import { createApp } from '../src/app';
 import { User } from '../src/models/User';
+import { Store } from '../src/models/Store';
 import { CART_MAX_QUANTITY } from '../src/config/constants';
+import { promoteStoreAdmin } from '../src/services/storeBootstrap.service';
 
 const app = createApp();
 
@@ -35,6 +37,9 @@ async function adminToken(): Promise<string> {
     phone: '09121110000',
     email: 'admin-cart@luxora.ir',
   });
+  const store = await Store.findOne({ slug: 'luxora' });
+  expect(store).toBeTruthy();
+  await promoteStoreAdmin(String(store!._id), userId, 'admin');
   await User.findByIdAndUpdate(userId, { role: 'admin' });
   const login = await request(app).post('/api/v1/auth/login').send({
     identifier: 'admin-cart@luxora.ir',

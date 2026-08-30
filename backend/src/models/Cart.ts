@@ -3,17 +3,16 @@ import { Schema, model, type HydratedDocument, type Types } from 'mongoose';
 export interface CartItemAttrs {
   product: Types.ObjectId;
   quantity: number;
-  /** Variant attributes — match storefront line identity. */
   size: string;
   color: string;
   colorValue?: string;
-  /** Display unit price when the line was last written (price-change detection). */
   unitPriceSnapshot: number;
   addedAt: Date;
   updatedAt: Date;
 }
 
 export interface CartAttrs {
+  storeId: Types.ObjectId;
   user: Types.ObjectId;
   items: CartItemAttrs[];
   createdAt: Date;
@@ -40,19 +39,24 @@ const cartItemSchema = new Schema<CartItemAttrs>(
 
 const cartSchema = new Schema<CartAttrs>(
   {
+    storeId: {
+      type: Schema.Types.ObjectId,
+      ref: 'Store',
+      required: true,
+    },
     user: {
       type: Schema.Types.ObjectId,
       ref: 'User',
       required: true,
-      unique: true,
-      index: true,
     },
     items: { type: [cartItemSchema], default: [] },
   },
   { timestamps: true },
 );
 
-cartSchema.index({ 'items.product': 1 });
+// One cart per user per store.
+cartSchema.index({ storeId: 1, user: 1 }, { unique: true });
+cartSchema.index({ storeId: 1, 'items.product': 1 });
 
 export type CartDocument = HydratedDocument<CartAttrs>;
 export type CartItemDocument = HydratedDocument<CartItemAttrs>;

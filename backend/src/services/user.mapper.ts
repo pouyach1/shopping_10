@@ -39,11 +39,19 @@ export function toPublicUser(user: UserDocument): PublicUser {
   };
 }
 
+/**
+ * Cookie auth model (Phase 6.5):
+ * - Default sameSite=lax (blocks most cross-site CSRF POSTs).
+ * - Cross-site SPAs that need cookies must set AUTH_COOKIE_SAMESITE=none
+ *   AND rely on csrfCookieGuard Origin checks + Secure.
+ * - Bearer Authorization clients are unaffected.
+ */
 export function getAuthCookieOptions(maxAgeMs?: number): CookieOptions {
+  const sameSite = env.AUTH_COOKIE_SAMESITE;
   return {
     httpOnly: true,
-    secure: env.isProd,
-    sameSite: env.isProd ? 'none' : 'lax',
+    secure: env.isProd || sameSite === 'none',
+    sameSite,
     path: AUTH_COOKIE_PATH,
     maxAge: maxAgeMs,
   };
@@ -55,10 +63,11 @@ export function setAuthCookie(res: Response, token: string, remember = true): vo
 }
 
 export function clearAuthCookie(res: Response): void {
+  const sameSite = env.AUTH_COOKIE_SAMESITE;
   res.clearCookie(env.AUTH_COOKIE_NAME, {
     httpOnly: true,
-    secure: env.isProd,
-    sameSite: env.isProd ? 'none' : 'lax',
+    secure: env.isProd || sameSite === 'none',
+    sameSite,
     path: AUTH_COOKIE_PATH,
   });
 }

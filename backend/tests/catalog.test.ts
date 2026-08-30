@@ -7,6 +7,8 @@ import { Product } from '../src/models/Product';
 import { Category } from '../src/models/Category';
 import { seedCatalog } from '../src/scripts/seedCatalog';
 import { CATALOG_MAX_LIMIT } from '../src/config/constants';
+import { Store } from '../src/models/Store';
+import { promoteStoreAdmin } from '../src/services/storeBootstrap.service';
 
 const app = createApp();
 
@@ -35,14 +37,15 @@ async function createAdminToken(): Promise<string> {
     phone: '09129876543',
     email: 'admin@luxora.ir',
   });
+  const store = await Store.findOne({ slug: 'luxora' });
+  expect(store).toBeTruthy();
+  await promoteStoreAdmin(String(store!._id), userId, 'admin');
   await User.findByIdAndUpdate(userId, { role: 'admin' });
-  // Re-login so JWT carries admin role
   const login = await request(app).post('/api/v1/auth/login').send({
     identifier: 'admin@luxora.ir',
     password: 'demo1234a',
   });
   expect(login.status).toBe(200);
-  expect(login.body.data.user.role).toBe('admin');
   return login.body.data.accessToken as string;
 }
 

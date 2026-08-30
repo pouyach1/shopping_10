@@ -16,6 +16,9 @@ import { User } from '../models/User';
 import type { ProductKind } from '../config/constants';
 import { hashPassword } from '../utils/password';
 import { logger } from '../utils/logger';
+import { ensureDefaultStore } from '../services/storeBootstrap.service';
+import { ensureMembership } from '../services/membership.service';
+import { runWithTenantContext } from '../tenant/TenantContext';
 
 /** Stable relative asset paths — match frontend `src/assets/images/...`. */
 const IMG = {
@@ -288,89 +291,110 @@ const SEED_PRODUCTS: SeedProduct[] = [
 ];
 
 export async function seedCatalog(): Promise<{
+  storeId: string;
+  storeSlug: string;
   categories: number;
   products: number;
   demoUser: boolean;
 }> {
-  const categoryIds = new Map<string, string>();
+  const store = await ensureDefaultStore();
+  const storeId = store._id;
 
-  for (const item of SEED_CATEGORIES) {
-    const category = await Category.findOneAndUpdate(
-      { slug: item.slug },
-      { $set: { ...item } },
-      { upsert: true, returnDocument: 'after', setDefaultsOnInsert: true },
-    );
-    categoryIds.set(item.slug, String(category!._id));
-  }
-
-  for (const item of SEED_PRODUCTS) {
-    const categoryId = categoryIds.get(item.categorySlug);
-    if (!categoryId) {
-      throw new Error(`Missing category for slug ${item.categorySlug}`);
-    }
-
-    await Product.findOneAndUpdate(
-      { sku: item.sku },
-      {
-        $set: {
-          name: item.name,
-          slug: item.slug,
-          sku: item.sku,
-          shortDescription: item.shortDescription,
-          description: item.description,
-          category: categoryId,
-          productKind: item.productKind,
-          price: item.price,
-          salePrice: item.salePrice,
-          currency: 'تومان',
-          images: item.images.map((image, index) => ({
-            url: image.url,
-            alt: image.alt,
-            isPrimary: image.isPrimary ?? index === 0,
-            sortOrder: image.sortOrder ?? index,
-          })),
-          colors: item.colors,
-          sizes: item.sizes,
-          stock: item.stock,
-          lowStockThreshold: 5,
-          status: item.status,
-          featured: item.featured ?? false,
-          badge: item.badge,
-          tags: item.tags ?? [],
-          material: item.material,
-          brand: item.brand ?? 'Luxora',
-        },
-      },
-      { upsert: true, returnDocument: 'after', setDefaultsOnInsert: true },
-    );
-  }
-
-  // Demo storefront customer — matches frontend DEMO_CUSTOMER credentials.
-  const demoPasswordHash = await hashPassword('demo1234');
-  await User.findOneAndUpdate(
-    { phone: '09121234567' },
+  return runWithTenantContext(
     {
-      $set: {
-        firstName: 'سارا',
-        lastName: 'محمدی',
-        phone: '09121234567',
-        email: 'customer@luxora.ir',
-        passwordHash: demoPasswordHash,
-        role: 'customer',
-        isActive: true,
-      },
-      $setOnInsert: {
-        addresses: [],
-      },
+      storeId: String(storeId),
+      storeSlug: store.slug,
+      storeStatus: store.status,
+      resolution: 'explicit',
     },
-    { upsert: true, returnDocument: 'after', setDefaultsOnInsert: true },
-  );
+    async () => {
+      const categoryIds = new Map<string, string>();
 
-  return {
-    categories: SEED_CATEGORIES.length,
-    products: SEED_PRODUCTS.length,
-    demoUser: true,
-  };
+      for (const item of SEED_CATEGORIES) {
+        const category = await Category.findOneAndUpdate(
+          { storeId, slug: item.slug },
+          { $set: { ...item, storeId } },
+          { upsert: true, returnDocument: 'after', setDefaultsOnInsert: true },
+        );
+        categoryIds.set(item.slug, String(category!._id));
+      }
+
+      for (const item of SEED_PRODUCTS) {
+        const categoryId = categoryIds.get(item.categorySlug);
+        if (!categoryId) {
+          throw new Error(`Missing category for slug ${item.categorySlug}`);
+        }
+
+        await Product.findOneAndUpdate(
+          { storeId, sku: item.sku },
+          {
+            $set: {
+              storeId,
+              name: item.name,
+              slug: item.slug,
+              sku: item.sku,
+              shortDescription: item.shortDescription,
+              description: item.description,
+              category: categoryId,
+              productKind: item.productKind,
+              price: item.price,
+              salePrice: item.salePrice,
+              currency: 'تومان',
+              images: item.images.map((image, index) => ({
+                url: image.url,
+                alt: image.alt,
+                isPrimary: image.isPrimary ?? index === 0,
+                sortOrder: image.sortOrder ?? index,
+              })),
+              colors: item.colors,
+              sizes: item.sizes,
+              stock: item.stock,
+              lowStockThreshold: 5,
+              status: item.status,
+              featured: item.featured ?? false,
+              badge: item.badge,
+              tags: item.tags ?? [],
+              material: item.material,
+              brand: item.brand ?? 'Luxora',
+            },
+          },
+          { upsert: true, returnDocument: 'after', setDefaultsOnInsert: true },
+        );
+      }
+
+      const demoPasswordHash = await hashPassword('demo1234');
+      const demoUser = await User.findOneAndUpdate(
+        { phone: '09121234567' },
+        {
+          $set: {
+            firstName: 'سارا',
+            lastName: 'محمدی',
+            phone: '09121234567',
+            email: 'customer@luxora.ir',
+            passwordHash: demoPasswordHash,
+            role: 'customer',
+            isActive: true,
+          },
+          $setOnInsert: {
+            addresses: [],
+          },
+        },
+        { upsert: true, returnDocument: 'after', setDefaultsOnInsert: true },
+      );
+
+      if (demoUser) {
+        await ensureMembership(String(storeId), String(demoUser._id), 'customer');
+      }
+
+      return {
+        storeId: String(storeId),
+        storeSlug: store.slug,
+        categories: SEED_CATEGORIES.length,
+        products: SEED_PRODUCTS.length,
+        demoUser: true,
+      };
+    },
+  );
 }
 
 async function main(): Promise<void> {

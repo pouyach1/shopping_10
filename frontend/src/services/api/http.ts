@@ -4,16 +4,23 @@ export class ApiError extends Error {
   readonly status: number;
   readonly code?: string;
   readonly errors?: Record<string, string>;
+  readonly details?: unknown;
 
   constructor(
     message: string,
-    options: { status: number; code?: string; errors?: Record<string, string> },
+    options: {
+      status: number;
+      code?: string;
+      errors?: Record<string, string>;
+      details?: unknown;
+    },
   ) {
     super(message);
     this.name = 'ApiError';
     this.status = options.status;
     this.code = options.code;
     this.errors = options.errors;
+    this.details = options.details;
   }
 }
 
@@ -61,6 +68,7 @@ type RequestOptions = {
   body?: unknown;
   auth?: boolean;
   signal?: AbortSignal;
+  headers?: Record<string, string>;
 };
 
 export async function apiRequest<T>(
@@ -76,6 +84,7 @@ export async function apiRequest<T>(
 
   const headers: Record<string, string> = {
     Accept: 'application/json',
+    ...options.headers,
   };
 
   if (options.body !== undefined) {
@@ -108,6 +117,7 @@ export async function apiRequest<T>(
     message?: string;
     code?: string;
     errors?: Record<string, string>;
+    details?: unknown;
     data?: T;
   } | null;
 
@@ -116,6 +126,7 @@ export async function apiRequest<T>(
       status: response.status,
       code: json?.code,
       errors: json?.errors,
+      details: json?.details,
     });
   }
 
