@@ -12,7 +12,9 @@ import { connectDB, disconnectDB } from '../config/db';
 import { env } from '../config/env';
 import { Category } from '../models/Category';
 import { Product } from '../models/Product';
+import { User } from '../models/User';
 import type { ProductKind } from '../config/constants';
+import { hashPassword } from '../utils/password';
 import { logger } from '../utils/logger';
 
 /** Stable relative asset paths — match frontend `src/assets/images/...`. */
@@ -288,6 +290,7 @@ const SEED_PRODUCTS: SeedProduct[] = [
 export async function seedCatalog(): Promise<{
   categories: number;
   products: number;
+  demoUser: boolean;
 }> {
   const categoryIds = new Map<string, string>();
 
@@ -342,9 +345,31 @@ export async function seedCatalog(): Promise<{
     );
   }
 
+  // Demo storefront customer — matches frontend DEMO_CUSTOMER credentials.
+  const demoPasswordHash = await hashPassword('demo1234');
+  await User.findOneAndUpdate(
+    { phone: '09121234567' },
+    {
+      $set: {
+        firstName: 'سارا',
+        lastName: 'محمدی',
+        phone: '09121234567',
+        email: 'customer@luxora.ir',
+        passwordHash: demoPasswordHash,
+        role: 'customer',
+        isActive: true,
+      },
+      $setOnInsert: {
+        addresses: [],
+      },
+    },
+    { upsert: true, returnDocument: 'after', setDefaultsOnInsert: true },
+  );
+
   return {
     categories: SEED_CATEGORIES.length,
     products: SEED_PRODUCTS.length,
+    demoUser: true,
   };
 }
 
