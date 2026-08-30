@@ -19,6 +19,7 @@ import { emitCommerceEvent } from './notifications';
 import { claimAndRestoreOrderInventory } from './inventoryRelease.service';
 import { releaseCouponForOrder } from './coupon.service';
 import { CUSTOMER_CANCELLABLE } from './orderTransitions';
+import { storeScope } from '../tenant/storeScope';
 
 export interface OrderListResult {
   items: PublicOrder[];
@@ -34,7 +35,9 @@ async function findOwnedOrder(
   orderNumber: string,
   userId: string,
 ): Promise<OrderDocument> {
-  const order = await Order.findOne({ orderNumber, user: userId });
+  const order = await Order.findOne(
+    storeScope({ orderNumber, user: userId }),
+  );
   if (!order) throw notFound('سفارش یافت نشد.', 'ORDER_NOT_FOUND');
   return order;
 }
@@ -44,7 +47,7 @@ export async function listCustomerOrders(
   rawQuery: unknown,
 ): Promise<OrderListResult> {
   const query = parseOrThrow(orderListQuerySchema, rawQuery);
-  const filter: Record<string, unknown> = { user: userId };
+  const filter = storeScope({ user: userId });
   if (query.status) filter.status = query.status;
 
   const skip = (query.page - 1) * query.limit;
@@ -98,11 +101,11 @@ export async function cancelCustomerOrder(
 
   const previous = owned.status;
   const cancelled = await Order.findOneAndUpdate(
-    {
+    storeScope({
       _id: owned._id,
       user: userId,
       status: { $in: [...CUSTOMER_CANCELLABLE] },
-    },
+    }),
     {
       $set: {
         status: 'cancelled',
@@ -158,13 +161,13 @@ export async function cancelCustomerOrder(
     actor: 'customer',
   });
 
-  const fresh = await Order.findById(cancelled._id);
+  const fresh = await Order.findOne(storeScope({ _id: cancelled._id }));
   return toPublicOrder(fresh ?? cancelled);
 }
 
 export async function listAdminOrders(rawQuery: unknown): Promise<OrderListResult> {
   const query = parseOrThrow(orderListQuerySchema, rawQuery);
-  const filter: Record<string, unknown> = {};
+  const filter = storeScope();
   if (query.status) filter.status = query.status;
 
   const skip = (query.page - 1) * query.limit;
@@ -191,7 +194,7 @@ export async function getAdminOrder(orderNumberRaw: string): Promise<PublicOrder
   const { orderNumber } = parseOrThrow(orderNumberParamSchema, {
     orderNumber: orderNumberRaw,
   });
-  const order = await Order.findOne({ orderNumber });
+  const order = await Order.findOne(storeScope({ orderNumber }));
   if (!order) throw notFound('سفارش یافت نشد.', 'ORDER_NOT_FOUND');
   return toPublicOrder(order);
 }
@@ -205,7 +208,7 @@ export async function updateAdminOrderStatus(
     orderNumber: orderNumberRaw,
   });
   const body = parseOrThrow(adminOrderStatusSchema, rawBody);
-  const order = await Order.findOne({ orderNumber });
+  const order = await Order.findOne(storeScope({ orderNumber }));
   if (!order) throw notFound('سفارش یافت نشد.', 'ORDER_NOT_FOUND');
 
   // Never cancel/fail a financially captured order via status change.
@@ -255,7 +258,7 @@ export async function updateAdminOrderStatus(
   }
 
   const updated = await Order.findOneAndUpdate(
-    { _id: order._id, status: previous },
+    storeScope({ _id: order._id, status: previous }),
     {
       $set: setFields,
       $push: {
@@ -312,6 +315,6 @@ export async function updateAdminOrderStatus(
     adminId,
   });
 
-  const fresh = await Order.findById(updated._id);
+  const fresh = await Order.findOne(storeScope({ _id: updated._id }));
   return toPublicOrder(fresh ?? updated);
 }

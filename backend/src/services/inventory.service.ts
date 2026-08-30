@@ -3,6 +3,7 @@ import { Types, type ClientSession } from 'mongoose';
 import { Product } from '../models/Product';
 import { conflict } from '../utils/AppError';
 import { logger } from '../utils/logger';
+import { storeScope } from '../tenant/storeScope';
 
 /**
  * Atomic stock decrement. Succeeds only when stock >= quantity and product is active.
@@ -14,11 +15,11 @@ export async function decrementStock(
   session?: ClientSession,
 ): Promise<void> {
   const query = Product.findOneAndUpdate(
-    {
+    storeScope({
       _id: new Types.ObjectId(productId),
       status: 'active',
       stock: { $gte: quantity },
-    },
+    }),
     { $inc: { stock: -quantity } },
     { returnDocument: 'after' },
   );
@@ -43,9 +44,10 @@ export async function restoreStock(
   quantity: number,
   session?: ClientSession,
 ): Promise<void> {
-  const query = Product.findByIdAndUpdate(productId, {
-    $inc: { stock: quantity },
-  });
+  const query = Product.findOneAndUpdate(
+    storeScope({ _id: new Types.ObjectId(productId) }),
+    { $inc: { stock: quantity } },
+  );
   if (session) query.session(session);
   await query;
   logger.info('inventory.restored', { productId, quantity });

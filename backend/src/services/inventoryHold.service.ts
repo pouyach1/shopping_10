@@ -9,12 +9,14 @@ import { Order } from '../models/Order';
 import { recordAudit } from './audit.service';
 import { decrementMany, restoreMany } from './inventory.service';
 import { logger } from '../utils/logger';
+import { storeObjectId, storeScope } from '../tenant/storeScope';
 
 export async function beginInventoryHold(input: {
   userId: string;
   items: Array<{ productId: string; quantity: number }>;
 }): Promise<InventoryHoldDocument> {
   return InventoryHold.create({
+    storeId: storeObjectId(),
     user: new Types.ObjectId(input.userId),
     status: 'open',
     items: input.items.map((item) => ({
@@ -40,7 +42,7 @@ export async function decrementUnderHold(
   }));
 
   await InventoryHold.findOneAndUpdate(
-    { _id: hold._id, status: 'open' },
+    storeScope({ _id: hold._id, status: 'open' }),
     { $set: { decrementAttemptedAt: new Date() } },
   );
 
@@ -49,14 +51,14 @@ export async function decrementUnderHold(
   } catch (error) {
     // Decrement did not apply — clear the attempt marker so release won't restock.
     await InventoryHold.updateOne(
-      { _id: hold._id },
+      storeScope({ _id: hold._id }),
       { $unset: { decrementAttemptedAt: 1 } },
     );
     throw error;
   }
 
   const marked = await InventoryHold.findOneAndUpdate(
-    { _id: hold._id, status: 'open' },
+    storeScope({ _id: hold._id, status: 'open' }),
     { $set: { status: 'decremented' } },
     { returnDocument: 'after' },
   );
@@ -74,7 +76,10 @@ export async function commitInventoryHold(
   orderNumber: string,
 ): Promise<void> {
   await InventoryHold.findOneAndUpdate(
-    { _id: holdId, status: { $in: ['decremented', 'open'] } },
+    storeScope({
+      _id: holdId,
+      status: { $in: ['decremented', 'open'] },
+    }),
     {
       $set: {
         status: 'committed',
@@ -95,7 +100,7 @@ export async function claimReleaseDecrementedHold(
   reason: string,
 ): Promise<boolean> {
   const claimed = await InventoryHold.findOneAndUpdate(
-    { _id: holdId, status: 'decremented' },
+    storeScope({ _id: holdId, status: 'decremented' }),
     {
       $set: {
         status: 'released',
@@ -106,7 +111,7 @@ export async function claimReleaseDecrementedHold(
   );
   if (!claimed) {
     const open = await InventoryHold.findOneAndUpdate(
-      { _id: holdId, status: 'open' },
+      storeScope({ _id: holdId, status: 'open' }),
       { $set: { status: 'released', releasedAt: new Date() } },
       { returnDocument: 'after' },
     );
@@ -157,10 +162,12 @@ export async function recoverOrphanedInventoryHolds(
   limit = 50,
 ): Promise<{ recovered: number }> {
   const now = new Date();
-  const candidates = await InventoryHold.find({
-    status: { $in: ['decremented', 'open'] },
-    recoverAfter: { $lte: now },
-  })
+  const candidates = await InventoryHold.find(
+    storeScope({
+      status: { $in: ['decremented', 'open'] },
+      recoverAfter: { $lte: now },
+    }),
+  )
     .limit(limit)
     .select('_id order orderNumber status decrementAttemptedAt');
 
@@ -168,16 +175,19 @@ export async function recoverOrphanedInventoryHolds(
   for (const hold of candidates) {
     // Prefer Order.inventoryHoldId — covers crash after Order.create before commit.
     const linkedOrder =
-      (await Order.findOne({ inventoryHoldId: hold._id })) ||
+      (await Order.findOne(storeScope({ inventoryHoldId: hold._id }))) ||
       (hold.order
-        ? await Order.findById(hold.order)
+        ? await Order.findOne(storeScope({ _id: hold.order }))
         : hold.orderNumber
-          ? await Order.findOne({ orderNumber: hold.orderNumber })
+          ? await Order.findOne(storeScope({ orderNumber: hold.orderNumber }))
           : null);
 
     if (linkedOrder) {
       await InventoryHold.findOneAndUpdate(
-        { _id: hold._id, status: { $in: ['decremented', 'open'] } },
+        storeScope({
+          _id: hold._id,
+          status: { $in: ['decremented', 'open'] },
+        }),
         {
           $set: {
             status: 'committed',
@@ -200,7 +210,7 @@ export async function recoverOrphanedInventoryHolds(
     if (hold.status === 'open' && !hold.decrementAttemptedAt) {
       // Never took stock — just close.
       await InventoryHold.findOneAndUpdate(
-        { _id: hold._id, status: 'open' },
+        storeScope({ _id: hold._id, status: 'open' }),
         { $set: { status: 'released', releasedAt: new Date() } },
       );
       continue;

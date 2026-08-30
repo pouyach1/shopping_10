@@ -8,6 +8,7 @@ import { env } from '../../config/env';
 import { recordAudit } from '../audit.service';
 import { logger } from '../../utils/logger';
 import { getRequestId } from '../../utils/requestContext';
+import { storeObjectId, storeScope } from '../../tenant/storeScope';
 import { createFetchJsonClient } from '../payments/httpClient';
 import type { CommerceEventPayload } from './index';
 import { channelsForEvent } from './policy';
@@ -183,6 +184,7 @@ export async function enqueueNotificationsForEvent(
     });
     try {
       await NotificationDelivery.create({
+        storeId: storeObjectId(),
         deliveryKey,
         event,
         channel: job.channel,
@@ -219,7 +221,7 @@ export async function processPendingNotifications(
 
   for (let i = 0; i < limit; i += 1) {
     const delivery = await NotificationDelivery.findOneAndUpdate(
-      {
+      storeScope({
         $or: [
           {
             status: { $in: ['pending', 'retryable'] },
@@ -238,7 +240,7 @@ export async function processPendingNotifications(
             lockedUntil: { $lte: now },
           },
         ],
-      },
+      }),
       {
         $set: {
           status: 'processing',
@@ -333,10 +335,10 @@ export async function processPendingNotifications(
   }
 
   await NotificationDelivery.updateMany(
-    {
+    storeScope({
       status: 'processing',
       lockedUntil: { $lte: now },
-    },
+    }),
     {
       $set: {
         status: 'retryable',
@@ -357,7 +359,7 @@ export async function listAdminNotifications(query: {
 }) {
   const page = query.page ?? 1;
   const limit = Math.min(query.limit ?? 20, 100);
-  const filter: Record<string, unknown> = {};
+  const filter = storeScope();
   if (query.status) filter.status = query.status;
   if (query.orderNumber) filter.orderNumber = query.orderNumber;
 
@@ -405,10 +407,10 @@ export async function retryNotificationDelivery(
   adminId: string,
 ) {
   const claimed = await NotificationDelivery.findOneAndUpdate(
-    {
+    storeScope({
       _id: deliveryId,
       status: { $in: ['permanent_failure', 'failed', 'retryable'] },
-    },
+    }),
     {
       $set: {
         status: 'pending',
@@ -422,7 +424,9 @@ export async function retryNotificationDelivery(
     { returnDocument: 'after' },
   );
   if (!claimed) {
-    const existing = await NotificationDelivery.findById(deliveryId);
+    const existing = await NotificationDelivery.findOne(
+      storeScope({ _id: deliveryId }),
+    );
     if (!existing) return null;
     return existing;
   }

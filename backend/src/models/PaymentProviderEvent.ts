@@ -9,6 +9,7 @@ import {
  * Stores provider webhook/callback event ids for idempotent replay protection.
  */
 export interface PaymentProviderEventAttrs {
+  storeId: Types.ObjectId;
   provider: PaymentProviderId;
   eventId: string;
   payment?: Types.ObjectId;
@@ -22,6 +23,12 @@ export interface PaymentProviderEventAttrs {
 
 const schema = new Schema<PaymentProviderEventAttrs>(
   {
+    storeId: {
+      type: Schema.Types.ObjectId,
+      ref: 'Store',
+      required: true,
+      index: true,
+    },
     provider: {
       type: String,
       enum: PAYMENT_PROVIDER_IDS,
@@ -42,10 +49,10 @@ const schema = new Schema<PaymentProviderEventAttrs>(
   { timestamps: { createdAt: true, updatedAt: false } },
 );
 
-schema.index({ provider: 1, eventId: 1 }, { unique: true });
-schema.index({ authority: 1, createdAt: -1 });
+schema.index({ storeId: 1, provider: 1, eventId: 1 }, { unique: true });
+schema.index({ storeId: 1, authority: 1, createdAt: -1 });
 /** Admin payment detail / timeline lookup by payment id */
-schema.index({ payment: 1, createdAt: -1 });
+schema.index({ storeId: 1, payment: 1, createdAt: -1 });
 
 export type PaymentProviderEventDocument =
   HydratedDocument<PaymentProviderEventAttrs>;

@@ -26,6 +26,7 @@ import {
 import { getPaymentProvider } from './payments';
 import { claimAndRestoreOrderInventory } from './inventoryRelease.service';
 import { releaseCouponForOrder } from './coupon.service';
+import { storeObjectId, storeScope } from '../tenant/storeScope';
 import {
   parseOrThrow,
   createPaymentSchema,
@@ -75,7 +76,7 @@ async function loadOwnedPayableOrder(
   userId: string,
   orderNumber: string,
 ): Promise<OrderDocument> {
-  const order = await Order.findOne({ orderNumber, user: userId });
+  const order = await Order.findOne(storeScope({ orderNumber, user: userId }));
   if (!order) throw notFound('سفارش یافت نشد.', 'ORDER_NOT_FOUND');
 
   if (order.status === 'cancelled') {
@@ -127,10 +128,12 @@ export async function createPayment(
     simulate: input.simulate ?? null,
   });
 
-  const existing = await Payment.findOne({
-    user: userId,
-    idempotencyKey,
-  });
+  const existing = await Payment.findOne(
+    storeScope({
+      user: userId,
+      idempotencyKey,
+    }),
+  );
   if (existing) {
     if (
       existing.requestHash &&
@@ -153,22 +156,25 @@ export async function createPayment(
   }
 
   // Reuse open payment for same order (double-click / refresh).
-  const open = await Payment.findOne({
-    orderNumber: input.orderNumber,
-    user: userId,
-    status: { $in: ['created', 'pending', 'redirected', 'processing'] },
-  }).sort({ createdAt: -1 });
+  const open = await Payment.findOne(
+    storeScope({
+      orderNumber: input.orderNumber,
+      user: userId,
+      status: { $in: ['created', 'pending', 'redirected', 'processing'] },
+    }),
+  ).sort({ createdAt: -1 });
   if (open && open.redirectUrl) {
     return toPublicPayment(open);
   }
 
   const order = await loadOwnedPayableOrder(userId, input.orderNumber);
-  const provider = getPaymentProvider();
+  const provider = await getPaymentProvider();
   const expiresAt = reservationExpiry();
 
   let payment;
   try {
     payment = await Payment.create({
+      storeId: storeObjectId(),
       order: order._id,
       orderNumber: order.orderNumber,
       user: new Types.ObjectId(userId),
@@ -191,13 +197,15 @@ export async function createPayment(
       'code' in createError &&
       (createError as { code?: number }).code === 11000;
     if (isDup) {
-      const raced = await Payment.findOne({
-        orderNumber: input.orderNumber,
-        user: userId,
-        status: { $in: ['created', 'pending', 'redirected', 'processing'] },
-      }).sort({ createdAt: -1 });
+      const raced = await Payment.findOne(
+        storeScope({
+          orderNumber: input.orderNumber,
+          user: userId,
+          status: { $in: ['created', 'pending', 'redirected', 'processing'] },
+        }),
+      ).sort({ createdAt: -1 });
       if (raced) return toPublicPayment(raced);
-      const byKey = await Payment.findOne({ user: userId, idempotencyKey });
+      const byKey = await Payment.findOne(storeScope({ user: userId, idempotencyKey }));
       if (byKey) return toPublicPayment(byKey);
     }
     throw createError;
@@ -277,10 +285,10 @@ async function markPaymentFailed(
 ): Promise<void> {
   // Atomic — never overwrite paid/refunded via a stale in-memory document.
   const failed = await Payment.findOneAndUpdate(
-    {
+    storeScope({
       _id: payment._id,
       status: { $in: ['created', 'pending', 'redirected', 'processing'] },
-    },
+    }),
     {
       $set: {
         status: 'failed',
@@ -298,7 +306,7 @@ async function markPaymentFailed(
   payment.failureCode = failed.failureCode;
   payment.failureReason = failed.failureReason;
 
-  const order = await Order.findById(payment.order);
+  const order = await Order.findOne(storeScope({ _id: payment.order }));
   if (order && order.paymentStatus !== 'paid') {
     order.paymentStatus = 'failed';
     await order.save();
@@ -342,7 +350,7 @@ async function applySuccessfulPayment(
   }
 
   const claimed = await Payment.findOneAndUpdate(
-    {
+    storeScope({
       _id: payment._id,
       // Include terminal open-adjacent states so provider-confirmed capture
       // after expiry / false NOK can still enter the late-payment path.
@@ -357,13 +365,13 @@ async function applySuccessfulPayment(
           'cancelled',
         ],
       },
-    },
+    }),
     { $set: { status: 'processing' } },
     { returnDocument: 'after' },
   );
 
   if (!claimed) {
-    const fresh = await Payment.findById(payment._id);
+    const fresh = await Payment.findOne(storeScope({ _id: payment._id }));
     if (
       fresh &&
       (fresh.status === 'paid' ||
@@ -376,7 +384,7 @@ async function applySuccessfulPayment(
   }
 
   const paidDoc = await Payment.findOneAndUpdate(
-    { _id: payment._id, status: 'processing' },
+    storeScope({ _id: payment._id, status: 'processing' }),
     {
       $set: {
         status: 'paid',
@@ -394,13 +402,15 @@ async function applySuccessfulPayment(
   }
 
   // Atomic order transition — only if still payable (never from cancelled).
-  const priorOrder = await Order.findById(paidDoc.order).select('status');
+  const priorOrder = await Order.findOne(storeScope({ _id: paidDoc.order })).select(
+    'status',
+  );
   const orderUpdated = await Order.findOneAndUpdate(
-    {
+    storeScope({
       _id: paidDoc.order,
       status: { $in: ['awaiting_payment', 'pending'] },
       paymentStatus: { $nin: ['paid'] },
-    },
+    }),
     {
       $set: {
         status: 'paid',
@@ -442,7 +452,7 @@ async function applySuccessfulPayment(
   }
 
   // Order not payable — typically cancelled/failed. Do NOT flip to paid.
-  const order = await Order.findById(paidDoc.order);
+  const order = await Order.findOne(storeScope({ _id: paidDoc.order }));
   if (!order) {
     throw notFound('سفارش یافت نشد.', 'ORDER_NOT_FOUND');
   }
@@ -456,12 +466,12 @@ async function applySuccessfulPayment(
   }
 
   // Unexpected state — keep payment paid, flag for ops.
-  await Order.findByIdAndUpdate(order._id, {
+  await Order.findOneAndUpdate(storeScope({ _id: order._id }), {
     $set: {
       financialIntegrityStatus: 'paid_needs_manual_refund',
     },
   });
-  await Payment.findByIdAndUpdate(paidDoc._id, {
+  await Payment.findOneAndUpdate(storeScope({ _id: paidDoc._id }), {
     $set: {
       needsManualRefund: true,
       financialHoldReason: `late_payment_unexpected_${order.status}`,
@@ -485,7 +495,7 @@ async function handleLatePaymentOnCancelledOrder(
 ): Promise<{
   outcome: 'auto_refunded' | 'needs_manual_refund';
 }> {
-  const provider = getPaymentProvider();
+  const provider = await getPaymentProvider();
   const refund = await provider.refundPayment({
     authority: paidDoc.authority!,
     providerTransactionId: paidDoc.providerTransactionId,
@@ -497,7 +507,7 @@ async function handleLatePaymentOnCancelledOrder(
 
   if (refund.success) {
     await Payment.findOneAndUpdate(
-      { _id: paidDoc._id, status: 'paid' },
+      storeScope({ _id: paidDoc._id, status: 'paid' }),
       {
         $set: {
           status: 'refunded',
@@ -508,7 +518,7 @@ async function handleLatePaymentOnCancelledOrder(
         },
       },
     );
-    await Order.findByIdAndUpdate(order._id, {
+    await Order.findOneAndUpdate(storeScope({ _id: order._id }), {
       $set: {
         financialIntegrityStatus: 'ok',
         paymentStatus: 'refunded',
@@ -538,7 +548,7 @@ async function handleLatePaymentOnCancelledOrder(
   }
 
   // Provider did not confirm refund — NEVER label as auto_refunded.
-  await Payment.findByIdAndUpdate(paidDoc._id, {
+  await Payment.findOneAndUpdate(storeScope({ _id: paidDoc._id }), {
     $set: {
       needsManualRefund: true,
       financialHoldReason:
@@ -547,7 +557,7 @@ async function handleLatePaymentOnCancelledOrder(
           : 'provider_refund_failed',
     },
   });
-  await Order.findByIdAndUpdate(order._id, {
+  await Order.findOneAndUpdate(storeScope({ _id: order._id }), {
     $set: {
       financialIntegrityStatus: 'paid_needs_manual_refund',
     },
@@ -589,14 +599,16 @@ export async function handlePaymentCallback(
   outcome?: string;
 }> {
   const input = parseOrThrow(paymentCallbackSchema, raw);
-  const payment = await Payment.findOne({
-    authority: input.authority,
-    user: userId,
-  });
+  const payment = await Payment.findOne(
+    storeScope({
+      authority: input.authority,
+      user: userId,
+    }),
+  );
   if (!payment) throw notFound('پرداخت یافت نشد.', 'PAYMENT_NOT_FOUND');
 
   if (payment.status === 'paid') {
-    const order = await Order.findById(payment.order);
+    const order = await Order.findOne(storeScope({ _id: payment.order }));
     return {
       payment: toPublicPayment(payment),
       orderStatus: order?.status ?? 'paid',
@@ -623,7 +635,7 @@ export async function handlePaymentCallback(
     },
   });
 
-  const provider = getPaymentProvider();
+  const provider = await getPaymentProvider();
   let verified;
   try {
     verified = await provider.verifyPayment({
@@ -691,8 +703,8 @@ export async function handlePaymentCallback(
     verified.providerTransactionId,
     'callback',
   );
-  const order = await Order.findById(payment.order);
-  const fresh = await Payment.findById(payment._id);
+  const order = await Order.findOne(storeScope({ _id: payment.order }));
+  const fresh = await Payment.findOne(storeScope({ _id: payment._id }));
   return {
     payment: toPublicPayment(fresh ?? payment),
     orderStatus: order?.status ?? 'paid',
@@ -706,7 +718,7 @@ export async function handleProviderWebhook(
   body: unknown,
   rawBody: string,
 ): Promise<{ ok: true; duplicate?: boolean }> {
-  const provider = getPaymentProvider();
+  const provider = await getPaymentProvider();
   if (provider.id !== providerId) {
     throw badRequest('درگاه نامعتبر است.', undefined, 'WEBHOOK_INVALID');
   }
@@ -733,6 +745,7 @@ export async function handleProviderWebhook(
 
   try {
     await PaymentProviderEvent.create({
+      storeId: storeObjectId(),
       provider: provider.id,
       eventId: event.eventId,
       authority: event.authority,
@@ -763,17 +776,17 @@ export async function handleProviderWebhook(
     },
   });
 
-  const payment = await Payment.findOne({ authority: event.authority });
+  const payment = await Payment.findOne(storeScope({ authority: event.authority }));
   if (!payment) {
     await PaymentProviderEvent.updateOne(
-      { provider: provider.id, eventId: event.eventId },
+      storeScope({ provider: provider.id, eventId: event.eventId }),
       { outcome: 'ignored', note: 'payment_not_found' },
     );
     return { ok: true };
   }
 
   await PaymentProviderEvent.updateOne(
-    { provider: provider.id, eventId: event.eventId },
+    storeScope({ provider: provider.id, eventId: event.eventId }),
     { payment: payment._id },
   );
 
@@ -803,7 +816,7 @@ export async function handleProviderWebhook(
         verified.failureCode === 'PROVIDER_UNAVAILABLE'
       ) {
         await PaymentProviderEvent.updateOne(
-          { provider: provider.id, eventId: event.eventId },
+          storeScope({ provider: provider.id, eventId: event.eventId }),
           {
             outcome: 'ignored',
             note: `webhook_verify_${verified.failureCode ?? 'unknown'}`,
@@ -853,7 +866,7 @@ export async function handleProviderWebhook(
           'webhook',
         );
         await PaymentProviderEvent.updateOne(
-          { provider: provider.id, eventId: event.eventId },
+          storeScope({ provider: provider.id, eventId: event.eventId }),
           { outcome: 'ignored', note: 'failure_webhook_but_provider_paid' },
         );
         return { ok: true };
@@ -876,10 +889,10 @@ export async function handleProviderWebhook(
             : 'failed';
       // Atomic transition — never stale-save over a concurrent paid claim.
       const moved = await Payment.findOneAndUpdate(
-        {
+        storeScope({
           _id: payment._id,
           status: { $in: ['created', 'pending', 'redirected', 'processing'] },
-        },
+        }),
         {
           $set: {
             status: target,
@@ -900,22 +913,24 @@ export async function handleProviderWebhook(
 export async function expireOrderReservation(
   orderNumber: string,
 ): Promise<void> {
-  const existing = await Order.findOne({
-    orderNumber,
-    paymentStatus: { $in: ['unpaid', 'pending', 'failed'] },
-    status: { $in: ['awaiting_payment', 'pending'] },
-    inventoryDecremented: true,
-  });
+  const existing = await Order.findOne(
+    storeScope({
+      orderNumber,
+      paymentStatus: { $in: ['unpaid', 'pending', 'failed'] },
+      status: { $in: ['awaiting_payment', 'pending'] },
+      inventoryDecremented: true,
+    }),
+  );
   if (!existing) return;
 
   // Atomic cancel claim — does not restock yet.
   const claimed = await Order.findOneAndUpdate(
-    {
+    storeScope({
       _id: existing._id,
       inventoryDecremented: true,
       paymentStatus: { $in: ['unpaid', 'pending', 'failed'] },
       status: { $in: ['awaiting_payment', 'pending'] },
-    },
+    }),
     {
       $set: {
         status: 'cancelled',
@@ -979,12 +994,14 @@ export async function releaseExpiredReservations(
   limit = 50,
 ): Promise<{ released: number }> {
   const now = new Date();
-  const orders = await Order.find({
-    paymentStatus: { $in: ['unpaid', 'pending', 'failed'] },
-    status: { $in: ['awaiting_payment', 'pending'] },
-    inventoryReservedUntil: { $lte: now },
-    inventoryDecremented: true,
-  })
+  const orders = await Order.find(
+    storeScope({
+      paymentStatus: { $in: ['unpaid', 'pending', 'failed'] },
+      status: { $in: ['awaiting_payment', 'pending'] },
+      inventoryReservedUntil: { $lte: now },
+      inventoryDecremented: true,
+    }),
+  )
     .limit(limit)
     .select('orderNumber');
 
@@ -994,12 +1011,14 @@ export async function releaseExpiredReservations(
     // Customer cancel leaves payments open so late provider success can enter
     // handleLatePaymentOnCancelledOrder. Reservation expiry must behave the same:
     // cancel+restock the order, leave payment open for verify/reconcile.
-    const openPayments = await Payment.find({
-      orderNumber: order.orderNumber,
-      status: { $in: ['created', 'pending', 'redirected', 'processing'] },
-    });
+    const openPayments = await Payment.find(
+      storeScope({
+        orderNumber: order.orderNumber,
+        status: { $in: ['created', 'pending', 'redirected', 'processing'] },
+      }),
+    );
     for (const payment of openPayments) {
-      await Payment.findByIdAndUpdate(payment._id, {
+      await Payment.findOneAndUpdate(storeScope({ _id: payment._id }), {
         $set: {
           'metadata.reservationExpiredAt': now.toISOString(),
         },
@@ -1018,14 +1037,14 @@ export async function getCustomerPayment(
   if (!Types.ObjectId.isValid(paymentId)) {
     throw notFound('پرداخت یافت نشد.', 'PAYMENT_NOT_FOUND');
   }
-  const payment = await Payment.findOne({ _id: paymentId, user: userId });
+  const payment = await Payment.findOne(storeScope({ _id: paymentId, user: userId }));
   if (!payment) throw notFound('پرداخت یافت نشد.', 'PAYMENT_NOT_FOUND');
   return toPublicPayment(payment);
 }
 
 export async function listAdminPayments(rawQuery: unknown) {
   const query = parseOrThrow(paymentListQuerySchema, rawQuery);
-  const filter: Record<string, unknown> = {};
+  const filter = storeScope();
   if (query.status) filter.status = query.status;
   if (query.orderNumber) filter.orderNumber = query.orderNumber;
 
@@ -1053,11 +1072,11 @@ export async function getAdminPayment(paymentId: string) {
   if (!Types.ObjectId.isValid(paymentId)) {
     throw notFound('پرداخت یافت نشد.', 'PAYMENT_NOT_FOUND');
   }
-  const payment = await Payment.findById(paymentId);
+  const payment = await Payment.findOne(storeScope({ _id: paymentId }));
   if (!payment) throw notFound('پرداخت یافت نشد.', 'PAYMENT_NOT_FOUND');
-  const events = await PaymentProviderEvent.find({
-    payment: payment._id,
-  })
+  const events = await PaymentProviderEvent.find(
+    storeScope({ payment: payment._id }),
+  )
     .sort({ createdAt: -1 })
     .limit(20)
     .lean();

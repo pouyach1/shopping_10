@@ -1,6 +1,7 @@
 import { Schema, model, type HydratedDocument, type Types } from 'mongoose';
 
 export interface CouponRedemptionAttrs {
+  storeId: Types.ObjectId;
   coupon: Types.ObjectId;
   code: string;
   user: Types.ObjectId;
@@ -14,6 +15,12 @@ export interface CouponRedemptionAttrs {
 
 const schema = new Schema<CouponRedemptionAttrs>(
   {
+    storeId: {
+      type: Schema.Types.ObjectId,
+      ref: 'Store',
+      required: true,
+      index: true,
+    },
     coupon: {
       type: Schema.Types.ObjectId,
       ref: 'Coupon',
@@ -39,10 +46,10 @@ const schema = new Schema<CouponRedemptionAttrs>(
   { timestamps: { createdAt: true, updatedAt: false } },
 );
 
-schema.index({ coupon: 1, order: 1 }, { unique: true });
-schema.index({ coupon: 1, user: 1, createdAt: -1 });
+schema.index({ storeId: 1, coupon: 1, order: 1 }, { unique: true });
+schema.index({ storeId: 1, coupon: 1, user: 1, createdAt: -1 });
 /** releaseCouponForOrder: findOneAndUpdate({ order, releasedAt: null }) */
-schema.index({ order: 1, releasedAt: 1 });
+schema.index({ storeId: 1, order: 1, releasedAt: 1 });
 
 export type CouponRedemptionDocument = HydratedDocument<CouponRedemptionAttrs>;
 
@@ -53,18 +60,25 @@ export const CouponRedemption = model<CouponRedemptionAttrs>(
 
 /** Per-user usage counter for atomic per-user limits. */
 export interface CouponUserUsageAttrs {
+  storeId: Types.ObjectId;
   coupon: Types.ObjectId;
   user: Types.ObjectId;
   count: number;
 }
 
 const usageSchema = new Schema<CouponUserUsageAttrs>({
+  storeId: {
+    type: Schema.Types.ObjectId,
+    ref: 'Store',
+    required: true,
+    index: true,
+  },
   coupon: { type: Schema.Types.ObjectId, ref: 'Coupon', required: true },
   user: { type: Schema.Types.ObjectId, ref: 'User', required: true },
   count: { type: Number, default: 0, min: 0 },
 });
 
-usageSchema.index({ coupon: 1, user: 1 }, { unique: true });
+usageSchema.index({ storeId: 1, coupon: 1, user: 1 }, { unique: true });
 
 export type CouponUserUsageDocument = HydratedDocument<CouponUserUsageAttrs>;
 

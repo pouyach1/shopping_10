@@ -61,11 +61,11 @@ export const CART_MIN_QUANTITY = 1;
 export const CART_MAX_QUANTITY = 99;
 
 /**
- * Free-shipping threshold (تومان). Shared commerce constant for cart + checkout.
+ * Free-shipping threshold (تومان). Default fallback; per-store override in Store.publicConfig.
  */
 export const FREE_SHIPPING_THRESHOLD = 5_000_000;
 
-/** Supported shipping methods — prices are integer تومان. */
+/** Supported shipping methods — prices are integer تومان (global fallback). */
 export const SHIPPING_METHODS = [
   {
     id: 'post-express',
@@ -263,8 +263,32 @@ export const PAYMENTS_DEFAULT_PAGE = 1;
 export const PAYMENTS_DEFAULT_LIMIT = 20;
 export const PAYMENTS_MAX_LIMIT = 50;
 
- * Free-shipping threshold (تومان). Shared commerce constant for future checkout.
- * Cart summary may expose progress toward this; final shipping is Checkout's job.
- */
-export const FREE_SHIPPING_THRESHOLD = 5_000_000;
+// ─── Multi-store tenant ───────────────────────────────────────────────────────
 
+export const STORE_SLUG_HEADER = 'x-store-slug';
+export const DEFAULT_STORE_SLUG = 'luxora';
+
+export const STORE_STATUSES = ['active', 'suspended', 'disabled'] as const;
+export type StoreStatus = (typeof STORE_STATUSES)[number];
+
+export const STORE_MEMBERSHIP_ROLES = [
+  'owner',
+  'admin',
+  'staff',
+  'customer',
+] as const;
+export type StoreMembershipRole = (typeof STORE_MEMBERSHIP_ROLES)[number];
+
+export const STORE_STAFF_ROLES = [
+  'owner',
+  'admin',
+  'staff',
+] as const satisfies readonly StoreMembershipRole[];
+
+export const STORE_MEMBERSHIP_STATUSES = ['active', 'inactive'] as const;
+export type StoreMembershipStatus = (typeof STORE_MEMBERSHIP_STATUSES)[number];
+
+export const DEFAULT_ORDER_PREFIX = 'LUX';
+export const DEFAULT_LOCALE = 'fa-IR';
+export const DEFAULT_TIMEZONE = 'Asia/Tehran';
+export const DEFAULT_COUNTRY = 'IR';

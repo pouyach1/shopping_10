@@ -4,6 +4,7 @@ import { Order, type OrderDocument } from '../models/Order';
 import { recordAudit } from './audit.service';
 import { restoreMany } from './inventory.service';
 import { logger } from '../utils/logger';
+import { storeScope } from '../tenant/storeScope';
 
 export type InventoryReleaseReason =
   | 'customer_cancel'
@@ -24,11 +25,11 @@ export async function claimAndRestoreOrderInventory(
   actor?: { type: 'customer' | 'admin' | 'system'; id?: string },
 ): Promise<{ restored: boolean; order: OrderDocument | null }> {
   const claimed = await Order.findOneAndUpdate(
-    {
+    storeScope({
       _id: orderId,
       inventoryDecremented: true,
       inventoryReleaseClaimedAt: null,
-    },
+    }),
     {
       $set: {
         inventoryReleaseClaimedAt: new Date(),
@@ -40,7 +41,10 @@ export async function claimAndRestoreOrderInventory(
   );
 
   if (!claimed) {
-    return { restored: false, order: await Order.findById(orderId) };
+    return {
+      restored: false,
+      order: await Order.findOne(storeScope({ _id: orderId })),
+    };
   }
 
   await restoreMany(

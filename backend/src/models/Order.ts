@@ -60,6 +60,7 @@ export interface OrderHistoryEntry {
 }
 
 export interface OrderAttrs {
+  storeId: Types.ObjectId;
   orderNumber: string;
   user: Types.ObjectId;
   status: OrderStatus;
@@ -160,11 +161,15 @@ const historySchema = new Schema<OrderHistoryEntry>(
 
 const orderSchema = new Schema<OrderAttrs>(
   {
+    storeId: {
+      type: Schema.Types.ObjectId,
+      ref: 'Store',
+      required: true,
+      index: true,
+    },
     orderNumber: {
       type: String,
       required: true,
-      unique: true,
-      index: true,
       maxlength: 40,
     },
     user: {
@@ -235,12 +240,17 @@ const orderSchema = new Schema<OrderAttrs>(
   { timestamps: true },
 );
 
-orderSchema.index({ user: 1, createdAt: -1 });
-orderSchema.index({ user: 1, idempotencyKey: 1 }, { unique: true, sparse: true });
-orderSchema.index({ status: 1, createdAt: -1 });
+orderSchema.index({ storeId: 1, orderNumber: 1 }, { unique: true });
+orderSchema.index({ storeId: 1, user: 1, createdAt: -1 });
+orderSchema.index(
+  { storeId: 1, user: 1, idempotencyKey: 1 },
+  { unique: true, sparse: true },
+);
+orderSchema.index({ storeId: 1, status: 1, createdAt: -1 });
 /** Unfiltered admin order list sorts by createdAt */
-orderSchema.index({ createdAt: -1 });
+orderSchema.index({ storeId: 1, createdAt: -1 });
 orderSchema.index({
+  storeId: 1,
   status: 1,
   paymentStatus: 1,
   inventoryReservedUntil: 1,

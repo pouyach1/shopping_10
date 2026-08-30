@@ -3,6 +3,8 @@ import { randomUUID } from 'node:crypto';
 import { env } from '../config/env';
 import { logger } from '../utils/logger';
 import { SchedulerLock } from '../models/SchedulerLock';
+import { Store } from '../models/Store';
+import { runWithTenantContext } from '../tenant/TenantContext';
 import { releaseExpiredReservations } from './payment.service';
 import { processPendingNotifications } from './notifications';
 import { recoverOrphanedInventoryHolds } from './inventoryHold.service';
@@ -17,6 +19,28 @@ let reconcileRunning = false;
 
 const INSTANCE_ID = `luxora-${process.pid}-${randomUUID().slice(0, 8)}`;
 const LOCK_TTL_MS = 55_000;
+
+async function forEachActiveStore<T>(
+  fn: () => Promise<T>,
+): Promise<T[]> {
+  const stores = await Store.find({ status: 'active' })
+    .select('_id slug')
+    .lean();
+  const results: T[] = [];
+  for (const store of stores) {
+    const result = await runWithTenantContext(
+      {
+        storeId: String(store._id),
+        storeSlug: store.slug,
+        storeStatus: 'active',
+        resolution: 'explicit',
+      },
+      fn,
+    );
+    results.push(result);
+  }
+  return results;
+}
 
 export interface SchedulerHealth {
   instanceId: string;
@@ -128,10 +152,20 @@ export async function runReservationTick(): Promise<void> {
   reservationRunning = true;
   try {
     if (!(await tryAcquireLock('reservation'))) return;
-    const [result, holds] = await Promise.all([
-      releaseExpiredReservations(50),
-      recoverOrphanedInventoryHolds(50),
-    ]);
+    const storeResults = await forEachActiveStore(async () =>
+      Promise.all([
+        releaseExpiredReservations(50),
+        recoverOrphanedInventoryHolds(50),
+      ]),
+    );
+    const result = storeResults.reduce(
+      (acc, [reservations, holds]) => ({
+        released: acc.released + reservations.released,
+        holdsRecovered: acc.holdsRecovered + holds.recovered,
+      }),
+      { released: 0, holdsRecovered: 0 },
+    );
+    const holds = { recovered: result.holdsRecovered };
     const payload = {
       released: result.released,
       holdsRecovered: holds.recovered,
@@ -154,7 +188,17 @@ export async function runNotificationTick(): Promise<void> {
   notificationRunning = true;
   try {
     if (!(await tryAcquireLock('notification'))) return;
-    const result = await processPendingNotifications(50);
+    const storeResults = await forEachActiveStore(() =>
+      processPendingNotifications(50),
+    );
+    const result = storeResults.reduce(
+      (acc, row) => ({
+        processed: acc.processed + row.processed,
+        sent: acc.sent + row.sent,
+        failed: acc.failed + row.failed,
+      }),
+      { processed: 0, sent: 0, failed: 0 },
+    );
     await recordTick('notification', result);
     if (result.processed > 0) {
       logger.info('scheduler.notification.tick', result);
@@ -173,7 +217,17 @@ export async function runReconcileTick(): Promise<void> {
   reconcileRunning = true;
   try {
     if (!(await tryAcquireLock('reconcile'))) return;
-    const result = await reconcileOpenPayments(20, { applySafeFix: true });
+    const storeResults = await forEachActiveStore(() =>
+      reconcileOpenPayments(20, { applySafeFix: true }),
+    );
+    const result = storeResults.reduce(
+      (acc, row) => ({
+        scanned: acc.scanned + row.scanned,
+        fixed: acc.fixed + row.fixed,
+        reviews: acc.reviews + row.reviews,
+      }),
+      { scanned: 0, fixed: 0, reviews: 0 },
+    );
     await recordTick('reconcile', result);
     if (result.scanned > 0) {
       logger.info('scheduler.reconcile.tick', result);

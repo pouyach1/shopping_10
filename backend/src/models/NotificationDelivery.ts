@@ -1,4 +1,4 @@
-import { Schema, model, type HydratedDocument } from 'mongoose';
+import { Schema, model, type HydratedDocument, type Types } from 'mongoose';
 
 import {
   COMMERCE_EVENTS,
@@ -10,6 +10,7 @@ import {
 } from '../config/constants';
 
 export interface NotificationDeliveryAttrs {
+  storeId: Types.ObjectId;
   /** Deterministic idempotency key: event:channel:recipient:entity */
   deliveryKey: string;
   event: CommerceEventType;
@@ -38,12 +39,16 @@ export interface NotificationDeliveryAttrs {
 
 const schema = new Schema<NotificationDeliveryAttrs>(
   {
+    storeId: {
+      type: Schema.Types.ObjectId,
+      ref: 'Store',
+      required: true,
+      index: true,
+    },
     deliveryKey: {
       type: String,
       required: true,
-      unique: true,
       maxlength: 240,
-      index: true,
     },
     event: { type: String, enum: COMMERCE_EVENTS, required: true, index: true },
     channel: {
@@ -80,9 +85,10 @@ const schema = new Schema<NotificationDeliveryAttrs>(
   { timestamps: true },
 );
 
-schema.index({ status: 1, nextAttemptAt: 1 });
+schema.index({ storeId: 1, deliveryKey: 1 }, { unique: true });
+schema.index({ storeId: 1, status: 1, nextAttemptAt: 1 });
 /** Lease reclaim: status=processing + lockedUntil expired */
-schema.index({ status: 1, lockedUntil: 1 });
+schema.index({ storeId: 1, status: 1, lockedUntil: 1 });
 
 export type NotificationDeliveryDocument =
   HydratedDocument<NotificationDeliveryAttrs>;

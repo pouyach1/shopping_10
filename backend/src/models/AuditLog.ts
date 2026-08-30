@@ -1,8 +1,9 @@
-import { Schema, model, type HydratedDocument } from 'mongoose';
+import { Schema, model, type HydratedDocument, type Types } from 'mongoose';
 
 import { AUDIT_ACTIONS, type AuditAction } from '../config/constants';
 
 export interface AuditLogAttrs {
+  storeId: Types.ObjectId;
   action: AuditAction;
   actorType: 'customer' | 'admin' | 'system' | 'provider';
   actorId?: string;
@@ -16,6 +17,12 @@ export interface AuditLogAttrs {
 
 const schema = new Schema<AuditLogAttrs>(
   {
+    storeId: {
+      type: Schema.Types.ObjectId,
+      ref: 'Store',
+      required: true,
+      index: true,
+    },
     action: { type: String, enum: AUDIT_ACTIONS, required: true, index: true },
     actorType: {
       type: String,
@@ -32,8 +39,9 @@ const schema = new Schema<AuditLogAttrs>(
   { timestamps: { createdAt: true, updatedAt: false } },
 );
 
-schema.index({ createdAt: -1 });
-schema.index({ action: 1, createdAt: -1 });
+schema.index({ storeId: 1, createdAt: -1 });
+schema.index({ storeId: 1, entityType: 1, entityId: 1 });
+schema.index({ storeId: 1, action: 1, createdAt: -1 });
 
 export type AuditLogDocument = HydratedDocument<AuditLogAttrs>;
 

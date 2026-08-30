@@ -17,6 +17,7 @@ import { recordAudit } from '../services/audit.service';
 import { Payment } from '../models/Payment';
 import { notFound } from '../utils/AppError';
 import { asyncHandler } from '../utils/asyncHandler';
+import { storeScope } from '../tenant/storeScope';
 import { requireIdempotencyKey } from '../services/checkout.service';
 import {
   parseOrThrow,
@@ -124,7 +125,7 @@ export const adminMarkManualReview = asyncHandler(
 export const adminRetryVerification = asyncHandler(
   async (req: Request, res: Response) => {
     const { paymentId } = parseOrThrow(paymentIdParamSchema, req.params);
-    const payment = await Payment.findById(paymentId);
+    const payment = await Payment.findOne(storeScope({ _id: paymentId }));
     if (!payment) throw notFound('پرداخت یافت نشد.', 'PAYMENT_NOT_FOUND');
     assertCanRetryVerification(payment.status);
 
@@ -137,7 +138,7 @@ export const adminRetryVerification = asyncHandler(
       orderNumber: payment.orderNumber,
     });
 
-    const provider = getPaymentProvider();
+    const provider = await getPaymentProvider();
     const verified = await provider.verifyPayment({
       authority: payment.authority!,
       amount: payment.amount,

@@ -1,4 +1,5 @@
-import type { UserRole } from '../config/constants';
+import type { UserRole, StoreMembershipRole } from '../config/constants';
+import type { TenantContext } from '../tenant/TenantContext';
 
 export interface AuthTokenPayload {
   sub: string;
@@ -41,7 +42,12 @@ declare global {
         role: UserRole;
       };
       requestId?: string;
-      rawBody?: string;
+      /** Trusted tenant context — set by resolveTenant middleware. */
+      tenant?: TenantContext;
+      membership?: {
+        role: StoreMembershipRole;
+        status: string;
+      };
     }
   }
 }

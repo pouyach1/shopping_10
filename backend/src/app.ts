@@ -1,6 +1,8 @@
 import cors from 'cors';
 import cookieParser from 'cookie-parser';
-import express, { type Application } from 'express';
+import express, {
+  type Application,
+} from 'express';
 import helmet from 'helmet';
 
 import { env } from './config/env';
@@ -13,6 +15,11 @@ import {
 
 /**
  * Builds the Express application without binding a port (test-friendly).
+ *
+ * Middleware order:
+ * requestId → helmet/cors/json/cookies → rate limit → /api routes
+ * Inside versioned routers: resolveTenant → auth → membership → authz → controller
+ * Health routes skip tenant resolution.
  */
 export function createApp(): Application {
   const app = express();
@@ -31,7 +38,6 @@ export function createApp(): Application {
   app.use(
     cors({
       origin(origin, callback) {
-        // Non-browser clients (curl, server-to-server, tests) send no Origin.
         if (!origin) {
           callback(null, true);
           return;

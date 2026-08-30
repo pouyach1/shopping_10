@@ -1,27 +1,40 @@
-import { Schema, model } from 'mongoose';
+import { Schema, model, type Types } from 'mongoose';
 
-import { ORDER_NUMBER_PREFIX } from '../config/constants';
+import {
+  formatStoreOrderNumber,
+  getOrderPrefix,
+} from './storeConfig.service';
+import { storeObjectId, storeScope } from '../tenant/storeScope';
 
 interface OrderCounterAttrs {
+  storeId: Types.ObjectId;
   year: number;
   seq: number;
 }
 
 const orderCounterSchema = new Schema<OrderCounterAttrs>({
-  year: { type: Number, required: true, unique: true },
+  storeId: { type: Schema.Types.ObjectId, ref: 'Store', required: true },
+  year: { type: Number, required: true },
   seq: { type: Number, required: true, default: 0 },
 });
 
+orderCounterSchema.index({ storeId: 1, year: 1 }, { unique: true });
+
 const OrderCounter = model<OrderCounterAttrs>('OrderCounter', orderCounterSchema);
 
-/** Atomically allocate the next customer-facing order number: LUX-YYYY-000001 */
+/** Atomically allocate the next customer-facing order number for the current store. */
 export async function allocateOrderNumber(): Promise<string> {
+  const storeId = storeObjectId();
   const year = new Date().getFullYear();
+  const prefix = await getOrderPrefix();
   const counter = await OrderCounter.findOneAndUpdate(
-    { year },
-    { $inc: { seq: 1 } },
+    storeScope({ year }),
+    {
+      $inc: { seq: 1 },
+      $setOnInsert: { storeId },
+    },
     { upsert: true, returnDocument: 'after', setDefaultsOnInsert: true },
   );
   const seq = counter?.seq ?? 1;
-  return `${ORDER_NUMBER_PREFIX}-${year}-${String(seq).padStart(6, '0')}`;
+  return formatStoreOrderNumber(prefix, year, seq);
 }

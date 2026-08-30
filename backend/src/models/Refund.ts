@@ -7,6 +7,7 @@ import {
 } from '../config/constants';
 
 export interface RefundAttrs {
+  storeId: Types.ObjectId;
   order: Types.ObjectId;
   orderNumber: string;
   payment: Types.ObjectId;
@@ -28,6 +29,12 @@ export interface RefundAttrs {
 
 const schema = new Schema<RefundAttrs>(
   {
+    storeId: {
+      type: Schema.Types.ObjectId,
+      ref: 'Store',
+      required: true,
+      index: true,
+    },
     order: {
       type: Schema.Types.ObjectId,
       ref: 'Order',
@@ -73,12 +80,11 @@ const schema = new Schema<RefundAttrs>(
 );
 
 schema.index(
-  { payment: 1, idempotencyKey: 1 },
+  { storeId: 1, payment: 1, idempotencyKey: 1 },
   { unique: true },
 );
-/** Service looks up refunds globally by idempotencyKey — enforce uniqueness. */
-schema.index({ idempotencyKey: 1 }, { unique: true });
-schema.index({ status: 1, createdAt: -1 });
+schema.index({ storeId: 1, idempotencyKey: 1 }, { unique: true });
+schema.index({ storeId: 1, status: 1, createdAt: -1 });
 
 export type RefundDocument = HydratedDocument<RefundAttrs>;
 

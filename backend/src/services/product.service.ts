@@ -20,6 +20,8 @@ import {
 } from '../utils/AppError';
 import { logger } from '../utils/logger';
 import { normalizeSlug } from '../utils/slug';
+import { requireStoreId } from '../tenant/TenantContext';
+import { storeObjectId, storeScope } from '../tenant/storeScope';
 import {
   toPublicProduct,
   toProductListItem,
@@ -73,10 +75,12 @@ async function assertUniqueProductIdentity(
   excludeId?: string,
 ): Promise<void> {
   if (fields.slug) {
-    const existing = await Product.findOne({
-      slug: fields.slug,
-      ...(excludeId ? { _id: { $ne: excludeId } } : {}),
-    }).lean();
+    const existing = await Product.findOne(
+      storeScope({
+        slug: fields.slug,
+        ...(excludeId ? { _id: { $ne: excludeId } } : {}),
+      }),
+    ).lean();
     if (existing) {
       throw conflict('این اسلاگ قبلاً ثبت شده است.', {
         slug: 'این اسلاگ قبلاً ثبت شده است.',
@@ -84,10 +88,12 @@ async function assertUniqueProductIdentity(
     }
   }
   if (fields.sku) {
-    const existing = await Product.findOne({
-      sku: fields.sku,
-      ...(excludeId ? { _id: { $ne: excludeId } } : {}),
-    }).lean();
+    const existing = await Product.findOne(
+      storeScope({
+        sku: fields.sku,
+        ...(excludeId ? { _id: { $ne: excludeId } } : {}),
+      }),
+    ).lean();
     if (existing) {
       throw conflict('این کد کالا قبلاً ثبت شده است.', {
         sku: 'این کد کالا قبلاً ثبت شده است.',
@@ -181,7 +187,9 @@ async function resolveCategoryFilter(
     return { category: value };
   }
   const slug = normalizeSlug(value);
-  const category = await Category.findOne({ slug }).select('_id').lean();
+  const category = await Category.findOne(storeScope({ slug }))
+    .select('_id')
+    .lean();
   if (!category) {
     // Unknown category → empty result set (not an error for list browsing).
     return { category: { $in: [] } };
@@ -197,6 +205,7 @@ export async function createProduct(raw: unknown): Promise<PublicProduct> {
 
   try {
     const product = await Product.create({
+      storeId: storeObjectId(),
       name: input.name,
       slug: input.slug,
       sku: input.sku,
@@ -222,6 +231,7 @@ export async function createProduct(raw: unknown): Promise<PublicProduct> {
 
     await product.populate('category', 'name slug');
     logger.info('product.created', {
+      storeId: requireStoreId(),
       id: String(product._id),
       slug: product.slug,
       sku: product.sku,
@@ -237,17 +247,22 @@ export async function createProduct(raw: unknown): Promise<PublicProduct> {
 }
 
 export async function getProductById(id: string): Promise<PublicProduct> {
-  const product = await Product.findById(id).populate('category', 'name slug');
+  const product = await Product.findOne(storeScope({ _id: id })).populate(
+    'category',
+    'name slug',
+  );
   if (!product) throw notFound('محصول یافت نشد.');
   return toPublicProduct(product);
 }
 
 export async function getPublicProductBySlug(slug: string): Promise<PublicProduct> {
   const normalized = normalizeSlug(slug);
-  const product = await Product.findOne({
-    slug: normalized,
-    status: 'active',
-  }).populate('category', 'name slug');
+  const product = await Product.findOne(
+    storeScope({
+      slug: normalized,
+      status: 'active',
+    }),
+  ).populate('category', 'name slug');
   if (!product) throw notFound('محصول یافت نشد.');
   return toPublicProduct(product);
 }
@@ -257,7 +272,7 @@ export async function updateProduct(
   raw: unknown,
 ): Promise<PublicProduct> {
   const input: ProductUpdateInput = parseOrThrow(productUpdateSchema, raw);
-  const product = await Product.findById(id);
+  const product = await Product.findOne(storeScope({ _id: id }));
   if (!product) throw notFound('محصول یافت نشد.');
 
   if (input.categoryId) {
@@ -318,6 +333,7 @@ export async function updateProduct(
 
   await product.populate('category', 'name slug');
   logger.info('product.updated', {
+    storeId: requireStoreId(),
     id: String(product._id),
     slug: product.slug,
     status: product.status,
@@ -328,7 +344,11 @@ export async function updateProduct(
 /** Soft archive — preferred over hard delete for commerce history. */
 export async function archiveProduct(id: string): Promise<PublicProduct> {
   const result = await updateProduct(id, { status: 'archived' });
-  logger.info('product.archived', { id, slug: result.slug });
+  logger.info('product.archived', {
+    storeId: requireStoreId(),
+    id,
+    slug: result.slug,
+  });
   return result;
 }
 
@@ -338,7 +358,7 @@ export async function listProducts(
 ): Promise<ProductListResult> {
   const query: ProductQueryInput = parseOrThrow(productQuerySchema, rawQuery);
 
-  const filters: ProductFilter[] = [];
+  const filters: ProductFilter[] = [storeScope()];
 
   if (options.publicOnly) {
     filters.push({ status: 'active' });

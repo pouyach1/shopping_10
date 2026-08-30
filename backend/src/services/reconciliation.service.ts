@@ -9,6 +9,7 @@ import { applySuccessfulPaymentForReconcile } from './payment.service';
 import { notFound, conflict } from '../utils/AppError';
 import { logger } from '../utils/logger';
 import { isOpenPaymentStatus } from './paymentTransitions';
+import { storeScope } from '../tenant/storeScope';
 
 export interface ReconciliationReport {
   paymentId: string;
@@ -33,10 +34,10 @@ export async function reconcilePayment(
   paymentId: string,
   options?: { applySafeFix?: boolean; actorId?: string },
 ): Promise<ReconciliationReport> {
-  const payment = await Payment.findById(paymentId);
+  const payment = await Payment.findOne(storeScope({ _id: paymentId }));
   if (!payment) throw notFound('پرداخت یافت نشد.', 'PAYMENT_NOT_FOUND');
 
-  const order = await Order.findById(payment.order);
+  const order = await Order.findOne(storeScope({ _id: payment.order }));
   if (!order) throw notFound('سفارش یافت نشد.', 'ORDER_NOT_FOUND');
 
   const findings: ReconciliationFinding[] = [];
@@ -64,7 +65,7 @@ export async function reconcilePayment(
 
   if (payment.authority) {
     try {
-      const provider = getPaymentProvider();
+      const provider = await getPaymentProvider();
       const verified = await provider.verifyPayment({
         authority: payment.authority,
         amount: payment.amount,
@@ -191,8 +192,8 @@ export async function reconcilePayment(
     needsManualReview,
   });
 
-  const freshPayment = await Payment.findById(paymentId);
-  const freshOrder = await Order.findById(payment.order);
+  const freshPayment = await Payment.findOne(storeScope({ _id: paymentId }));
+  const freshOrder = await Order.findOne(storeScope({ _id: payment.order }));
 
   return {
     paymentId: String(payment._id),
@@ -215,10 +216,12 @@ export async function reconcileOpenPayments(
   limit = 20,
   options?: { applySafeFix?: boolean; actorId?: string },
 ): Promise<{ scanned: number; fixed: number; reviews: number }> {
-  const open = await Payment.find({
-    status: { $in: ['created', 'pending', 'redirected', 'processing'] },
-    authority: { $exists: true, $type: 'string' },
-  })
+  const open = await Payment.find(
+    storeScope({
+      status: { $in: ['created', 'pending', 'redirected', 'processing'] },
+      authority: { $exists: true, $type: 'string' },
+    }),
+  )
     .sort({ createdAt: 1 })
     .limit(limit);
 
@@ -247,10 +250,10 @@ export async function markReconciliationManualReview(
   if (!Types.ObjectId.isValid(paymentId)) {
     throw notFound('پرداخت یافت نشد.', 'PAYMENT_NOT_FOUND');
   }
-  const payment = await Payment.findById(paymentId);
+  const payment = await Payment.findOne(storeScope({ _id: paymentId }));
   if (!payment) throw notFound('پرداخت یافت نشد.', 'PAYMENT_NOT_FOUND');
 
-  await Payment.findByIdAndUpdate(payment._id, {
+  await Payment.findOneAndUpdate(storeScope({ _id: payment._id }), {
     $set: {
       financialHoldReason:
         note?.slice(0, 200) || 'reconciliation_manual_review',

@@ -7,6 +7,7 @@ import {
 } from '../models/CouponRedemption';
 import { conflict, notFound, validationError } from '../utils/AppError';
 import { recordAudit } from './audit.service';
+import { storeObjectId, storeScope } from '../tenant/storeScope';
 import {
   parseOrThrow,
   createCouponSchema,
@@ -60,7 +61,7 @@ export async function quoteCoupon(
   ctx: CouponQuoteContext,
 ): Promise<CouponQuote> {
   const code = normalizeCode(codeRaw);
-  const coupon = await Coupon.findOne({ code });
+  const coupon = await Coupon.findOne(storeScope({ code }));
   if (!coupon) {
     throw validationError('کد تخفیف معتبر نیست.', undefined, 'COUPON_INVALID');
   }
@@ -166,7 +167,7 @@ export async function redeemCouponForOrder(input: {
   const couponOid = new Types.ObjectId(quote.couponId);
   const userOid = new Types.ObjectId(input.userId);
 
-  const coupon = await Coupon.findById(quote.couponId);
+  const coupon = await Coupon.findOne(storeScope({ _id: quote.couponId }));
   if (!coupon) {
     throw notFound('کد تخفیف یافت نشد.', 'COUPON_INVALID');
   }
@@ -198,10 +199,10 @@ export async function redeemCouponForOrder(input: {
     );
   }
 
-  const filter: Record<string, unknown> = {
+  const filter: Record<string, unknown> = storeScope({
     _id: couponOid,
     isActive: true,
-  };
+  });
   if (coupon.usageLimit != null) {
     filter.usageCount = { $lt: coupon.usageLimit };
   }
@@ -227,6 +228,7 @@ export async function redeemCouponForOrder(input: {
 
   try {
     await CouponRedemption.create({
+      storeId: storeObjectId(),
       coupon: couponOid,
       code: reserved.code,
       user: userOid,
@@ -235,7 +237,9 @@ export async function redeemCouponForOrder(input: {
       discountAmount: quote.discountAmount,
     });
   } catch (error) {
-    await Coupon.findByIdAndUpdate(couponOid, { $inc: { usageCount: -1 } });
+    await Coupon.findOneAndUpdate(storeScope({ _id: couponOid }), {
+      $inc: { usageCount: -1 },
+    });
     await CouponUserUsage.updateOne(
       { coupon: couponOid, user: userOid, count: { $gt: 0 } },
       { $inc: { count: -1 } },
@@ -266,10 +270,10 @@ export async function releaseCouponForOrder(input: {
   reason: string;
 }): Promise<{ released: boolean }> {
   const claimed = await CouponRedemption.findOneAndUpdate(
-    {
+    storeScope({
       order: new Types.ObjectId(input.orderId),
       releasedAt: null,
-    },
+    }),
     { $set: { releasedAt: new Date() } },
     { returnDocument: 'after' },
   );
@@ -279,7 +283,7 @@ export async function releaseCouponForOrder(input: {
   }
 
   await Coupon.findOneAndUpdate(
-    { _id: claimed.coupon, usageCount: { $gt: 0 } },
+    storeScope({ _id: claimed.coupon, usageCount: { $gt: 0 } }),
     { $inc: { usageCount: -1 } },
   );
   await CouponUserUsage.updateOne(
@@ -306,6 +310,7 @@ export async function releaseCouponForOrder(input: {
 export async function createCoupon(raw: unknown) {
   const input: CreateCouponInput = parseOrThrow(createCouponSchema, raw);
   const doc = await Coupon.create({
+    storeId: storeObjectId(),
     ...input,
     code: normalizeCode(input.code),
     productIds: (input.productIds ?? []).map((id) => new Types.ObjectId(id)),
@@ -327,7 +332,7 @@ export async function updateCoupon(id: string, raw: unknown) {
       (cid) => new Types.ObjectId(cid),
     );
   }
-  const doc = await Coupon.findByIdAndUpdate(id, update, {
+  const doc = await Coupon.findOneAndUpdate(storeScope({ _id: id }), update, {
     returnDocument: 'after',
     runValidators: true,
   });
@@ -336,7 +341,9 @@ export async function updateCoupon(id: string, raw: unknown) {
 }
 
 export async function listCoupons() {
-  const docs = await Coupon.find().sort({ createdAt: -1 }).limit(200);
+  const docs = await Coupon.find(storeScope())
+    .sort({ createdAt: -1 })
+    .limit(200);
   return docs.map(toPublicCoupon);
 }
 

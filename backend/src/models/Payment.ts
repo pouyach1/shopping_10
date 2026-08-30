@@ -9,6 +9,7 @@ import {
 } from '../config/constants';
 
 export interface PaymentAttrs {
+  storeId: Types.ObjectId;
   order: Types.ObjectId;
   orderNumber: string;
   user: Types.ObjectId;
@@ -38,6 +39,12 @@ export interface PaymentAttrs {
 
 const paymentSchema = new Schema<PaymentAttrs>(
   {
+    storeId: {
+      type: Schema.Types.ObjectId,
+      ref: 'Store',
+      required: true,
+      index: true,
+    },
     order: {
       type: Schema.Types.ObjectId,
       ref: 'Order',
@@ -70,7 +77,6 @@ const paymentSchema = new Schema<PaymentAttrs>(
       type: String,
       index: true,
       sparse: true,
-      unique: true,
       maxlength: 200,
     },
     providerTransactionId: {
@@ -96,14 +102,18 @@ const paymentSchema = new Schema<PaymentAttrs>(
   { timestamps: true },
 );
 
-paymentSchema.index({ user: 1, idempotencyKey: 1 }, { unique: true, sparse: true });
-paymentSchema.index({ order: 1, status: 1 });
-paymentSchema.index({ orderNumber: 1 });
-paymentSchema.index({ status: 1, expiresAt: 1 });
-paymentSchema.index({ provider: 1, providerTransactionId: 1 });
+paymentSchema.index(
+  { storeId: 1, user: 1, idempotencyKey: 1 },
+  { unique: true, sparse: true },
+);
+paymentSchema.index({ storeId: 1, authority: 1 }, { unique: true, sparse: true });
+paymentSchema.index({ storeId: 1, order: 1, status: 1 });
+paymentSchema.index({ storeId: 1, orderNumber: 1 });
+paymentSchema.index({ storeId: 1, status: 1, expiresAt: 1 });
+paymentSchema.index({ storeId: 1, provider: 1, providerTransactionId: 1 });
 /** At most one open payment attempt per order (double-click / concurrent keys). */
 paymentSchema.index(
-  { orderNumber: 1 },
+  { storeId: 1, orderNumber: 1 },
   {
     name: 'uniq_open_payment_per_order',
     unique: true,

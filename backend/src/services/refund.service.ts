@@ -17,6 +17,7 @@ import {
   createRefundSchema,
 } from '../validators/payment.validators';
 import { orderNumberParamSchema } from '../validators/order.validators';
+import { storeObjectId, storeScope } from '../tenant/storeScope';
 
 export interface PublicRefund {
   id: string;
@@ -63,13 +64,13 @@ async function reserveRefundAmount(
   amount: number,
 ) {
   return Payment.findOneAndUpdate(
-    {
+    storeScope({
       _id: paymentId,
       status: { $in: ['paid', 'partially_refunded'] },
       $expr: {
         $lte: [{ $add: ['$refundedAmount', amount] }, '$amount'],
       },
-    },
+    }),
     { $inc: { refundedAmount: amount } },
     { returnDocument: 'after' },
   );
@@ -80,7 +81,7 @@ async function releaseRefundAmount(
   amount: number,
 ): Promise<void> {
   await Payment.findOneAndUpdate(
-    { _id: paymentId },
+    storeScope({ _id: paymentId }),
     { $inc: { refundedAmount: -amount } },
   );
 }
@@ -95,20 +96,22 @@ export async function createAdminRefund(
   });
   const input = parseOrThrow(createRefundSchema, raw);
 
-  const existing = await Refund.findOne({
-    idempotencyKey: input.idempotencyKey,
-  });
+  const existing = await Refund.findOne(
+    storeScope({ idempotencyKey: input.idempotencyKey }),
+  );
   if (existing) {
     return toPublicRefund(existing);
   }
 
-  const order = await Order.findOne({ orderNumber });
+  const order = await Order.findOne(storeScope({ orderNumber }));
   if (!order) throw notFound('سفارش یافت نشد.', 'ORDER_NOT_FOUND');
 
-  const payment = await Payment.findOne({
-    order: order._id,
-    status: { $in: ['paid', 'partially_refunded'] },
-  }).sort({ paidAt: -1 });
+  const payment = await Payment.findOne(
+    storeScope({
+      order: order._id,
+      status: { $in: ['paid', 'partially_refunded'] },
+    }),
+  ).sort({ paidAt: -1 });
 
   if (!payment) {
     throw conflict('پرداخت قابل بازپرداخت یافت نشد.', undefined, 'PAYMENT_NOT_FOUND');
@@ -123,6 +126,7 @@ export async function createAdminRefund(
   let refund;
   try {
     refund = await Refund.create({
+      storeId: storeObjectId(),
       order: order._id,
       orderNumber: order.orderNumber,
       payment: payment._id,
@@ -136,7 +140,9 @@ export async function createAdminRefund(
       metadata: input.simulate ? { simulate: input.simulate } : undefined,
     });
   } catch {
-    const raced = await Refund.findOne({ idempotencyKey: input.idempotencyKey });
+    const raced = await Refund.findOne(
+      storeScope({ idempotencyKey: input.idempotencyKey }),
+    );
     if (raced) return toPublicRefund(raced);
     throw conflict('درخواست بازپرداخت تکراری است.', undefined, 'DUPLICATE_REQUEST');
   }
@@ -155,7 +161,7 @@ export async function createAdminRefund(
     );
   }
 
-  await Order.findByIdAndUpdate(order._id, {
+  await Order.findOneAndUpdate(storeScope({ _id: order._id }), {
     $set: { financialIntegrityStatus: 'refund_pending' },
   });
 
@@ -178,7 +184,7 @@ export async function createAdminRefund(
   refund.status = 'processing';
   await refund.save();
 
-  const provider = getPaymentProvider();
+  const provider = await getPaymentProvider();
   const result = await provider.refundPayment({
     authority: payment.authority!,
     providerTransactionId: payment.providerTransactionId,
@@ -195,7 +201,7 @@ export async function createAdminRefund(
     refund.failureCode = result.failureCode;
     refund.failureReason = result.failureMessage;
     await refund.save();
-    await Order.findByIdAndUpdate(order._id, {
+    await Order.findOneAndUpdate(storeScope({ _id: order._id }), {
       $set: { financialIntegrityStatus: 'refund_failed' },
     });
     await recordAudit({
@@ -238,7 +244,7 @@ export async function createAdminRefund(
     assertPaymentTransition('paid', 'partially_refunded');
   }
 
-  await Payment.findByIdAndUpdate(payment._id, {
+  await Payment.findOneAndUpdate(storeScope({ _id: payment._id }), {
     $set: {
       status: nextStatus,
       ...(nextStatus === 'refunded' ? { refundedAt: new Date() } : {}),
@@ -246,7 +252,7 @@ export async function createAdminRefund(
     },
   });
 
-  await Order.findByIdAndUpdate(order._id, {
+  await Order.findOneAndUpdate(storeScope({ _id: order._id }), {
     $inc: { refundedTotal: amount },
     $set: {
       paymentStatus: nextStatus,
@@ -282,7 +288,7 @@ export async function retryFailedRefund(
   adminId: string,
   newIdempotencyKey: string,
 ): Promise<PublicRefund> {
-  const previous = await Refund.findById(refundId);
+  const previous = await Refund.findOne(storeScope({ _id: refundId }));
   if (!previous) throw notFound('بازپرداخت یافت نشد.', 'REFUND_NOT_FOUND');
   if (previous.status !== 'failed') {
     throw conflict(
@@ -310,7 +316,7 @@ export async function retryFailedRefund(
 }
 
 export async function listAdminRefunds(orderNumberRaw?: string) {
-  const filter: Record<string, unknown> = {};
+  const filter = storeScope();
   if (orderNumberRaw) {
     const { orderNumber } = parseOrThrow(orderNumberParamSchema, {
       orderNumber: orderNumberRaw,

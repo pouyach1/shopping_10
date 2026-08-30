@@ -2,6 +2,7 @@ import { AuditLog } from '../models/AuditLog';
 import type { AuditAction } from '../config/constants';
 import { logger } from '../utils/logger';
 import { getRequestId } from '../utils/requestContext';
+import { storeObjectId } from '../tenant/storeScope';
 
 const SENSITIVE_KEYS = new Set([
   'password',
@@ -46,6 +47,7 @@ export async function recordAudit(input: {
   const requestId = input.requestId ?? getRequestId();
   try {
     await AuditLog.create({
+      storeId: storeObjectId(),
       action: input.action,
       actorType: input.actorType,
       actorId: input.actorId,

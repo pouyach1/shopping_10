@@ -1,7 +1,6 @@
 import { Types } from 'mongoose';
 
 import {
-  FREE_SHIPPING_THRESHOLD,
   type ShippingMethodId,
 } from '../config/constants';
 import { Cart } from '../models/Cart';
@@ -17,6 +16,8 @@ import {
   validationError,
 } from '../utils/AppError';
 import { logger } from '../utils/logger';
+import { storeObjectId, storeScope } from '../tenant/storeScope';
+import { getFreeShippingThreshold } from './storeConfig.service';
 import {
   parseOrThrow,
   createOrderSchema,
@@ -111,7 +112,7 @@ function moneyInt(value: number): number {
 }
 
 async function loadCartOrThrow(userId: string) {
-  const cart = await Cart.findOne({ user: userId });
+  const cart = await Cart.findOne(storeScope({ user: userId }));
   if (!cart || cart.items.length === 0) {
     throw conflict('سبد خرید خالی است.', undefined, 'CART_EMPTY');
   }
@@ -121,13 +122,15 @@ async function loadCartOrThrow(userId: string) {
 async function loadProducts(
   ids: string[],
 ): Promise<Map<string, ProductDocument>> {
-  const docs = await Product.find({
-    _id: { $in: ids.map((id) => new Types.ObjectId(id)) },
-  }).populate('category', 'name slug');
+  const docs = await Product.find(
+    storeScope({
+      _id: { $in: ids.map((id) => new Types.ObjectId(id)) },
+    }),
+  ).populate('category', 'name slug');
   return new Map(docs.map((doc) => [String(doc._id), doc]));
 }
 
-function buildPreviewFromCart(
+async function buildPreviewFromCart(
   cartItems: Array<{
     _id?: { toString(): string };
     product: unknown;
@@ -139,7 +142,7 @@ function buildPreviewFromCart(
   }>,
   products: Map<string, ProductDocument>,
   shippingMethodId: string,
-): CheckoutPreviewDto {
+): Promise<CheckoutPreviewDto> {
   const items: CheckoutLinePreview[] = [];
   const issues: CheckoutIssue[] = [];
 
@@ -276,7 +279,8 @@ function buildPreviewFromCart(
     purchasableItems.reduce((sum, item) => sum + item.lineDiscount, 0),
   );
   // Shipping qualifies on merchandise subtotal before coupon.
-  const shipping = resolveShippingCost(shippingMethodId, subtotal);
+  const shipping = await resolveShippingCost(shippingMethodId, subtotal);
+  const freeShippingThreshold = await getFreeShippingThreshold();
   const itemCount = purchasableItems.reduce((sum, item) => sum + item.quantity, 0);
   const total = moneyInt(subtotal + shipping.cost);
 
@@ -298,8 +302,8 @@ function buildPreviewFromCart(
       total,
       itemCount,
       currency: items[0]?.currency ?? 'تومان',
-      freeShippingThreshold: FREE_SHIPPING_THRESHOLD,
-      qualifiesForFreeShipping: subtotal >= FREE_SHIPPING_THRESHOLD,
+      freeShippingThreshold,
+      qualifiesForFreeShipping: subtotal >= freeShippingThreshold,
     },
     shippingMethodId: shipping.methodId,
     shippingMethodTitle: shipping.title,
@@ -344,7 +348,7 @@ export async function previewCheckout(
   const products = await loadProducts(
     cart.items.map((item) => String(item.product)),
   );
-  let preview = buildPreviewFromCart(
+  let preview = await buildPreviewFromCart(
     cart.items,
     products,
     input.shippingMethodId,
@@ -377,10 +381,12 @@ export async function createOrder(
   assertAddress(input.shippingAddress);
   const requestHash = hashCheckoutRequest(raw);
 
-  const existing = await IdempotencyRecord.findOne({
-    key: idempotencyKey,
-    userId,
-  });
+  const existing = await IdempotencyRecord.findOne(
+    storeScope({
+      key: idempotencyKey,
+      userId,
+    }),
+  );
   if (existing) {
     if (existing.requestHash !== requestHash) {
       throw conflict(
@@ -389,7 +395,7 @@ export async function createOrder(
         'IDEMPOTENCY_CONFLICT',
       );
     }
-    const order = await Order.findOne({ orderNumber: existing.orderNumber });
+    const order = await Order.findOne(storeScope({ orderNumber: existing.orderNumber }));
     if (order) {
       logger.info('checkout.idempotency_replay', {
         userId,
@@ -403,7 +409,7 @@ export async function createOrder(
   const products = await loadProducts(
     cart.items.map((item) => String(item.product)),
   );
-  let preview = buildPreviewFromCart(
+  let preview = await buildPreviewFromCart(
     cart.items,
     products,
     input.shippingMethodId,
@@ -482,6 +488,7 @@ export async function createOrder(
     );
     try {
       order = await Order.create({
+        storeId: storeObjectId(),
         orderNumber,
         user: new Types.ObjectId(userId),
         status: 'awaiting_payment',
@@ -557,10 +564,12 @@ export async function createOrder(
         (createError as { code?: number }).code === 11000;
       if (isDup) {
         await claimReleaseDecrementedHold(hold._id, 'idempotency_race');
-        const existingRecord = await IdempotencyRecord.findOne({
-          key: idempotencyKey,
-          userId,
-        });
+        const existingRecord = await IdempotencyRecord.findOne(
+          storeScope({
+            key: idempotencyKey,
+            userId,
+          }),
+        );
         if (existingRecord) {
           if (existingRecord.requestHash !== requestHash) {
             throw conflict(
@@ -569,19 +578,22 @@ export async function createOrder(
               'IDEMPOTENCY_CONFLICT',
             );
           }
-          const existingOrder = await Order.findOne({
-            orderNumber: existingRecord.orderNumber,
-          });
+          const existingOrder = await Order.findOne(
+            storeScope({ orderNumber: existingRecord.orderNumber }),
+          );
           if (existingOrder) return toPublicOrder(existingOrder);
         }
-        const byKey = await Order.findOne({
-          user: userId,
-          idempotencyKey,
-        });
+        const byKey = await Order.findOne(
+          storeScope({
+            user: userId,
+            idempotencyKey,
+          }),
+        );
         if (byKey) {
           // Ensure record exists for future replays.
           try {
             await IdempotencyRecord.create({
+              storeId: storeObjectId(),
               key: idempotencyKey,
               userId,
               requestHash,
@@ -620,6 +632,7 @@ export async function createOrder(
 
     try {
       await IdempotencyRecord.create({
+        storeId: storeObjectId(),
         key: idempotencyKey,
         userId,
         requestHash,
@@ -627,20 +640,22 @@ export async function createOrder(
         expiresAt: idempotencyExpiry(),
       });
     } catch {
-      const raced = await IdempotencyRecord.findOne({
-        key: idempotencyKey,
-        userId,
-      });
+      const raced = await IdempotencyRecord.findOne(
+        storeScope({
+          key: idempotencyKey,
+          userId,
+        }),
+      );
       if (raced && raced.requestHash !== requestHash) {
         await releaseCouponForOrder({
           orderId: String(order._id),
           orderNumber: order.orderNumber,
           reason: 'idempotency_conflict',
         }).catch(() => undefined);
-        await Order.deleteOne({ _id: order._id });
+        await Order.deleteOne(storeScope({ _id: order._id }));
         await restoreMany(stockLines);
         await InventoryHold.updateOne(
-          { _id: hold._id },
+          storeScope({ _id: hold._id }),
           { $set: { status: 'released', releasedAt: new Date() } },
         );
         throw conflict(
@@ -650,9 +665,9 @@ export async function createOrder(
         );
       }
       if (raced && raced.orderNumber !== order.orderNumber) {
-        const other = await Order.findOne({
-          orderNumber: raced.orderNumber,
-        });
+        const other = await Order.findOne(
+          storeScope({ orderNumber: raced.orderNumber }),
+        );
         if (other) {
           await releaseCouponForOrder({
             orderId: String(order._id),
@@ -676,15 +691,15 @@ export async function createOrder(
         orderNumber: order.orderNumber,
         reason: 'order_create_failed',
       }).catch(() => undefined);
-      await Order.deleteOne({ _id: order._id }).catch(() => undefined);
+      await Order.deleteOne(storeScope({ _id: order._id })).catch(() => undefined);
     }
-    const holdFresh = await InventoryHold.findById(hold._id);
+    const holdFresh = await InventoryHold.findOne(storeScope({ _id: hold._id }));
     if (holdFresh?.status === 'decremented') {
       await claimReleaseDecrementedHold(hold._id, 'order_create_failed');
     } else if (holdFresh?.status === 'committed') {
       await restoreMany(stockLines);
       await InventoryHold.updateOne(
-        { _id: hold._id },
+        storeScope({ _id: hold._id }),
         { $set: { status: 'released', releasedAt: new Date() } },
       );
     } else if (holdFresh?.status === 'open') {

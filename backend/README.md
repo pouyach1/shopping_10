@@ -226,24 +226,3 @@ See [docs/ops/mongodb.md](../docs/ops/mongodb.md).
 3. Admin UI panels for payments, webhooks, notifications, reconcile
 4. Multi-store tenancy (storeId / config boundary)
 5. Payment analytics / dispute tooling
-
-- Login uses `POST /api/v1/auth/login`
-- Authenticated cart/wishlist sync through `/api/v1/cart` and `/api/v1/wishlist`
-- Mock product ids resolve to backend products via slug when seeded (`silk-blend-blouse`, etc.)
-- Guest mode keeps LocalStorage; login merges then server owns state; logout clears private state
-
-See [docs/api/cart.md](../docs/api/cart.md) and [docs/api/wishlist.md](../docs/api/wishlist.md).
-
-## Phase 3 — Cart + Wishlist
-
-- One cart / one wishlist per user (unique user index)
-- Cart lines: product ref + quantity + size/color + price snapshot
-- Add increments same variant; stock checked without reservation
-- Unavailable products stay inspectable (`available: false`)
-- `POST /cart/merge` and `POST /wishlist/merge` for guest → auth migration
-
-## Phase 4 (recommended)
-
-1. Checkout + Orders with line-item snapshots and stock decrement
-2. Wire Admin Products UI to `/api/v1/admin/products`
-3. Optional guest cart cookie session if multi-device guests are required

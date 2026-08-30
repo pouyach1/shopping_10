@@ -31,7 +31,7 @@ const envSchema = z
       .positive()
       .default(10_000),
     MONGODB_PING_TIMEOUT_MS: z.coerce.number().int().positive().default(2_000),
-    /** createIndexes on connect — NEVER enables syncIndexes (which can drop indexes). */
+    /** createIndexes on connect ΓÇö NEVER enables syncIndexes (which can drop indexes). */
     MONGODB_AUTO_INDEX: z
       .enum(['true', 'false'])
       .optional()
@@ -120,6 +120,10 @@ const envSchema = z
       .default(60_000),
     NOTIFICATION_LEASE_MS: z.coerce.number().int().positive().default(60_000),
     STORE_DISPLAY_NAME: z.string().min(1).default('Luxora'),
+    /** Fallback store slug when Host / x-store-slug are absent (dev only in production). */
+    DEFAULT_STORE_SLUG: z.string().min(1).default('luxora'),
+    /** Base domain for subdomain resolution (e.g. luxora.app → {slug}.luxora.app). */
+    PLATFORM_BASE_DOMAIN: z.string().default(''),
     LOG_LEVEL: z.enum(['debug', 'info', 'warn', 'error']).optional(),
   })
   .superRefine((value, ctx) => {
@@ -147,7 +151,7 @@ const envSchema = z
             code: 'custom',
             path: ['MONGODB_URI'],
             message:
-              'Production MONGODB_URI points at localhost — set ALLOW_LOCAL_MONGO_IN_PROD=1 only for deliberate local prod-mode tests',
+              'Production MONGODB_URI points at localhost ΓÇö set ALLOW_LOCAL_MONGO_IN_PROD=1 only for deliberate local prod-mode tests',
           });
         }
       }
@@ -234,7 +238,7 @@ if (!parsed.success) {
   const details = parsed.error.issues
     .map((issue) => `${issue.path.join('.')}: ${issue.message}`)
     .join('\n');
-  // Fail fast — never boot with an invalid production configuration.
+  // Fail fast ΓÇö never boot with an invalid production configuration.
   // eslint-disable-next-line no-console
   console.error(`[config] Invalid environment configuration:\n${details}`);
   process.exit(1);
@@ -251,7 +255,7 @@ const jwtSecret =
 if (raw.NODE_ENV === 'development' && !raw.JWT_SECRET) {
   // eslint-disable-next-line no-console
   console.warn(
-    '[config] JWT_SECRET is not set — using an insecure development default. Set JWT_SECRET before any real deployment.',
+    '[config] JWT_SECRET is not set ΓÇö using an insecure development default. Set JWT_SECRET before any real deployment.',
   );
 }
 
@@ -317,6 +321,8 @@ export const env = {
   NOTIFICATION_RETRY_BASE_MS: raw.NOTIFICATION_RETRY_BASE_MS,
   NOTIFICATION_LEASE_MS: raw.NOTIFICATION_LEASE_MS,
   STORE_DISPLAY_NAME: raw.STORE_DISPLAY_NAME,
+  DEFAULT_STORE_SLUG: raw.DEFAULT_STORE_SLUG,
+  PLATFORM_BASE_DOMAIN: raw.PLATFORM_BASE_DOMAIN.trim().toLowerCase(),
   LOG_LEVEL: raw.LOG_LEVEL,
 } as const;
 

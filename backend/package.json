@@ -9,9 +9,10 @@
     "build": "tsc",
     "start": "node dist/server.js",
     "typecheck": "tsc --noEmit",
-    "test": "NODE_ENV=test vitest run",
-    "test:watch": "NODE_ENV=test vitest",
-    "seed": "tsx src/scripts/seedCatalog.ts"
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "seed": "tsx src/scripts/seedCatalog.ts",
+    "migrate:tenancy": "tsx src/scripts/migrateTenancy.ts"
   },
   "dependencies": {
     "bcryptjs": "^3.0.3",

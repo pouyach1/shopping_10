@@ -3,6 +3,7 @@ import { Schema, model, type HydratedDocument, type Types } from 'mongoose';
 import { COUPON_TYPES, type CouponType } from '../config/constants';
 
 export interface CouponAttrs {
+  storeId: Types.ObjectId;
   code: string;
   type: CouponType;
   /** Percentage 1-100 or fixed integer تومان. */
@@ -28,14 +29,18 @@ export interface CouponAttrs {
 
 const couponSchema = new Schema<CouponAttrs>(
   {
+    storeId: {
+      type: Schema.Types.ObjectId,
+      ref: 'Store',
+      required: true,
+      index: true,
+    },
     code: {
       type: String,
       required: true,
-      unique: true,
       uppercase: true,
       trim: true,
       maxlength: 40,
-      index: true,
     },
     type: { type: String, enum: COUPON_TYPES, required: true },
     value: { type: Number, required: true, min: 0 },
@@ -55,7 +60,8 @@ const couponSchema = new Schema<CouponAttrs>(
   { timestamps: true },
 );
 
-couponSchema.index({ isActive: 1, startsAt: 1, endsAt: 1 });
+couponSchema.index({ storeId: 1, code: 1 }, { unique: true });
+couponSchema.index({ storeId: 1, isActive: 1, startsAt: 1, endsAt: 1 });
 
 export type CouponDocument = HydratedDocument<CouponAttrs>;
 

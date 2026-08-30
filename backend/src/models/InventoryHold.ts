@@ -18,6 +18,7 @@ export interface InventoryHoldItem {
 }
 
 export interface InventoryHoldAttrs {
+  storeId: Types.ObjectId;
   user: Types.ObjectId;
   status: InventoryHoldStatus;
   items: InventoryHoldItem[];
@@ -42,6 +43,12 @@ const itemSchema = new Schema<InventoryHoldItem>(
 
 const schema = new Schema<InventoryHoldAttrs>(
   {
+    storeId: {
+      type: Schema.Types.ObjectId,
+      ref: 'Store',
+      required: true,
+      index: true,
+    },
     user: {
       type: Schema.Types.ObjectId,
       ref: 'User',
@@ -65,7 +72,9 @@ const schema = new Schema<InventoryHoldAttrs>(
   { timestamps: true },
 );
 
-schema.index({ status: 1, recoverAfter: 1 });
+schema.index({ storeId: 1, 'items.productId': 1, status: 1 });
+schema.index({ storeId: 1, order: 1 });
+schema.index({ storeId: 1, status: 1, recoverAfter: 1 });
 
 export type InventoryHoldDocument = HydratedDocument<InventoryHoldAttrs>;
 

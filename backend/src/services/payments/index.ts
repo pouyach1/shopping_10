@@ -1,26 +1,59 @@
 import { env } from '../../config/env';
+import type { PaymentProviderId } from '../../config/constants';
 import { AppError } from '../../utils/AppError';
+import { requireStoreId } from '../../tenant/TenantContext';
+import { getStorePrivateConfig } from '../storeConfig.service';
 import { MockPaymentProvider } from './mock.provider';
 import { ZarinpalPaymentProvider } from './zarinpal.provider';
-import type { PaymentProvider, PaymentProviderId } from './types';
+import type { PaymentProvider } from './types';
 import type { HttpJsonClient } from './httpClient';
 
-let cached: PaymentProvider | null = null;
+const cacheByStore = new Map<string, PaymentProvider>();
 
-export function getPaymentProvider(): PaymentProvider {
+function resolveProviderId(
+  storeProvider: string,
+  credentialsConfigured: boolean,
+): PaymentProviderId {
+  if (storeProvider === 'zarinpal' && credentialsConfigured) {
+    return 'zarinpal';
+  }
+  if (storeProvider === 'stripe' && credentialsConfigured) {
+    return 'stripe';
+  }
+  if (storeProvider === 'none' || !credentialsConfigured) {
+    return env.PAYMENT_PROVIDER;
+  }
+  return env.PAYMENT_PROVIDER;
+}
+
+export async function getPaymentProvider(
+  storeId?: string,
+): Promise<PaymentProvider> {
+  const id = storeId ?? requireStoreId();
+  const cached = cacheByStore.get(id);
   if (cached) return cached;
-  cached = createPaymentProvider(env.PAYMENT_PROVIDER);
-  return cached;
+
+  const privateConfig = await getStorePrivateConfig(id);
+  const providerId = resolveProviderId(
+    privateConfig.payment.provider,
+    privateConfig.payment.credentialsConfigured,
+  );
+  const provider = createPaymentProvider(providerId);
+  cacheByStore.set(id, provider);
+  return provider;
 }
 
 /** Test helper — reset singleton between suites if needed. */
 export function resetPaymentProviderCache(): void {
-  cached = null;
+  cacheByStore.clear();
 }
 
 /** Test helper — inject a provider instance (e.g. Zarinpal with stub HTTP). */
-export function setPaymentProvider(provider: PaymentProvider): void {
-  cached = provider;
+export function setPaymentProvider(
+  provider: PaymentProvider,
+  storeId?: string,
+): void {
+  cacheByStore.set(storeId ?? requireStoreId(), provider);
 }
 
 export function createPaymentProvider(

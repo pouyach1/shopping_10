@@ -5,11 +5,13 @@ import * as productsController from '../../controllers/products.controller';
 import * as ordersController from '../../controllers/orders.controller';
 import * as paymentsController from '../../controllers/payments.controller';
 import * as commerceAdminController from '../../controllers/commerceAdmin.controller';
-import { requireAuth, requireRole } from '../../middleware/authenticate';
+import { requireAuth } from '../../middleware/authenticate';
+import { requireStoreRole } from '../../middleware/storeAuth';
 
 const router = Router();
 
-router.use(requireAuth, requireRole('admin'));
+// Store staff (owner/admin/staff) — never global User.role alone.
+router.use(requireAuth, requireStoreRole('staff'));
 
 router.get('/categories', categoriesController.adminList);
 router.post('/categories', categoriesController.adminCreate);

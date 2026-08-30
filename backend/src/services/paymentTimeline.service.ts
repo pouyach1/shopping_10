@@ -8,6 +8,7 @@ import { Payment } from '../models/Payment';
 import { PaymentProviderEvent } from '../models/PaymentProviderEvent';
 import { Refund } from '../models/Refund';
 import { notFound } from '../utils/AppError';
+import { storeScope } from '../tenant/storeScope';
 
 export interface TimelineEntry {
   at: string;
@@ -21,10 +22,10 @@ export interface TimelineEntry {
  * Never includes provider secrets.
  */
 export async function getPaymentTimeline(orderNumber: string) {
-  const order = await Order.findOne({ orderNumber });
+  const order = await Order.findOne(storeScope({ orderNumber }));
   if (!order) throw notFound('سفارش یافت نشد.', 'ORDER_NOT_FOUND');
 
-  const payments = await Payment.find({ order: order._id })
+  const payments = await Payment.find(storeScope({ order: order._id }))
     .sort({ createdAt: 1 })
     .lean();
   const paymentIds = payments.map((p) => p._id as Types.ObjectId);
@@ -34,24 +35,26 @@ export async function getPaymentTimeline(orderNumber: string) {
 
   const eventFilter =
     paymentIds.length || authorities.length
-      ? {
+      ? storeScope({
           $or: [
             ...(paymentIds.length ? [{ payment: { $in: paymentIds } }] : []),
             ...(authorities.length
               ? [{ authority: { $in: authorities } }]
               : []),
           ],
-        }
-      : { _id: null };
+        })
+      : storeScope({ _id: null });
 
   const [refunds, audits, notifications, providerEvents, holds] =
     await Promise.all([
-      Refund.find({ order: order._id }).sort({ createdAt: 1 }).lean(),
-      AuditLog.find({ orderNumber: order.orderNumber })
+      Refund.find(storeScope({ order: order._id }))
+        .sort({ createdAt: 1 })
+        .lean(),
+      AuditLog.find(storeScope({ orderNumber: order.orderNumber }))
         .sort({ createdAt: 1 })
         .limit(200)
         .lean(),
-      NotificationDelivery.find({ orderNumber: order.orderNumber })
+      NotificationDelivery.find(storeScope({ orderNumber: order.orderNumber }))
         .sort({ createdAt: 1 })
         .limit(100)
         .lean(),
@@ -60,8 +63,8 @@ export async function getPaymentTimeline(orderNumber: string) {
         .limit(50)
         .lean(),
       order.inventoryHoldId
-        ? InventoryHold.find({ _id: order.inventoryHoldId }).lean()
-        : InventoryHold.find({ orderNumber: order.orderNumber }).lean(),
+        ? InventoryHold.find(storeScope({ _id: order.inventoryHoldId })).lean()
+        : InventoryHold.find(storeScope({ orderNumber: order.orderNumber })).lean(),
     ]);
 
   const entries: TimelineEntry[] = [];

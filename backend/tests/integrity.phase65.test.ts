@@ -254,7 +254,7 @@ describe('Phase 6.5 — Commerce integrity', () => {
 
     // Swap provider to Zarinpal stub for refund path only via payment doc provider field —
     // call applySuccessfulPaymentForReconcile after forcing provider.
-    const previous = getPaymentProvider();
+    const previous = await getPaymentProvider();
     setPaymentProvider(
       new ZarinpalPaymentProvider({
         merchantId: '00000000-0000-0000-0000-000000000000',
