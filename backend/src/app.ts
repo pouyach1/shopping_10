@@ -1,11 +1,28 @@
+import { randomUUID } from 'node:crypto';
+
 import cors from 'cors';
 import cookieParser from 'cookie-parser';
-import express, { type Application } from 'express';
+import express, { type Application, type NextFunction, type Request, type Response } from 'express';
 import helmet from 'helmet';
 
 import { env } from './config/env';
 import routes from './routes';
 import { apiRateLimiter, errorHandler, notFound } from './middleware/errorHandler';
+
+function requestIdMiddleware(
+  req: Request,
+  res: Response,
+  next: NextFunction,
+): void {
+  const incoming = req.header('x-request-id')?.trim();
+  const requestId =
+    incoming && incoming.length > 0 && incoming.length <= 128
+      ? incoming
+      : randomUUID();
+  req.requestId = requestId;
+  res.setHeader('x-request-id', requestId);
+  next();
+}
 
 /**
  * Builds the Express application without binding a port (test-friendly).
@@ -15,6 +32,8 @@ export function createApp(): Application {
 
   app.disable('x-powered-by');
   app.set('trust proxy', 1);
+
+  app.use(requestIdMiddleware);
 
   app.use(
     helmet({

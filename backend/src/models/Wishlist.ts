@@ -14,8 +14,8 @@ const wishlistSchema = new Schema<WishlistAttrs>(
       type: Schema.Types.ObjectId,
       ref: 'User',
       required: true,
+      // One wishlist per user — uniqueness is the ownership invariant.
       unique: true,
-      index: true,
     },
     products: [
       {
@@ -27,6 +27,7 @@ const wishlistSchema = new Schema<WishlistAttrs>(
   { timestamps: true },
 );
 
+// Serves: find wishlists containing a product (multikey).
 wishlistSchema.index({ products: 1 });
 
 export type WishlistDocument = HydratedDocument<WishlistAttrs>;

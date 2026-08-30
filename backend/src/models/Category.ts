@@ -24,12 +24,16 @@ const categorySchema = new Schema<CategoryAttrs>(
     },
     description: { type: String, trim: true, maxlength: 2000 },
     image: { type: String, trim: true, maxlength: 1000 },
-    isActive: { type: Boolean, default: true, required: true, index: true },
-    sortOrder: { type: Number, default: 0, required: true, index: true },
+    // Soft-deactivate uses isActive=false; unique slug remains so reactivation
+    // and URL stability stay intact (no TTL / destructive unique-partial index).
+    isActive: { type: Boolean, default: true, required: true },
+    sortOrder: { type: Number, default: 0, required: true },
   },
   { timestamps: true },
 );
 
+// Serves: public category list — filter isActive + sort by sortOrder.
+// Replaces redundant single-field isActive / sortOrder indexes.
 categorySchema.index({ isActive: 1, sortOrder: 1 });
 
 export type CategoryDocument = HydratedDocument<CategoryAttrs>;

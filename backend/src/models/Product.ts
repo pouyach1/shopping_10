@@ -113,6 +113,8 @@ const productSchema = new Schema<ProductAttrs>(
     sizes: { type: [String], default: [] },
     stock: { type: Number, required: true, min: 0, default: 0 },
     lowStockThreshold: { type: Number, required: true, min: 0, default: 5 },
+    // status kept as field index for admin list filtered by status alone
+    // (public queries use status-prefixed compounds below).
     status: {
       type: String,
       enum: PRODUCT_STATUSES,
@@ -120,7 +122,7 @@ const productSchema = new Schema<ProductAttrs>(
       default: 'draft',
       index: true,
     },
-    featured: { type: Boolean, default: false, index: true },
+    featured: { type: Boolean, default: false },
     badge: { type: String, trim: true, maxlength: 40 },
     tags: { type: [String], default: [] },
     material: { type: String, trim: true, maxlength: 80 },
@@ -129,14 +131,24 @@ const productSchema = new Schema<ProductAttrs>(
   { timestamps: true },
 );
 
-// Compound indexes aligned to public catalog query patterns.
+// Compound indexes aligned to public/admin catalog query patterns.
+// Serves: newest/oldest public lists (status + createdAt).
 productSchema.index({ status: 1, createdAt: -1 });
+// Serves: featured shelf queries.
 productSchema.index({ status: 1, featured: 1, createdAt: -1 });
+// Serves: category browse.
 productSchema.index({ status: 1, category: 1, createdAt: -1 });
+// Serves: price sort (price_asc / price_desc) when not using $expr effective price.
 productSchema.index({ status: 1, price: 1 });
+// Serves: salePrice presence / admin promo filters.
 productSchema.index({ status: 1, salePrice: 1 });
+// Serves: productKind filter on public catalog.
 productSchema.index({ status: 1, productKind: 1 });
-productSchema.index({ name: 'text', shortDescription: 'text', description: 'text', sku: 'text' });
+// Serves: inStock=true/false with status filter (stock > 0 / <= 0).
+productSchema.index({ status: 1, stock: 1 });
+// NOTE: No text index. catalogSearch.service.ts uses escaped regex over
+// name/description/sku/tags. A text index would add write cost without serving
+// current queries. Revisit when search is swapped to $text / Atlas Search.
 
 export type ProductDocument = HydratedDocument<ProductAttrs>;
 

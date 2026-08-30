@@ -3,7 +3,9 @@
 Production-oriented Express + TypeScript + MongoDB API for the Luxora e-commerce platform.
 
 **Phase 1** — foundation + authentication + users.  
-**Phase 2** — catalog engine: products, categories, search, filtering, inventory foundation.
+**Phase 2** — catalog engine: products, categories, search, filtering, inventory foundation.  
+**Phase 3** — cart + wishlist.  
+**Ops** — production MongoDB readiness (connection, indexes, readiness, shutdown).
 
 ## Requirements
 
@@ -24,9 +26,10 @@ npm run dev
 
 Health checks:
 
-- `GET http://localhost:4000/api/v1/health` — process liveness
-- `GET http://localhost:4000/api/v1/health/ready` — MongoDB readiness
-- `GET http://localhost:4000/api/health` — temporary compatibility alias
+- `GET http://localhost:4000/api/v1/health` — **liveness** (process alive; ignores Mongo)
+- `GET http://localhost:4000/api/v1/health/live` — same as above
+- `GET http://localhost:4000/api/v1/health/ready` — **readiness** (Mongo connected + ping; `503` when not)
+- `GET http://localhost:4000/api/health` — temporary compatibility alias (liveness)
 
 ## Scripts
 
@@ -49,10 +52,10 @@ Cross-cutting concerns live in middleware (auth, validation, rate limits, errors
 
 ```text
 src/
-  config/       env validation, DB lifecycle, constants
+  config/       env validation, DB lifecycle, Mongo safety, constants
   controllers/  HTTP adapters (thin)
   middleware/   auth, errors, rate limits, validation helpers
-  models/       Mongoose schemas (User, Category, Product)
+  models/       Mongoose schemas (User, Category, Product, Cart, Wishlist)
   routes/v1/    versioned API
   scripts/      seedCatalog (idempotent)
   services/     business logic, mappers, catalog search
@@ -100,14 +103,27 @@ Search is isolated in `catalogSearch.service.ts` (regex over name/description/sk
 
 ## Environment
 
-See [`.env.example`](./.env.example).
+See [`.env.example`](./.env.example) and [MongoDB operations](../docs/ops/mongodb.md).
 
 Production fails fast when:
 
+- `MONGODB_URI` is missing, not a Mongo URI, or targets localhost without `MONGODB_ALLOW_LOCALHOST=true`
 - `JWT_SECRET` is missing or shorter than 32 characters
 - `CLIENT_ORIGINS` is empty or `*`
+- MongoDB is unreachable at startup (`process.exit(1)`)
 
-Development may boot with a temporary JWT secret (logged as a warning). Prefer setting a real secret even locally.
+Development may boot without Mongo; `/api/v1/health/ready` stays `503` until connected. Prefer setting a real `JWT_SECRET` even locally.
+
+The process never logs the full MongoDB URI, credentials, JWT secrets, or raw request bodies.
+
+## MongoDB production readiness
+
+- Conservative pool + timeout defaults (`MONGODB_*` env vars)
+- Idempotent connection listeners; safe duplicate `connectDB`
+- `autoIndex` disabled in production; **never** `syncIndexes` on startup
+- READY = not draining + connected + ping
+- Graceful `SIGTERM` / `SIGINT`: mark draining → close HTTP → disconnect Mongo → exit
+- Indexes audited for current models (see ops doc); Phase 4+ payment/order indexes deferred until those models exist
 
 ## Security defaults
 

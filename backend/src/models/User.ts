@@ -76,9 +76,8 @@ const userSchema = new Schema<UserAttrs>(
       enum: USER_ROLES,
       default: 'customer',
       required: true,
-      index: true,
     },
-    isActive: { type: Boolean, default: true, required: true, index: true },
+    isActive: { type: Boolean, default: true, required: true },
     addresses: { type: [addressSchema], default: [] },
     lastLoginAt: { type: Date },
   },
@@ -98,7 +97,10 @@ const userSchema = new Schema<UserAttrs>(
   },
 );
 
+// Serves: admin / ops chronological user listing.
 userSchema.index({ createdAt: -1 });
+// Serves: admin filter by role + active flag.
+userSchema.index({ role: 1, isActive: 1 });
 
 export type UserDocument = HydratedDocument<UserAttrs>;
 export type AddressDocument = AddressAttrs & { _id: Types.ObjectId };

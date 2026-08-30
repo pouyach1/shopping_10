@@ -92,5 +92,8 @@ Customers receive `403`. Guests receive `401`.
 ## Indexes (why)
 
 - unique `slug`, `sku`
-- `{ status, createdAt }`, `{ status, featured, createdAt }`, `{ status, category, createdAt }`, `{ status, price }`, `{ status, productKind }` — public list patterns
-- text index on name / descriptions / sku — search assist (regex fallback also used)
+- `{ status, createdAt }`, `{ status, featured, createdAt }`, `{ status, category, createdAt }`, `{ status, price }`, `{ status, salePrice }`, `{ status, productKind }` — public/admin list patterns
+- `{ status, stock }` — `inStock` filter
+- Search uses escaped regex in `catalogSearch.service.ts` (no Mongo text index)
+
+See [docs/ops/mongodb.md](../ops/mongodb.md) for production connection and index policy.

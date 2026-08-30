@@ -32,11 +32,18 @@ describe('Health', () => {
     expect(res.body.status).toBe('ok');
   });
 
+  it('GET /api/v1/health/live is live', async () => {
+    const res = await request(app).get('/api/v1/health/live');
+    expect(res.status).toBe(200);
+    expect(res.body.status).toBe('ok');
+  });
+
   it('GET /api/v1/health/ready reflects DB', async () => {
     const res = await request(app).get('/api/v1/health/ready');
     expect(res.status).toBe(200);
     expect(res.body.status).toBe('ready');
     expect(res.body.db).toBe('connected');
+    expect(res.body.dbAvailability).toBe('available');
   });
 
   it('GET /api/health remains for compatibility', async () => {

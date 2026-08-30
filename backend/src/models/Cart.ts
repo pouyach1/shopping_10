@@ -44,14 +44,15 @@ const cartSchema = new Schema<CartAttrs>(
       type: Schema.Types.ObjectId,
       ref: 'User',
       required: true,
+      // One cart per user — uniqueness is the ownership invariant.
       unique: true,
-      index: true,
     },
     items: { type: [cartItemSchema], default: [] },
   },
   { timestamps: true },
 );
 
+// Serves: locate carts containing a product (admin / catalog cleanup paths).
 cartSchema.index({ 'items.product': 1 });
 
 export type CartDocument = HydratedDocument<CartAttrs>;
