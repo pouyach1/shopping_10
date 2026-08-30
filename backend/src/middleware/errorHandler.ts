@@ -116,6 +116,15 @@ export function healthReady(_req: Request, res: Response): void {
   res.status(ready ? 200 : 503).json({
     status: ready ? 'ready' : 'not_ready',
     db,
+    commerce: {
+      paymentProvider: env.PAYMENT_PROVIDER,
+      smsProvider: env.SMS_PROVIDER,
+      emailProvider: env.EMAIL_PROVIDER,
+      reservationScheduler: env.ENABLE_RESERVATION_SCHEDULER,
+      notificationScheduler: env.ENABLE_NOTIFICATION_SCHEDULER,
+      reconcileScheduler: env.ENABLE_RECONCILE_SCHEDULER,
+    },
+    // Notification providers are optional — never block readiness.
     timestamp: new Date().toISOString(),
   });
 }

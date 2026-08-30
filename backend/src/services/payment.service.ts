@@ -599,6 +599,26 @@ export async function handlePaymentCallback(
   }
 
   if (!verified.success) {
+    // Timeout / unreachable ≠ proven failure. Leave open for reconcile.
+    if (
+      verified.failureCode === 'PROVIDER_TIMEOUT' ||
+      verified.failureCode === 'PROVIDER_ERROR'
+    ) {
+      await recordAudit({
+        action: 'payment.verification_started',
+        actorType: 'system',
+        entityType: 'payment',
+        entityId: String(payment._id),
+        orderNumber: payment.orderNumber,
+        metadata: {
+          outcome: 'provider_unknown',
+          failureCode: verified.failureCode,
+        },
+      });
+      throw new AppError(502, 'تایید پرداخت نامشخص است — بعداً مجدد تلاش کنید.', {
+        code: 'PAYMENT_PROVIDER_ERROR',
+      });
+    }
     await markPaymentFailed(
       payment,
       verified.failureCode ?? 'VERIFY_FAILED',

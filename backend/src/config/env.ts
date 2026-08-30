@@ -61,10 +61,38 @@ const envSchema = z
       .int()
       .positive()
       .default(60_000),
+    ENABLE_RECONCILE_SCHEDULER: z
+      .enum(['true', 'false'])
+      .default('false')
+      .transform((value) => value === 'true'),
+    RECONCILE_SCHEDULER_INTERVAL_MS: z.coerce
+      .number()
+      .int()
+      .positive()
+      .default(300_000),
     SMS_PROVIDER: z.enum(['mock', 'kavenegar']).default('mock'),
     SMS_API_KEY: z.string().optional(),
+    KAVENEGAR_SENDER: z.string().optional(),
+    KAVENEGAR_BASE_URL: z.string().url().optional(),
     EMAIL_PROVIDER: z.enum(['mock', 'smtp']).default('mock'),
     EMAIL_FROM: z.string().email().optional(),
+    SMTP_HOST: z.string().optional(),
+    SMTP_PORT: z.coerce.number().int().positive().optional(),
+    SMTP_USER: z.string().optional(),
+    SMTP_PASSWORD: z.string().optional(),
+    SMTP_SECURE: z
+      .enum(['true', 'false'])
+      .default('false')
+      .transform((value) => value === 'true'),
+    NOTIFICATION_MAX_ATTEMPTS: z.coerce.number().int().positive().default(5),
+    NOTIFICATION_RETRY_BASE_MS: z.coerce
+      .number()
+      .int()
+      .positive()
+      .default(60_000),
+    NOTIFICATION_LEASE_MS: z.coerce.number().int().positive().default(60_000),
+    STORE_DISPLAY_NAME: z.string().min(1).default('Luxora'),
+    LOG_LEVEL: z.enum(['debug', 'info', 'warn', 'error']).optional(),
   })
   .superRefine((value, ctx) => {
     if (value.NODE_ENV === 'production') {
@@ -117,6 +145,22 @@ const envSchema = z
           path: ['SMS_API_KEY'],
           message: 'SMS_API_KEY is required when SMS_PROVIDER=kavenegar',
         });
+      }
+      if (value.EMAIL_PROVIDER === 'smtp') {
+        if (!value.EMAIL_FROM) {
+          ctx.addIssue({
+            code: 'custom',
+            path: ['EMAIL_FROM'],
+            message: 'EMAIL_FROM is required when EMAIL_PROVIDER=smtp',
+          });
+        }
+        if (!value.SMTP_HOST) {
+          ctx.addIssue({
+            code: 'custom',
+            path: ['SMTP_HOST'],
+            message: 'SMTP_HOST is required when EMAIL_PROVIDER=smtp',
+          });
+        }
       }
     }
   });
@@ -183,10 +227,24 @@ export const env = {
   RESERVATION_SCHEDULER_INTERVAL_MS: raw.RESERVATION_SCHEDULER_INTERVAL_MS,
   ENABLE_NOTIFICATION_SCHEDULER: raw.ENABLE_NOTIFICATION_SCHEDULER,
   NOTIFICATION_SCHEDULER_INTERVAL_MS: raw.NOTIFICATION_SCHEDULER_INTERVAL_MS,
+  ENABLE_RECONCILE_SCHEDULER: raw.ENABLE_RECONCILE_SCHEDULER,
+  RECONCILE_SCHEDULER_INTERVAL_MS: raw.RECONCILE_SCHEDULER_INTERVAL_MS,
   SMS_PROVIDER: raw.SMS_PROVIDER,
   SMS_API_KEY: raw.SMS_API_KEY,
+  KAVENEGAR_SENDER: raw.KAVENEGAR_SENDER,
+  KAVENEGAR_BASE_URL: raw.KAVENEGAR_BASE_URL,
   EMAIL_PROVIDER: raw.EMAIL_PROVIDER,
   EMAIL_FROM: raw.EMAIL_FROM ?? 'noreply@luxora.local',
+  SMTP_HOST: raw.SMTP_HOST,
+  SMTP_PORT: raw.SMTP_PORT ?? 587,
+  SMTP_USER: raw.SMTP_USER,
+  SMTP_PASSWORD: raw.SMTP_PASSWORD,
+  SMTP_SECURE: raw.SMTP_SECURE,
+  NOTIFICATION_MAX_ATTEMPTS: raw.NOTIFICATION_MAX_ATTEMPTS,
+  NOTIFICATION_RETRY_BASE_MS: raw.NOTIFICATION_RETRY_BASE_MS,
+  NOTIFICATION_LEASE_MS: raw.NOTIFICATION_LEASE_MS,
+  STORE_DISPLAY_NAME: raw.STORE_DISPLAY_NAME,
+  LOG_LEVEL: raw.LOG_LEVEL,
 } as const;
 
 export type Env = typeof env;

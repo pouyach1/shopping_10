@@ -3,6 +3,7 @@ import { randomUUID } from 'node:crypto';
 
 import { env } from '../config/env';
 import { forbidden } from '../utils/AppError';
+import { runWithRequestContext } from '../utils/requestContext';
 
 declare module 'express-serve-static-core' {
   interface Request {
@@ -15,6 +16,7 @@ declare module 'express-serve-static-core' {
 
 /**
  * Correlate logs and responses. Prefer inbound X-Request-Id when well-formed.
+ * Runs the rest of the request inside AsyncLocalStorage so services/audit see it.
  */
 export function requestIdMiddleware(
   req: Request,
@@ -26,7 +28,7 @@ export function requestIdMiddleware(
     inbound && /^[\w-]{8,128}$/.test(inbound) ? inbound : randomUUID();
   req.requestId = id;
   res.setHeader('X-Request-Id', id);
-  next();
+  runWithRequestContext({ requestId: id }, next);
 }
 
 /**

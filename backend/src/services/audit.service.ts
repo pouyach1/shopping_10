@@ -1,6 +1,7 @@
 import { AuditLog } from '../models/AuditLog';
 import type { AuditAction } from '../config/constants';
 import { logger } from '../utils/logger';
+import { getRequestId } from '../utils/requestContext';
 
 const SENSITIVE_KEYS = new Set([
   'password',
@@ -14,6 +15,8 @@ const SENSITIVE_KEYS = new Set([
   'webhookSecret',
   'JWT_SECRET',
   'PAYMENT_WEBHOOK_SECRET',
+  'SMTP_PASSWORD',
+  'SMS_API_KEY',
 ]);
 
 function scrub(value: unknown): unknown {
@@ -37,8 +40,10 @@ export async function recordAudit(input: {
   entityType: string;
   entityId?: string;
   orderNumber?: string;
+  requestId?: string;
   metadata?: Record<string, unknown>;
 }): Promise<void> {
+  const requestId = input.requestId ?? getRequestId();
   try {
     await AuditLog.create({
       action: input.action,
@@ -47,12 +52,13 @@ export async function recordAudit(input: {
       entityType: input.entityType,
       entityId: input.entityId,
       orderNumber: input.orderNumber,
+      requestId,
       metadata: scrub(input.metadata) as Record<string, unknown> | undefined,
     });
   } catch (error) {
-    // Audit must never break money flows.
     logger.error('audit.write_failed', {
       action: input.action,
+      requestId,
       error: error instanceof Error ? error.message : 'unknown',
     });
   }

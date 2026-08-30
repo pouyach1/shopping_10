@@ -22,11 +22,15 @@ export interface NotificationDeliveryAttrs {
   body: string;
   status: NotificationDeliveryStatus;
   attempts: number;
-  /** Lease end — worker crash recovery allows re-claim after expiry. */
   lockedUntil?: Date;
+  lastAttemptAt?: Date;
   lastError?: string;
+  failureCode?: string;
+  failureReason?: string;
+  providerMessageId?: string;
   nextAttemptAt?: Date;
   sentAt?: Date;
+  requestId?: string;
   metadata?: Record<string, unknown>;
   createdAt: Date;
   updatedAt: Date;
@@ -63,9 +67,14 @@ const schema = new Schema<NotificationDeliveryAttrs>(
     },
     attempts: { type: Number, default: 0, min: 0 },
     lockedUntil: { type: Date, index: true },
+    lastAttemptAt: { type: Date },
     lastError: { type: String, maxlength: 400 },
+    failureCode: { type: String, maxlength: 80, index: true },
+    failureReason: { type: String, maxlength: 400 },
+    providerMessageId: { type: String, maxlength: 200 },
     nextAttemptAt: { type: Date, index: true },
     sentAt: { type: Date },
+    requestId: { type: String, maxlength: 128, index: true },
     metadata: { type: Schema.Types.Mixed },
   },
   { timestamps: true },

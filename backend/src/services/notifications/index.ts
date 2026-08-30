@@ -107,9 +107,12 @@ export function emitCommerceEvent(
 export {
   processPendingNotifications,
   enqueueNotificationsForEvent,
+  listAdminNotifications,
+  retryNotificationDelivery,
   getSmsProvider,
   getEmailProvider,
   setSmsProvider,
   setEmailProvider,
   resetNotificationProviders,
 } from './delivery.service';
+export { channelsForEvent } from './policy';
