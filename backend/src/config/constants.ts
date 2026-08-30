@@ -191,19 +191,51 @@ export type CommerceEventType = (typeof COMMERCE_EVENTS)[number];
 
 export const AUDIT_ACTIONS = [
   'payment.created',
+  'payment.redirected',
+  'payment.verification_started',
   'payment.verified',
   'payment.failed',
   'payment.expired',
+  'payment.webhook_received',
+  'payment.webhook_duplicate',
+  'payment.reconciled',
+  'payment.refunded',
   'order.created',
   'order.cancelled',
   'inventory.decremented',
   'inventory.restocked',
+  'inventory.reservation_released',
   'coupon.applied',
   'refund.created',
   'refund.completed',
   'refund.failed',
+  'notification.sent',
+  'notification.failed',
 ] as const;
 export type AuditAction = (typeof AUDIT_ACTIONS)[number];
+
+export const NOTIFICATION_CHANNELS = ['sms', 'email'] as const;
+export type NotificationChannel = (typeof NOTIFICATION_CHANNELS)[number];
+
+export const NOTIFICATION_DELIVERY_STATUSES = [
+  'pending',
+  'sent',
+  'failed',
+  'retryable',
+  'permanent_failure',
+] as const;
+export type NotificationDeliveryStatus =
+  (typeof NOTIFICATION_DELIVERY_STATUSES)[number];
+
+export const RECONCILIATION_FINDINGS = [
+  'in_sync',
+  'provider_paid_local_pending',
+  'local_paid_provider_failed',
+  'order_payment_mismatch',
+  'provider_unreachable',
+  'already_reconciled',
+] as const;
+export type ReconciliationFinding = (typeof RECONCILIATION_FINDINGS)[number];
 
 export const PAYMENTS_DEFAULT_PAGE = 1;
 export const PAYMENTS_DEFAULT_LIMIT = 20;

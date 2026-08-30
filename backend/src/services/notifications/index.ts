@@ -1,5 +1,9 @@
 import type { CommerceEventType } from '../../config/constants';
 import { logger } from '../../utils/logger';
+import {
+  enqueueNotificationsForEvent,
+  processPendingNotifications,
+} from './delivery.service';
 
 export interface CommerceEventPayload {
   orderNumber?: string;
@@ -41,6 +45,7 @@ type Listener = (
 
 const listeners: Listener[] = [];
 let defaultProvider: NotificationProvider = new MockNotificationProvider();
+let enqueueEnabled = true;
 
 export function setNotificationProvider(provider: NotificationProvider): void {
   defaultProvider = provider;
@@ -48,6 +53,10 @@ export function setNotificationProvider(provider: NotificationProvider): void {
 
 export function getNotificationProvider(): NotificationProvider {
   return defaultProvider;
+}
+
+export function setEnqueueEnabled(enabled: boolean): void {
+  enqueueEnabled = enabled;
 }
 
 export function onCommerceEvent(listener: Listener): () => void {
@@ -61,6 +70,7 @@ export function onCommerceEvent(listener: Listener): () => void {
 /**
  * Fire-and-forget commerce domain events.
  * Order/Payment services must not await SMS/email providers.
+ * Delivery is enqueued with idempotent keys, then processed asynchronously.
  */
 export function emitCommerceEvent(
   event: CommerceEventType,
@@ -72,6 +82,18 @@ export function emitCommerceEvent(
       error: error instanceof Error ? error.message : 'unknown',
     });
   });
+
+  if (enqueueEnabled) {
+    void enqueueNotificationsForEvent(event, payload)
+      .then(() => processPendingNotifications(20))
+      .catch((error) => {
+        logger.error('notification.enqueue_failed', {
+          event,
+          error: error instanceof Error ? error.message : 'unknown',
+        });
+      });
+  }
+
   for (const listener of listeners) {
     void Promise.resolve(listener(event, payload)).catch((error) => {
       logger.error('notification.listener_failed', {
@@ -81,3 +103,13 @@ export function emitCommerceEvent(
     });
   }
 }
+
+export {
+  processPendingNotifications,
+  enqueueNotificationsForEvent,
+  getSmsProvider,
+  getEmailProvider,
+  setSmsProvider,
+  setEmailProvider,
+  resetNotificationProviders,
+} from './delivery.service';

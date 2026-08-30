@@ -34,8 +34,16 @@ router.post(
 router.get('/payments', paymentsController.adminList);
 router.get('/payments/:paymentId', paymentsController.adminGet);
 router.post(
+  '/payments/:paymentId/reconcile',
+  paymentsController.adminReconcile,
+);
+router.post(
   '/payments/release-expired',
   paymentsController.adminReleaseExpired,
+);
+router.post(
+  '/notifications/process',
+  paymentsController.adminProcessNotifications,
 );
 
 router.get('/refunds', commerceAdminController.adminListRefunds);

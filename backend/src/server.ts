@@ -3,6 +3,10 @@ import http from 'node:http';
 import { createApp } from './app';
 import { connectDB, disconnectDB } from './config/db';
 import { env } from './config/env';
+import {
+  startCommerceSchedulers,
+  stopCommerceSchedulers,
+} from './services/scheduler';
 import { logger } from './utils/logger';
 
 let server: http.Server | null = null;
@@ -23,6 +27,8 @@ async function start(): Promise<void> {
     logger.warn('Server will start; /api/v1/health/ready will report not_ready.');
   }
 
+  startCommerceSchedulers();
+
   server = app.listen(env.PORT, () => {
     logger.info(
       `Backend listening on http://localhost:${env.PORT} (${env.NODE_ENV})`,
@@ -36,6 +42,7 @@ async function shutdown(signal: string): Promise<void> {
   if (shuttingDown) return;
   shuttingDown = true;
   logger.info(`Received ${signal} — shutting down gracefully`);
+  stopCommerceSchedulers();
 
   const forceTimer = setTimeout(() => {
     logger.error('Forced shutdown after timeout');

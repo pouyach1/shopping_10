@@ -201,6 +201,15 @@ export async function createPayment(
       orderNumber: order.orderNumber,
       metadata: { provider: provider.id, amount: payment.amount },
     });
+    await recordAudit({
+      action: 'payment.redirected',
+      actorType: 'customer',
+      actorId: userId,
+      entityType: 'payment',
+      entityId: String(payment._id),
+      orderNumber: order.orderNumber,
+      metadata: { provider: provider.id },
+    });
     emitCommerceEvent('PaymentPending', {
       orderNumber: order.orderNumber,
       userId,
@@ -267,27 +276,20 @@ async function markPaymentFailed(
 /**
  * Apply verified success to payment + order.
  * Late success after cancel → auto-refund policy (no paid+cancelled).
+ * Concurrent callback+webhook: atomic claim ensures one success transition
+ * and one PaymentSuccessful notification enqueue.
  */
 async function applySuccessfulPayment(
   payment: PaymentDocument,
   providerTransactionId: string | undefined,
-  source: 'callback' | 'webhook',
+  source: 'callback' | 'webhook' | 'reconcile',
 ): Promise<{ outcome: 'paid' | 'auto_refunded' | 'already_paid' }> {
-  if (payment.status === 'paid' || payment.status === 'refunded') {
+  if (
+    payment.status === 'paid' ||
+    payment.status === 'refunded' ||
+    payment.status === 'partially_refunded'
+  ) {
     return { outcome: 'already_paid' };
-  }
-
-  assertPaymentTransition(
-    payment.status === 'redirected' ||
-      payment.status === 'pending' ||
-      payment.status === 'processing' ||
-      payment.status === 'created'
-      ? payment.status
-      : payment.status,
-    'processing',
-  );
-  if (isOpenPaymentStatus(payment.status) || payment.status === 'created') {
-    payment.status = 'processing';
   }
 
   const order = await Order.findById(payment.order);
@@ -295,33 +297,67 @@ async function applySuccessfulPayment(
     throw notFound('سفارش یافت نشد.', 'ORDER_NOT_FOUND');
   }
 
+  const claimed = await Payment.findOneAndUpdate(
+    {
+      _id: payment._id,
+      status: { $in: ['created', 'pending', 'redirected', 'processing'] },
+    },
+    { $set: { status: 'processing' } },
+    { returnDocument: 'after' },
+  );
+
+  if (!claimed) {
+    const fresh = await Payment.findById(payment._id);
+    if (
+      fresh &&
+      (fresh.status === 'paid' ||
+        fresh.status === 'refunded' ||
+        fresh.status === 'partially_refunded')
+    ) {
+      return { outcome: 'already_paid' };
+    }
+    return { outcome: 'already_paid' };
+  }
+
   // Scenario D: payment succeeds after cancel — refund, keep cancelled.
   if (order.status === 'cancelled' || order.status === 'failed') {
-    assertPaymentTransition(payment.status, 'paid');
-    payment.status = 'paid';
-    payment.paidAt = new Date();
-    payment.verifiedAt = new Date();
-    payment.providerTransactionId =
-      providerTransactionId ?? payment.providerTransactionId;
-    await payment.save();
+    const paidDoc = await Payment.findOneAndUpdate(
+      { _id: payment._id, status: 'processing' },
+      {
+        $set: {
+          status: 'paid',
+          paidAt: new Date(),
+          verifiedAt: new Date(),
+          providerTransactionId:
+            providerTransactionId ?? claimed.providerTransactionId,
+        },
+      },
+      { returnDocument: 'after' },
+    );
+    if (!paidDoc) return { outcome: 'already_paid' };
 
     const provider = getPaymentProvider();
     const refund = await provider.refundPayment({
-      authority: payment.authority!,
-      providerTransactionId: payment.providerTransactionId,
-      amount: payment.amount,
-      currency: payment.currency,
+      authority: paidDoc.authority!,
+      providerTransactionId: paidDoc.providerTransactionId,
+      amount: paidDoc.amount,
+      currency: paidDoc.currency,
       reason: 'order_already_cancelled',
-      idempotencyKey: `auto-refund-${String(payment._id)}`,
+      idempotencyKey: `auto-refund-${String(paidDoc._id)}`,
     });
 
     if (refund.success) {
-      assertPaymentTransition(payment.status, 'refunded');
-      payment.status = 'refunded';
-      payment.refundedAt = new Date();
-      payment.refundedAmount = payment.amount;
-      payment.failureReason = 'auto_refund_cancelled_order';
-      await payment.save();
+      await Payment.findOneAndUpdate(
+        { _id: paidDoc._id, status: 'paid' },
+        {
+          $set: {
+            status: 'refunded',
+            refundedAt: new Date(),
+            refundedAmount: paidDoc.amount,
+            failureReason: 'auto_refund_cancelled_order',
+          },
+        },
+      );
     }
 
     await recordAudit({
@@ -339,30 +375,52 @@ async function applySuccessfulPayment(
     return { outcome: 'auto_refunded' };
   }
 
-  assertPaymentTransition(payment.status, 'paid');
-  payment.status = 'paid';
-  payment.paidAt = new Date();
-  payment.verifiedAt = new Date();
-  payment.providerTransactionId =
-    providerTransactionId ?? payment.providerTransactionId;
-  await payment.save();
+  const paidDoc = await Payment.findOneAndUpdate(
+    { _id: payment._id, status: 'processing' },
+    {
+      $set: {
+        status: 'paid',
+        paidAt: new Date(),
+        verifiedAt: new Date(),
+        providerTransactionId:
+          providerTransactionId ?? claimed.providerTransactionId,
+      },
+    },
+    { returnDocument: 'after' },
+  );
 
-  if (order.paymentStatus !== 'paid') {
-    assertTransition(order.status, 'paid');
-    const previous = order.status;
-    order.status = 'paid';
-    order.paymentStatus = 'paid';
-    order.paidAt = new Date();
-    order.inventoryReservedUntil = undefined;
-    order.history.push({
-      fromStatus: previous,
-      toStatus: 'paid',
-      actorType: 'system',
-      reason: `payment_${source}`,
-      at: new Date(),
-    });
-    await order.save();
+  if (!paidDoc) {
+    return { outcome: 'already_paid' };
   }
+
+  const previous = order.status;
+  if (previous !== 'paid') {
+    assertTransition(previous, 'paid');
+  }
+  const orderUpdated = await Order.findOneAndUpdate(
+    {
+      _id: order._id,
+      paymentStatus: { $ne: 'paid' },
+    },
+    {
+      $set: {
+        status: 'paid',
+        paymentStatus: 'paid',
+        paidAt: new Date(),
+        inventoryReservedUntil: null,
+      },
+      $push: {
+        history: {
+          fromStatus: previous,
+          toStatus: 'paid',
+          actorType: 'system',
+          reason: `payment_${source}`,
+          at: new Date(),
+        },
+      },
+    },
+    { returnDocument: 'after' },
+  );
 
   await recordAudit({
     action: 'payment.verified',
@@ -370,17 +428,28 @@ async function applySuccessfulPayment(
     entityType: 'payment',
     entityId: String(payment._id),
     orderNumber: order.orderNumber,
-    metadata: { source, amount: payment.amount },
+    metadata: { source, amount: paidDoc.amount },
   });
+
+  // Emit only when this caller won the payment claim (exactly once across races).
   emitCommerceEvent('PaymentSuccessful', {
     orderNumber: order.orderNumber,
     userId: String(order.user),
     paymentId: String(payment._id),
-    amount: payment.amount,
-    currency: payment.currency,
+    amount: paidDoc.amount,
+    currency: paidDoc.currency,
   });
 
+  void orderUpdated;
   return { outcome: 'paid' };
+}
+
+/** Controlled reconcile entry — same domain logic as callback/webhook success. */
+export async function applySuccessfulPaymentForReconcile(
+  payment: PaymentDocument,
+  providerTransactionId?: string,
+): Promise<{ outcome: 'paid' | 'auto_refunded' | 'already_paid' }> {
+  return applySuccessfulPayment(payment, providerTransactionId, 'reconcile');
 }
 
 /**
@@ -413,6 +482,16 @@ export async function handlePaymentCallback(
     await markPaymentFailed(payment, 'CALLBACK_NOK', 'کاربر پرداخت را لغو کرد');
     throw conflict('پرداخت ناموفق بود.', undefined, 'PAYMENT_FAILED');
   }
+
+  await recordAudit({
+    action: 'payment.verification_started',
+    actorType: 'customer',
+    actorId: userId,
+    entityType: 'payment',
+    entityId: String(payment._id),
+    orderNumber: payment.orderNumber,
+    metadata: { source: 'callback' },
+  });
 
   const provider = getPaymentProvider();
   let verified;
@@ -509,9 +588,27 @@ export async function handleProviderWebhook(
       outcome: 'processed',
     });
   } catch {
+    await recordAudit({
+      action: 'payment.webhook_duplicate',
+      actorType: 'provider',
+      entityType: 'payment',
+      metadata: { provider: provider.id, eventId: event.eventId },
+    });
     // Duplicate event id — idempotent no-op.
     return { ok: true, duplicate: true };
   }
+
+  await recordAudit({
+    action: 'payment.webhook_received',
+    actorType: 'provider',
+    entityType: 'payment',
+    metadata: {
+      provider: provider.id,
+      eventId: event.eventId,
+      authority: event.authority,
+      status: event.status,
+    },
+  });
 
   const payment = await Payment.findOne({ authority: event.authority });
   if (!payment) {
@@ -589,53 +686,81 @@ export async function handleProviderWebhook(
 export async function expireOrderReservation(
   orderNumber: string,
 ): Promise<void> {
-  const order = await Order.findOne({ orderNumber });
-  if (!order) return;
-  if (order.paymentStatus === 'paid') return;
-  if (order.status === 'cancelled' || order.status === 'failed') return;
-
-  assertTransition(order.status, 'cancelled');
-  const previous = order.status;
-  order.status = 'cancelled';
-  order.paymentStatus = 'failed';
-  order.cancelledAt = new Date();
-  order.history.push({
-    fromStatus: previous,
-    toStatus: 'cancelled',
-    actorType: 'system',
-    reason: 'payment_reservation_expired',
-    at: new Date(),
+  const existing = await Order.findOne({
+    orderNumber,
+    paymentStatus: { $in: ['unpaid', 'pending', 'failed'] },
+    status: { $in: ['awaiting_payment', 'pending'] },
+    inventoryDecremented: true,
   });
+  if (!existing) return;
 
-  if (order.inventoryDecremented) {
-    await restoreMany(
-      order.items.map((item) => ({
-        productId: String(item.productId),
-        quantity: item.quantity,
-      })),
-    );
-    order.inventoryDecremented = false;
-    await recordAudit({
-      action: 'inventory.restocked',
-      actorType: 'system',
-      entityType: 'order',
-      entityId: String(order._id),
-      orderNumber: order.orderNumber,
-      metadata: { reason: 'payment_expired' },
-    });
+  // Atomic claim: only one release path restocks.
+  const claimed = await Order.findOneAndUpdate(
+    {
+      _id: existing._id,
+      inventoryDecremented: true,
+      paymentStatus: { $in: ['unpaid', 'pending', 'failed'] },
+      status: { $in: ['awaiting_payment', 'pending'] },
+    },
+    {
+      $set: {
+        status: 'cancelled',
+        paymentStatus: 'failed',
+        cancelledAt: new Date(),
+        inventoryDecremented: false,
+        inventoryReservedUntil: null,
+      },
+      $push: {
+        history: {
+          fromStatus: existing.status,
+          toStatus: 'cancelled',
+          actorType: 'system',
+          reason: 'payment_reservation_expired',
+          at: new Date(),
+        },
+      },
+    },
+    { returnDocument: 'after' },
+  );
+
+  if (!claimed) {
+    // Already released, paid, or cancelled — idempotent no-op.
+    return;
   }
 
-  await order.save();
+  await restoreMany(
+    existing.items.map((item) => ({
+      productId: String(item.productId),
+      quantity: item.quantity,
+    })),
+  );
+
+  await recordAudit({
+    action: 'inventory.reservation_released',
+    actorType: 'system',
+    entityType: 'order',
+    entityId: String(claimed._id),
+    orderNumber: claimed.orderNumber,
+    metadata: { reason: 'payment_expired' },
+  });
+  await recordAudit({
+    action: 'inventory.restocked',
+    actorType: 'system',
+    entityType: 'order',
+    entityId: String(claimed._id),
+    orderNumber: claimed.orderNumber,
+    metadata: { reason: 'payment_expired' },
+  });
   await recordAudit({
     action: 'payment.expired',
     actorType: 'system',
     entityType: 'order',
-    entityId: String(order._id),
-    orderNumber: order.orderNumber,
+    entityId: String(claimed._id),
+    orderNumber: claimed.orderNumber,
   });
   emitCommerceEvent('OrderCancelled', {
-    orderNumber: order.orderNumber,
-    userId: String(order.user),
+    orderNumber: claimed.orderNumber,
+    userId: String(claimed.user),
     reason: 'payment_expired',
   });
 }
@@ -713,13 +838,34 @@ export async function listAdminPayments(rawQuery: unknown) {
   };
 }
 
-export async function getAdminPayment(paymentId: string): Promise<PublicPayment> {
+export async function getAdminPayment(paymentId: string) {
   if (!Types.ObjectId.isValid(paymentId)) {
     throw notFound('پرداخت یافت نشد.', 'PAYMENT_NOT_FOUND');
   }
   const payment = await Payment.findById(paymentId);
   if (!payment) throw notFound('پرداخت یافت نشد.', 'PAYMENT_NOT_FOUND');
-  return toPublicPayment(payment);
+  const events = await PaymentProviderEvent.find({
+    payment: payment._id,
+  })
+    .sort({ createdAt: -1 })
+    .limit(20)
+    .lean();
+
+  return {
+    ...toPublicPayment(payment),
+    failureCode: payment.failureCode,
+    failureReason: payment.failureReason,
+    providerTransactionId: payment.providerTransactionId,
+    refundedAmount: payment.refundedAmount,
+    verifiedAt: payment.verifiedAt?.toISOString(),
+    refundedAt: payment.refundedAt?.toISOString(),
+    webhookEvents: events.map((event) => ({
+      eventId: event.eventId,
+      outcome: event.outcome,
+      note: event.note,
+      processedAt: event.processedAt,
+    })),
+  };
 }
 
 export { toPublicPayment, PAYMENT_RESERVATION_TTL_MS, PAYMENTS_DEFAULT_LIMIT, PAYMENTS_DEFAULT_PAGE, PAYMENTS_MAX_LIMIT };

@@ -175,14 +175,30 @@ Policy: verify payment, then **auto-refund** and keep order cancelled. Never lea
 | Variable | Notes |
 | --- | --- |
 | `PAYMENT_PROVIDER` | `mock` (dev/test) / `zarinpal` / … — mock forbidden in production |
-| `PAYMENT_CALLBACK_URL` | Browser return URL |
+| `PAYMENT_CALLBACK_URL` | Browser return URL (`/payment/callback`) |
 | `PAYMENT_WEBHOOK_SECRET` | Required in production (16+) |
 | `PAYMENT_RESERVATION_TTL_MS` | Default 30m |
-| `ZARINPAL_MERCHANT_ID` | Required when provider=zarinpal |
+| `ZARINPAL_MERCHANT_ID` | Required when provider=zarinpal (36-char UUID) |
+| `ZARINPAL_SANDBOX` | `true`/`false` |
+| `ENABLE_RESERVATION_SCHEDULER` | In-process reservation release |
+| `ENABLE_NOTIFICATION_SCHEDULER` | In-process notification drain |
+| `SMS_PROVIDER` / `EMAIL_PROVIDER` | `mock` by default |
 
-## Phase 6 (recommended)
+## Phase 6 — Real payment & reliability
 
-1. Live Zarinpal HTTP client
-2. SMS/email notification providers
-3. Admin Orders UI wired to payment/refund panels
-4. Scheduled worker calling `releaseExpiredReservations`
+- Real Zarinpal v4 HTTP provider (injectable client; tests never hit network)
+- تومان→ریال conversion at provider boundary only
+- Frontend `/payment/callback` return page (verify-before-success UI)
+- Atomic callback/webhook race handling
+- Reservation + notification in-process schedulers
+- Reconciliation admin endpoint (`applySafeFix` for provider-paid/local-pending only)
+- SMS/Email abstractions + idempotent `NotificationDelivery`
+- Expanded audit actions (`payment.webhook_*`, `notification.*`, `inventory.reservation_released`)
+
+## Phase 7 (recommended)
+
+1. Wire live Kavenegar SMS + SMTP email transports
+2. Zarinpal refund/reverse when merchant plan supports it
+3. Admin UI panels for payments, webhooks, notifications, reconcile
+4. Multi-instance scheduler leadership (or external cron only)
+5. Payment analytics / dispute tooling

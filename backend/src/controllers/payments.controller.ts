@@ -1,6 +1,8 @@
 import type { Request, Response } from 'express';
 
 import * as paymentService from '../services/payment.service';
+import { reconcilePayment } from '../services/reconciliation.service';
+import { processPendingNotifications } from '../services/notifications';
 import { asyncHandler } from '../utils/asyncHandler';
 import { requireIdempotencyKey } from '../services/checkout.service';
 import {
@@ -60,6 +62,22 @@ export const adminGet = asyncHandler(async (req: Request, res: Response) => {
 export const adminReleaseExpired = asyncHandler(
   async (_req: Request, res: Response) => {
     const data = await paymentService.releaseExpiredReservations();
+    res.status(200).json({ status: 'success', data });
+  },
+);
+
+export const adminReconcile = asyncHandler(
+  async (req: Request, res: Response) => {
+    const { paymentId } = parseOrThrow(paymentIdParamSchema, req.params);
+    const applySafeFix = req.body?.applySafeFix === true;
+    const report = await reconcilePayment(paymentId, { applySafeFix });
+    res.status(200).json({ status: 'success', data: { report } });
+  },
+);
+
+export const adminProcessNotifications = asyncHandler(
+  async (_req: Request, res: Response) => {
+    const data = await processPendingNotifications(100);
     res.status(200).json({ status: 'success', data });
   },
 );
