@@ -17,6 +17,34 @@ function shouldLog(level: LogLevel): boolean {
   return LEVEL_ORDER[level] >= LEVEL_ORDER[currentMinLevel()];
 }
 
+function scrubMeta(meta: unknown): unknown {
+  if (meta == null || typeof meta !== 'object') return meta;
+  const out: Record<string, unknown> = {};
+  for (const [key, value] of Object.entries(meta as Record<string, unknown>)) {
+    const lower = key.toLowerCase();
+    if (
+      lower.includes('password') ||
+      lower.includes('secret') ||
+      lower.includes('apikey') ||
+      lower.includes('api_key') ||
+      lower.includes('token') ||
+      lower.includes('authorization') ||
+      lower === 'uri' ||
+      lower === 'mongodb_uri' ||
+      lower.includes('connectionstring')
+    ) {
+      out[key] = '[redacted]';
+      continue;
+    }
+    if (typeof value === 'string' && /mongodb(\+srv)?:\/\//i.test(value)) {
+      out[key] = value.replace(/\/\/([^/@]+)@/g, '//***@');
+      continue;
+    }
+    out[key] = value;
+  }
+  return out;
+}
+
 function write(level: LogLevel, message: string, meta?: unknown): void {
   if (!shouldLog(level)) return;
 
@@ -32,16 +60,18 @@ function write(level: LogLevel, message: string, meta?: unknown): void {
     requestId = undefined;
   }
 
+  const safeMeta = scrubMeta(meta);
+
   if (process.env.NODE_ENV === 'production') {
     const payload = {
       ts: new Date().toISOString(),
       level,
       event: message,
       ...(requestId ? { requestId } : {}),
-      ...(meta && typeof meta === 'object' && meta !== null
-        ? (meta as Record<string, unknown>)
-        : meta !== undefined
-          ? { detail: meta }
+      ...(safeMeta && typeof safeMeta === 'object' && safeMeta !== null
+        ? (safeMeta as Record<string, unknown>)
+        : safeMeta !== undefined
+          ? { detail: safeMeta }
           : {}),
     };
     // eslint-disable-next-line no-console
@@ -50,7 +80,7 @@ function write(level: LogLevel, message: string, meta?: unknown): void {
   }
 
   const line = `[${level}] ${message}`;
-  if (meta === undefined) {
+  if (safeMeta === undefined) {
     // eslint-disable-next-line no-console
     console[level === 'debug' ? 'log' : level](line);
     return;
@@ -58,9 +88,9 @@ function write(level: LogLevel, message: string, meta?: unknown): void {
   // eslint-disable-next-line no-console
   console[level === 'debug' ? 'log' : level](line, {
     ...(requestId ? { requestId } : {}),
-    ...(typeof meta === 'object' && meta !== null
-      ? (meta as object)
-      : { detail: meta }),
+    ...(typeof safeMeta === 'object' && safeMeta !== null
+      ? (safeMeta as object)
+      : { detail: safeMeta }),
   });
 }
 

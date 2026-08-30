@@ -81,6 +81,8 @@ const schema = new Schema<NotificationDeliveryAttrs>(
 );
 
 schema.index({ status: 1, nextAttemptAt: 1 });
+/** Lease reclaim: status=processing + lockedUntil expired */
+schema.index({ status: 1, lockedUntil: 1 });
 
 export type NotificationDeliveryDocument =
   HydratedDocument<NotificationDeliveryAttrs>;
