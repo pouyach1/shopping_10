@@ -2,6 +2,8 @@ import request from 'supertest';
 import { describe, expect, it } from 'vitest';
 
 import { createApp } from '../src/app';
+import { grantDefaultStoreAdmin } from './helpers/admin';
+import { getDefaultStoreId, withDefaultTenant } from './helpers/tenant';
 import { User } from '../src/models/User';
 import { Order } from '../src/models/Order';
 import { Payment } from '../src/models/Payment';
@@ -48,7 +50,7 @@ async function register(): Promise<{ token: string; userId: string }> {
 
 async function adminToken(): Promise<string> {
   const { userId } = await register();
-  await User.findByIdAndUpdate(userId, { role: 'admin' });
+  await grantDefaultStoreAdmin(userId);
   const user = await User.findById(userId);
   const login = await request(app).post('/api/v1/auth/login').send({
     identifier: user!.email,
@@ -190,7 +192,7 @@ describe('Phase 7.5 — Production hardening & integrity', () => {
       { orderNumber },
       { inventoryReservedUntil: new Date(Date.now() - 1000) },
     );
-    await releaseExpiredReservations(10);
+    await withDefaultTenant(() => releaseExpiredReservations(10));
 
     const order = await Order.findOne({ orderNumber });
     expect(order?.status).toBe('cancelled');
@@ -271,7 +273,7 @@ describe('Phase 7.5 — Production hardening & integrity', () => {
       },
     );
 
-    const result = await recoverOrphanedInventoryHolds(20);
+    const result = await withDefaultTenant(() => recoverOrphanedInventoryHolds(20));
     expect(result.recovered).toBe(0);
     const hold = await InventoryHold.findById(order!.inventoryHoldId);
     expect(hold?.status).toBe('committed');
@@ -296,11 +298,13 @@ describe('Phase 7.5 — Production hardening & integrity', () => {
     const { userId } = await register();
     const before = await Product.findById(productId);
 
-    const hold = await beginInventoryHold({
-      userId,
-      items: [{ productId, quantity: 1 }],
-    });
-    await decrementUnderHold(hold);
+    const hold = await withDefaultTenant(() =>
+      beginInventoryHold({
+        userId,
+        items: [{ productId, quantity: 1 }],
+      }),
+    );
+    await withDefaultTenant(() => decrementUnderHold(hold));
     // Simulate crash window: revert status to open but keep decrementAttemptedAt
     await InventoryHold.updateOne(
       { _id: hold._id },
@@ -315,7 +319,7 @@ describe('Phase 7.5 — Production hardening & integrity', () => {
     const mid = await Product.findById(productId);
     expect(mid!.stock).toBe(before!.stock - 1);
 
-    const result = await recoverOrphanedInventoryHolds(10);
+    const result = await withDefaultTenant(() => recoverOrphanedInventoryHolds(10));
     expect(result.recovered).toBeGreaterThanOrEqual(1);
     const after = await Product.findById(productId);
     expect(after!.stock).toBe(before!.stock);
@@ -364,11 +368,13 @@ describe('Phase 7.5 — Production hardening & integrity', () => {
     const { releaseCouponForOrder } = await import(
       '../src/services/coupon.service'
     );
-    await releaseCouponForOrder({
-      orderId: String(order!._id),
-      orderNumber,
-      reason: 'order_create_failed',
-    });
+    await withDefaultTenant(() =>
+      releaseCouponForOrder({
+        orderId: String(order!._id),
+        orderNumber,
+        reason: 'order_create_failed',
+      }),
+    );
     const coupon = await Coupon.findOne({ code });
     expect(coupon!.usageCount).toBe(0);
   });
@@ -439,7 +445,9 @@ describe('Phase 7.5 — Production hardening & integrity', () => {
       $set: { status: 'failed', failureCode: 'CALLBACK_NOK' },
     });
 
-    const report = await reconcilePayment(paymentId, { applySafeFix: true });
+    const report = await withDefaultTenant(() =>
+      reconcilePayment(paymentId, { applySafeFix: true }),
+    );
     expect(report.findings).toContain('provider_paid_local_terminal');
     expect(report.appliedFix).toBe(true);
     const fresh = await Payment.findById(paymentId);
@@ -456,13 +464,15 @@ describe('Phase 7.5 — Production hardening & integrity', () => {
     );
     const adminUser = await User.findOne({ role: 'admin' });
 
-    const results = await Promise.allSettled(
-      Array.from({ length: 20 }, (_, i) =>
-        createAdminRefund(orderNumber, String(adminUser!._id), {
-          amount: total,
-          reason: `race-${i}`,
-          idempotencyKey: `rf-20-${i}-${Math.random().toString(36).slice(2)}`,
-        }),
+    const results = await withDefaultTenant(() =>
+      Promise.allSettled(
+        Array.from({ length: 20 }, (_, i) =>
+          createAdminRefund(orderNumber, String(adminUser!._id), {
+            amount: total,
+            reason: `race-${i}`,
+            idempotencyKey: `rf-20-${i}-${Math.random().toString(36).slice(2)}`,
+          }),
+        ),
       ),
     );
     const succeeded = results.filter((r) => r.status === 'fulfilled');
@@ -500,13 +510,19 @@ describe('Phase 7.5 — Production hardening & integrity', () => {
     const productId = await seedProduct(admin, 2);
     const { userId } = await register();
     const before = await Product.findById(productId);
-    const hold = await beginInventoryHold({
-      userId,
-      items: [{ productId, quantity: 1 }],
-    });
-    await decrementUnderHold(hold);
-    const a = await claimReleaseDecrementedHold(hold._id, 'test_a');
-    const b = await claimReleaseDecrementedHold(hold._id, 'test_b');
+    const hold = await withDefaultTenant(() =>
+      beginInventoryHold({
+        userId,
+        items: [{ productId, quantity: 1 }],
+      }),
+    );
+    await withDefaultTenant(() => decrementUnderHold(hold));
+    const a = await withDefaultTenant(() =>
+      claimReleaseDecrementedHold(hold._id, 'test_a'),
+    );
+    const b = await withDefaultTenant(() =>
+      claimReleaseDecrementedHold(hold._id, 'test_b'),
+    );
     expect(a).toBe(true);
     expect(b).toBe(false);
     const after = await Product.findById(productId);

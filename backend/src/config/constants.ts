@@ -14,6 +14,8 @@ export const PROTECTED_USER_FIELDS = [
   'createdAt',
   'updatedAt',
   'lastLoginAt',
+  'storeId',
+  'membershipRole',
 ] as const;
 
 export const PRODUCT_STATUSES = ['draft', 'active', 'archived'] as const;
@@ -51,6 +53,7 @@ export const CATALOG_MAX_LIMIT = 48;
 export const PROTECTED_PRODUCT_FIELDS = [
   '_id',
   'id',
+  'storeId',
   'createdAt',
   'updatedAt',
   '__v',
@@ -211,6 +214,7 @@ export const AUDIT_ACTIONS = [
   'payment.expired',
   'payment.webhook_received',
   'payment.webhook_duplicate',
+  'payment.webhook_orphan',
   'payment.reconciled',
   'payment.refunded',
   'order.created',

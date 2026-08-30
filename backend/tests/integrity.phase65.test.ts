@@ -2,6 +2,8 @@ import request from 'supertest';
 import { describe, expect, it } from 'vitest';
 
 import { createApp } from '../src/app';
+import { grantDefaultStoreAdmin } from './helpers/admin';
+import { getDefaultStoreId, withDefaultTenant } from './helpers/tenant';
 import { User } from '../src/models/User';
 import { Product } from '../src/models/Product';
 import { Order } from '../src/models/Order';
@@ -37,7 +39,7 @@ async function register(): Promise<{ token: string; userId: string }> {
 
 async function adminToken(): Promise<string> {
   const { userId } = await register();
-  await User.findByIdAndUpdate(userId, { role: 'admin' });
+  await grantDefaultStoreAdmin(userId);
   const user = await User.findById(userId);
   const login = await request(app).post('/api/v1/auth/login').send({
     identifier: user!.email,
@@ -212,8 +214,10 @@ describe('Phase 6.5 — Commerce integrity', () => {
     const admin = await adminToken();
     const productId = await seedProduct(admin, 2);
     const { userId } = await register();
+    const storeId = await getDefaultStoreId();
 
     const hold = await InventoryHold.create({
+      storeId,
       user: userId,
       status: 'decremented',
       items: [{ productId, quantity: 1 }],
@@ -224,7 +228,7 @@ describe('Phase 6.5 — Commerce integrity', () => {
     const before = await Product.findById(productId);
     expect(before!.stock).toBe(1);
 
-    const result = await recoverOrphanedInventoryHolds(10);
+    const result = await withDefaultTenant(() => recoverOrphanedInventoryHolds(10));
     expect(result.recovered).toBeGreaterThanOrEqual(1);
 
     const after = await Product.findById(productId);
@@ -254,25 +258,26 @@ describe('Phase 6.5 — Commerce integrity', () => {
 
     // Swap provider to Zarinpal stub for refund path only via payment doc provider field —
     // call applySuccessfulPaymentForReconcile after forcing provider.
-    const previous = await getPaymentProvider();
-    setPaymentProvider(
-      new ZarinpalPaymentProvider({
-        merchantId: '00000000-0000-0000-0000-000000000000',
-        sandbox: true,
-        http: {
-          postJson: async () => ({
-            status: 200,
-            data: { data: { code: 100, ref_id: 1 }, errors: [] },
-          }),
-        },
-      }),
-    );
+    const previous = await withDefaultTenant(() => getPaymentProvider());
+    await withDefaultTenant(() => {
+      setPaymentProvider(
+        new ZarinpalPaymentProvider({
+          merchantId: '00000000-0000-0000-0000-000000000000',
+          sandbox: true,
+          http: {
+            postJson: async () => ({
+              status: 200,
+              data: { data: { code: 100, ref_id: 1 }, errors: [] },
+            }),
+          },
+        }),
+      );
+    });
 
     try {
       const payment = await Payment.findById(paymentId);
-      const result = await paymentService.applySuccessfulPaymentForReconcile(
-        payment!,
-        'forced-tx',
+      const result = await withDefaultTenant(() =>
+        paymentService.applySuccessfulPaymentForReconcile(payment!, 'forced-tx'),
       );
       expect(result.outcome).toBe('needs_manual_refund');
 
@@ -284,7 +289,7 @@ describe('Phase 6.5 — Commerce integrity', () => {
       expect(order!.financialIntegrityStatus).toBe('paid_needs_manual_refund');
       expect(order!.paymentStatus).not.toBe('paid');
     } finally {
-      setPaymentProvider(previous);
+      await withDefaultTenant(() => setPaymentProvider(previous));
     }
     void authority;
   });
@@ -375,15 +380,18 @@ describe('Phase 6.5 — Commerce integrity', () => {
         .post(`/api/v1/orders/${orderNumber}/cancel`)
         .set('Authorization', `Bearer ${token}`)
         .send({}),
-      paymentService.releaseExpiredReservations(10),
-      claimAndRestoreOrderInventory(order!._id, 'customer_cancel'),
-      claimAndRestoreOrderInventory(order!._id, 'payment_expired'),
+      withDefaultTenant(() => paymentService.releaseExpiredReservations(10)),
+      withDefaultTenant(() =>
+        claimAndRestoreOrderInventory(order!._id, 'customer_cancel'),
+      ),
+      withDefaultTenant(() =>
+        claimAndRestoreOrderInventory(order!._id, 'payment_expired'),
+      ),
     ]);
 
-    // Run expiry many times
     await Promise.all(
       Array.from({ length: 20 }, () =>
-        paymentService.releaseExpiredReservations(10),
+        withDefaultTenant(() => paymentService.releaseExpiredReservations(10)),
       ),
     );
 
@@ -659,7 +667,7 @@ describe('Phase 6.5 — Commerce integrity', () => {
         .post(`/api/v1/orders/${orderNumber}/cancel`)
         .set('Authorization', `Bearer ${token}`)
         .send({}),
-      paymentService.releaseExpiredReservations(10),
+      withDefaultTenant(() => paymentService.releaseExpiredReservations(10)),
     ]);
 
     const coupon = await Coupon.findOne({ code: 'RELEASE1' });
@@ -783,7 +791,7 @@ describe('Phase 6.5 — Commerce integrity', () => {
     await Product.findByIdAndUpdate(productId, { $inc: { stock: -1 } });
     await Promise.all(
       Array.from({ length: 20 }, () =>
-        paymentService.releaseExpiredReservations(10),
+        withDefaultTenant(() => paymentService.releaseExpiredReservations(10)),
       ),
     );
 

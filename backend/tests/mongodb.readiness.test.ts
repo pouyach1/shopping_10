@@ -121,16 +121,14 @@ describe('MongoDB production readiness', () => {
 
     const paymentIdx = await indexKeys(Payment as mongoose.Model<unknown>);
     expect(paymentIdx.some((k) => k.includes('"authority"'))).toBe(true);
-    expect(
-      paymentIdx.some((k) => k === JSON.stringify({ orderNumber: 1 })),
-    ).toBe(true);
+    expect(paymentIdx.some((k) => k.includes('"storeId"') && k.includes('"orderNumber"'))).toBe(true);
 
     const orderIdx = await indexKeys(Order as mongoose.Model<unknown>);
     expect(orderIdx.some((k) => k.includes('"orderNumber"'))).toBe(true);
 
     const refundIdx = await indexKeys(Refund as mongoose.Model<unknown>);
     expect(
-      refundIdx.some((k) => k === JSON.stringify({ idempotencyKey: 1 })),
+      refundIdx.some((k) => k.includes('"storeId"') && k.includes('"idempotencyKey"')),
     ).toBe(true);
 
     const couponIdx = await indexKeys(

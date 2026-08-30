@@ -11,6 +11,8 @@ import { env } from '../config/env';
 import { Order, type OrderDocument } from '../models/Order';
 import { Payment, type PaymentDocument } from '../models/Payment';
 import { PaymentProviderEvent } from '../models/PaymentProviderEvent';
+import { Store } from '../models/Store';
+import type { PaymentProviderId } from '../config/constants';
 import {
   AppError,
   badRequest,
@@ -23,10 +25,11 @@ import {
   assertPaymentTransition,
   isOpenPaymentStatus,
 } from './paymentTransitions';
-import { getPaymentProvider } from './payments';
+import { getPaymentProvider, createPaymentProvider } from './payments';
 import { claimAndRestoreOrderInventory } from './inventoryRelease.service';
 import { releaseCouponForOrder } from './coupon.service';
 import { storeObjectId, storeScope } from '../tenant/storeScope';
+import { runWithTenantContext } from '../tenant/TenantContext';
 import {
   parseOrThrow,
   createPaymentSchema,
@@ -712,7 +715,21 @@ export async function handlePaymentCallback(
   };
 }
 
-export async function handleProviderWebhook(
+function peekWebhookPayload(body: unknown): { authority: string; eventId: string } {
+  const data = (body ?? {}) as Record<string, unknown>;
+  const authority = String(data.authority ?? '').trim();
+  const eventId = String(data.eventId ?? '').trim();
+  if (!authority || !eventId) {
+    throw badRequest('بدنه وب‌هوک نامعتبر است.', undefined, 'WEBHOOK_INVALID');
+  }
+  return { authority, eventId };
+}
+
+/**
+ * Webhook processing after tenant context is bootstrapped from payment authority.
+ * Signature verification uses the store's provider credentials.
+ */
+async function processWebhookInStoreContext(
   providerId: string,
   headers: Record<string, string | string[] | undefined>,
   body: unknown,
@@ -760,7 +777,6 @@ export async function handleProviderWebhook(
       entityType: 'payment',
       metadata: { provider: provider.id, eventId: event.eventId },
     });
-    // Duplicate event id — idempotent no-op.
     return { ok: true, duplicate: true };
   }
 
@@ -799,7 +815,6 @@ export async function handleProviderWebhook(
       );
       return { ok: true };
     }
-    // Still verify with provider when possible (never trust webhook alone for money).
     const verified = await provider.verifyPayment({
       authority: payment.authority!,
       amount: payment.amount,
@@ -809,7 +824,6 @@ export async function handleProviderWebhook(
       metadata: payment.metadata,
     });
     if (!verified.success || verified.amount !== payment.amount) {
-      // Timeout / unreachable ≠ proven failure — leave open for reconcile.
       if (
         verified.failureCode === 'PROVIDER_TIMEOUT' ||
         verified.failureCode === 'PROVIDER_ERROR' ||
@@ -844,9 +858,6 @@ export async function handleProviderWebhook(
     event.status === 'cancelled' ||
     event.status === 'expired'
   ) {
-    // Failure webhooks are NOT authoritative money-moving events.
-    // A Luxora-HMAC signature only proves our endpoint secret — not provider truth.
-    // Re-verify with the provider before mutating an open payment to a terminal failure.
     if (!isOpenPaymentStatus(payment.status)) {
       return { ok: true };
     }
@@ -859,7 +870,6 @@ export async function handleProviderWebhook(
         metadata: payment.metadata,
       });
       if (verified.success && verified.amount === payment.amount) {
-        // Provider still says paid — ignore forged/stale failure webhook.
         await applySuccessfulPayment(
           payment,
           verified.providerTransactionId,
@@ -872,9 +882,8 @@ export async function handleProviderWebhook(
         return { ok: true };
       }
     } catch {
-      // Provider unreachable — do not mark failed from webhook alone.
       await PaymentProviderEvent.updateOne(
-        { provider: provider.id, eventId: event.eventId },
+        storeScope({ provider: provider.id, eventId: event.eventId }),
         { outcome: 'ignored', note: 'failure_webhook_verify_unreachable' },
       );
       return { ok: true };
@@ -887,7 +896,6 @@ export async function handleProviderWebhook(
           : event.status === 'cancelled'
             ? 'cancelled'
             : 'failed';
-      // Atomic transition — never stale-save over a concurrent paid claim.
       const moved = await Payment.findOneAndUpdate(
         storeScope({
           _id: payment._id,
@@ -908,6 +916,61 @@ export async function handleProviderWebhook(
   }
 
   return { ok: true };
+}
+
+/**
+ * Provider webhooks arrive without tenant headers.
+ * Resolve store from payment authority, then verify/process inside tenant context.
+ */
+export async function handleProviderWebhook(
+  providerId: string,
+  headers: Record<string, string | string[] | undefined>,
+  body: unknown,
+  rawBody: string,
+): Promise<{ ok: true; duplicate?: boolean }> {
+  const peek = peekWebhookPayload(body);
+
+  const paymentRef = await Payment.findOne({ authority: peek.authority })
+    .select('storeId provider')
+    .lean();
+  if (!paymentRef) {
+    const fallback = createPaymentProvider(env.PAYMENT_PROVIDER as PaymentProviderId);
+    if (fallback.verifyWebhookSignature) {
+      const valid = fallback.verifyWebhookSignature(headers, rawBody);
+      if (!valid) {
+        throw badRequest('امضای وب‌هوک نامعتبر است.', undefined, 'WEBHOOK_INVALID');
+      }
+    }
+    await recordAudit({
+      action: 'payment.webhook_orphan',
+      actorType: 'provider',
+      entityType: 'payment',
+      metadata: {
+        provider: providerId,
+        authority: peek.authority,
+        eventId: peek.eventId,
+      },
+    });
+    return { ok: true };
+  }
+
+  const store = await Store.findById(paymentRef.storeId)
+    .select('slug status')
+    .lean();
+  if (!store || store.status !== 'active') {
+    return { ok: true };
+  }
+
+  return runWithTenantContext(
+    {
+      storeId: String(paymentRef.storeId),
+      storeSlug: store.slug,
+      storeStatus: store.status,
+      resolution: 'explicit',
+    },
+    () =>
+      processWebhookInStoreContext(providerId, headers, body, rawBody),
+  );
 }
 
 export async function expireOrderReservation(

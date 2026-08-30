@@ -178,16 +178,16 @@ export async function redeemCouponForOrder(input: {
 
   // Ensure usage doc exists then conditionally increment.
   await CouponUserUsage.updateOne(
-    { coupon: couponOid, user: userOid },
-    { $setOnInsert: { count: 0 } },
+    storeScope({ coupon: couponOid, user: userOid }),
+    { $setOnInsert: { storeId: storeObjectId(), count: 0 } },
     { upsert: true },
   );
   const userUsage = await CouponUserUsage.findOneAndUpdate(
-    {
+    storeScope({
       coupon: couponOid,
       user: userOid,
       count: { $lt: perUserLimit },
-    },
+    }),
     { $inc: { count: 1 } },
     { returnDocument: 'after' },
   );
@@ -216,7 +216,7 @@ export async function redeemCouponForOrder(input: {
   if (!reserved) {
     // Compensate per-user increment.
     await CouponUserUsage.updateOne(
-      { coupon: couponOid, user: userOid, count: { $gt: 0 } },
+      storeScope({ coupon: couponOid, user: userOid, count: { $gt: 0 } }),
       { $inc: { count: -1 } },
     );
     throw conflict(
@@ -241,7 +241,7 @@ export async function redeemCouponForOrder(input: {
       $inc: { usageCount: -1 },
     });
     await CouponUserUsage.updateOne(
-      { coupon: couponOid, user: userOid, count: { $gt: 0 } },
+      storeScope({ coupon: couponOid, user: userOid, count: { $gt: 0 } }),
       { $inc: { count: -1 } },
     );
     throw error;
@@ -287,11 +287,11 @@ export async function releaseCouponForOrder(input: {
     { $inc: { usageCount: -1 } },
   );
   await CouponUserUsage.updateOne(
-    {
+    storeScope({
       coupon: claimed.coupon,
       user: claimed.user,
       count: { $gt: 0 },
-    },
+    }),
     { $inc: { count: -1 } },
   );
 

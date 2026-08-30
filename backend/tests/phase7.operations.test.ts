@@ -2,6 +2,8 @@ import request from 'supertest';
 import { describe, expect, it, beforeEach } from 'vitest';
 
 import { createApp } from '../src/app';
+import { grantDefaultStoreAdmin } from './helpers/admin';
+import { getDefaultStoreId, withDefaultTenant } from './helpers/tenant';
 import { User } from '../src/models/User';
 import { Order } from '../src/models/Order';
 import { Payment } from '../src/models/Payment';
@@ -42,7 +44,7 @@ async function register(): Promise<{ token: string; userId: string }> {
 
 async function adminToken(): Promise<string> {
   const { userId } = await register();
-  await User.findByIdAndUpdate(userId, { role: 'admin' });
+  await grantDefaultStoreAdmin(userId);
   const user = await User.findById(userId);
   const login = await request(app).post('/api/v1/auth/login').send({
     identifier: user!.email,
@@ -134,15 +136,17 @@ describe('Phase 7 — Production commerce operations', () => {
     setEmailProvider(email);
 
     const { userId } = await register();
-    await enqueueNotificationsForEvent('PaymentSuccessful', {
-      userId,
-      orderNumber: 'LUX-2026-000001',
-      paymentId: 'pay1',
-    });
-    await enqueueNotificationsForEvent('PaymentSuccessful', {
-      userId,
-      orderNumber: 'LUX-2026-000001',
-      paymentId: 'pay1',
+    await withDefaultTenant(async () => {
+      await enqueueNotificationsForEvent('PaymentSuccessful', {
+        userId,
+        orderNumber: 'LUX-2026-000001',
+        paymentId: 'pay1',
+      });
+      await enqueueNotificationsForEvent('PaymentSuccessful', {
+        userId,
+        orderNumber: 'LUX-2026-000001',
+        paymentId: 'pay1',
+      });
     });
 
     const pending = await NotificationDelivery.countDocuments({
@@ -150,16 +154,20 @@ describe('Phase 7 — Production commerce operations', () => {
     });
     expect(pending).toBeGreaterThanOrEqual(1);
 
-    const [a, b] = await Promise.all([
-      processPendingNotifications(50),
-      processPendingNotifications(50),
-    ]);
+    const [a, b] = await withDefaultTenant(() =>
+      Promise.all([
+        processPendingNotifications(50),
+        processPendingNotifications(50),
+      ]),
+    );
     expect(a.sent + b.sent).toBeGreaterThanOrEqual(1);
     expect(sms.sent.length + email.sent.length).toBeGreaterThanOrEqual(1);
 
     // Permanent failure path
     sms.permanentFailNext = true;
+    const storeId = await getDefaultStoreId();
     await NotificationDelivery.create({
+      storeId,
       deliveryKey: `PaymentSuccessful:sms:09120000000:unique-${Math.random()}`,
       event: 'PaymentSuccessful',
       channel: 'sms',
@@ -170,7 +178,7 @@ describe('Phase 7 — Production commerce operations', () => {
       attempts: 0,
       nextAttemptAt: new Date(),
     });
-    const failRun = await processPendingNotifications(10);
+    const failRun = await withDefaultTenant(() => processPendingNotifications(10));
     expect(failRun.failed).toBeGreaterThanOrEqual(1);
     const permanent = await NotificationDelivery.findOne({
       recipient: '09120000000',
@@ -182,6 +190,7 @@ describe('Phase 7 — Production commerce operations', () => {
     sms.timeoutNext = true;
     const key = `PaymentSuccessful:sms:09121111111:t-${Math.random()}`;
     await NotificationDelivery.create({
+      storeId,
       deliveryKey: key,
       event: 'PaymentSuccessful',
       channel: 'sms',
@@ -192,7 +201,7 @@ describe('Phase 7 — Production commerce operations', () => {
       attempts: 0,
       nextAttemptAt: new Date(),
     });
-    await processPendingNotifications(5);
+    await withDefaultTenant(() => processPendingNotifications(5));
     const retryable = await NotificationDelivery.findOne({ deliveryKey: key });
     expect(retryable?.status).toBe('retryable');
     expect(retryable?.failureCode).toBe('PROVIDER_TIMEOUT');
@@ -207,7 +216,7 @@ describe('Phase 7 — Production commerce operations', () => {
         },
       },
     );
-    await processPendingNotifications(5);
+    await withDefaultTenant(() => processPendingNotifications(5));
     const afterLease = await NotificationDelivery.findOne({ deliveryKey: key });
     expect(['sent', 'retryable', 'pending']).toContain(afterLease!.status);
   });
@@ -241,11 +250,13 @@ describe('Phase 7 — Production commerce operations', () => {
     sms.permanentFailNext = true;
     setSmsProvider(sms);
 
-    await enqueueNotificationsForEvent('OrderCreated', {
-      userId: customer.userId,
-      orderNumber: 'LUX-2026-000099',
+    await withDefaultTenant(async () => {
+      await enqueueNotificationsForEvent('OrderCreated', {
+        userId: customer.userId,
+        orderNumber: 'LUX-2026-000099',
+      });
+      await processPendingNotifications(20);
     });
-    await processPendingNotifications(20);
 
     const list = await request(app)
       .get('/api/v1/admin/notifications')
@@ -314,7 +325,9 @@ describe('Phase 7 — Production commerce operations', () => {
     const { token } = await register();
     const { orderNumber, paymentId } = await createPaidOrder(token, productId);
 
-    const report = await reconcilePayment(paymentId, { applySafeFix: false });
+    const report = await withDefaultTenant(() =>
+      reconcilePayment(paymentId, { applySafeFix: false }),
+    );
     expect(report.findings.length).toBeGreaterThan(0);
 
     const deniedReconcile = await request(app)

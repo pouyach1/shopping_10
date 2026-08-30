@@ -20,14 +20,26 @@ let reconcileRunning = false;
 const INSTANCE_ID = `luxora-${process.pid}-${randomUUID().slice(0, 8)}`;
 const LOCK_TTL_MS = 55_000;
 
+async function renewLock(name: string): Promise<void> {
+  const lockedUntil = new Date(Date.now() + LOCK_TTL_MS);
+  await SchedulerLock.updateOne(
+    { name, owner: INSTANCE_ID },
+    { $set: { lockedUntil } },
+  );
+}
+
 async function forEachActiveStore<T>(
   fn: () => Promise<T>,
+  lockName?: string,
 ): Promise<T[]> {
   const stores = await Store.find({ status: 'active' })
     .select('_id slug')
     .lean();
   const results: T[] = [];
   for (const store of stores) {
+    if (lockName) {
+      await renewLock(lockName);
+    }
     const result = await runWithTenantContext(
       {
         storeId: String(store._id),
@@ -152,11 +164,13 @@ export async function runReservationTick(): Promise<void> {
   reservationRunning = true;
   try {
     if (!(await tryAcquireLock('reservation'))) return;
-    const storeResults = await forEachActiveStore(async () =>
-      Promise.all([
-        releaseExpiredReservations(50),
-        recoverOrphanedInventoryHolds(50),
-      ]),
+    const storeResults = await forEachActiveStore(
+      async () =>
+        Promise.all([
+          releaseExpiredReservations(50),
+          recoverOrphanedInventoryHolds(50),
+        ]),
+      'reservation',
     );
     const result = storeResults.reduce(
       (acc, [reservations, holds]) => ({
@@ -188,8 +202,9 @@ export async function runNotificationTick(): Promise<void> {
   notificationRunning = true;
   try {
     if (!(await tryAcquireLock('notification'))) return;
-    const storeResults = await forEachActiveStore(() =>
-      processPendingNotifications(50),
+    const storeResults = await forEachActiveStore(
+      () => processPendingNotifications(50),
+      'notification',
     );
     const result = storeResults.reduce(
       (acc, row) => ({
@@ -217,8 +232,9 @@ export async function runReconcileTick(): Promise<void> {
   reconcileRunning = true;
   try {
     if (!(await tryAcquireLock('reconcile'))) return;
-    const storeResults = await forEachActiveStore(() =>
-      reconcileOpenPayments(20, { applySafeFix: true }),
+    const storeResults = await forEachActiveStore(
+      () => reconcileOpenPayments(20, { applySafeFix: true }),
+      'reconcile',
     );
     const result = storeResults.reduce(
       (acc, row) => ({
