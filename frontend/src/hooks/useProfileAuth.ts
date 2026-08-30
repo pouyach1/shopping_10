@@ -1,4 +1,4 @@
-import { useCallback, useSyncExternalStore } from 'react';
+import { useCallback, useEffect, useSyncExternalStore } from 'react';
 
 import {
   clearProfileSession,
@@ -9,6 +9,9 @@ import {
   type CustomerProfile,
   type ProfileSession,
 } from '../services/profileAuth';
+import { isAuthenticatedForApi, writeAccessToken } from '../services/api/http';
+import { refreshCommerceFromServer } from '../services/commerceSync';
+import { PROFILE_REMEMBER_KEY } from '../services/profileAuth';
 
 /**
  * Module-level customer session store — shared by Profile page and Header.
@@ -48,10 +51,22 @@ if (typeof window !== 'undefined') {
     session = readProfileSession();
     emit();
   });
+
+  // Restore access token + hydrate commerce when a prior API session exists.
+  if (session?.accessToken) {
+    const remember = localStorage.getItem(PROFILE_REMEMBER_KEY) === '1';
+    writeAccessToken(session.accessToken, remember);
+    void refreshCommerceFromServer();
+  }
 }
 
 export function useProfileAuth() {
   const current = useSyncExternalStore(subscribe, getSnapshot);
+
+  useEffect(() => {
+    if (!isAuthenticatedForApi()) return;
+    void refreshCommerceFromServer();
+  }, [current?.accessToken]);
 
   const login = useCallback(
     async (input: {

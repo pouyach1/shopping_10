@@ -122,19 +122,25 @@ Development may boot with a temporary JWT secret (logged as a warning). Prefer s
 
 ## Frontend note
 
-Storefront and Admin UIs still use mock catalog data. The Product API is shaped so a thin client adapter can map:
+Storefront catalog pages still use mock product lists. With `VITE_API_BASE_URL` set:
 
-- `displayPrice` → storefront `Product.price`
-- `originalPrice` → storefront `Product.originalPrice`
-- `imageSrc` / `gallery` / `href` → existing card/PDP fields
-- `productKind` + `category` → recommendations
+- Login uses `POST /api/v1/auth/login`
+- Authenticated cart/wishlist sync through `/api/v1/cart` and `/api/v1/wishlist`
+- Mock product ids resolve to backend products via slug when seeded (`silk-blend-blouse`, etc.)
+- Guest mode keeps LocalStorage; login merges then server owns state; logout clears private state
 
-Do **not** delete mock catalog files until a dedicated frontend wiring phase.
+See [docs/api/cart.md](../docs/api/cart.md) and [docs/api/wishlist.md](../docs/api/wishlist.md).
 
-Migration point: replace data loaders in Home / Shop / Search / Product / admin products with `GET /api/v1/products` (+ admin routes), keeping presentational components unchanged.
+## Phase 3 — Cart + Wishlist
 
-## Phase 3 (recommended)
+- One cart / one wishlist per user (unique user index)
+- Cart lines: product ref + quantity + size/color + price snapshot
+- Add increments same variant; stock checked without reservation
+- Unavailable products stay inspectable (`available: false`)
+- `POST /cart/merge` and `POST /wishlist/merge` for guest → auth migration
 
-1. Server-side Cart + Wishlist APIs consuming this catalog (availability/stock checks)
+## Phase 4 (recommended)
+
+1. Checkout + Orders with line-item snapshots and stock decrement
 2. Wire Admin Products UI to `/api/v1/admin/products`
-3. Orders later — snapshot line items from product fields at purchase time (do not rely on mutable Product alone for history)
+3. Optional guest cart cookie session if multi-device guests are required

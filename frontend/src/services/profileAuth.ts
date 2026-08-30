@@ -1,10 +1,13 @@
 /**
- * Customer profile authentication — mock/demo layer.
+ * Customer profile authentication.
  *
- * UI must depend on this module (or useProfileAuth), never on storage details.
- * Replace loginCustomer / session readers with a real API later without
- * rebuilding the Profile screens.
+ * When VITE_API_BASE_URL is set, login uses POST /api/v1/auth/login.
+ * Otherwise falls back to local demo credentials for UI-only development.
  */
+
+import { API_BASE_URL, isApiEnabled } from '../config/api';
+import { clearAccessToken, writeAccessToken } from './api/http';
+import { onAuthLoginSuccess, onAuthLogout } from './commerceSync';
 
 export const PROFILE_SESSION_KEY = 'luxora-customer-session';
 export const PROFILE_REMEMBER_KEY = 'luxora-customer-remember';
@@ -21,8 +24,10 @@ export interface CustomerProfile {
 
 export interface ProfileSession {
   customer: CustomerProfile;
-  /** ISO timestamp when the mock session was created. */
+  /** ISO timestamp when the session was created. */
   signedInAt: string;
+  /** Backend JWT when API auth is active. */
+  accessToken?: string;
 }
 
 export type ProfileAuthErrorCode =
@@ -100,6 +105,7 @@ export function readProfileSession(): ProfileSession | null {
         address: parsed.customer.address,
       },
       signedInAt: parsed.signedInAt ?? new Date().toISOString(),
+      accessToken: parsed.accessToken,
     };
   } catch {
     return null;
@@ -116,6 +122,9 @@ export function writeProfileSession(
     if (remember) {
       localStorage.setItem(PROFILE_REMEMBER_KEY, '1');
     }
+    if (session.accessToken) {
+      writeAccessToken(session.accessToken, remember);
+    }
   } catch {
     // Keep in-memory only via the hook store.
   }
@@ -123,6 +132,7 @@ export function writeProfileSession(
 
 export function clearProfileSession(): void {
   clearBothStorages();
+  clearAccessToken();
 }
 
 function delay(ms: number): Promise<void> {
@@ -131,9 +141,105 @@ function delay(ms: number): Promise<void> {
   });
 }
 
+async function loginViaApi(input: {
+  identifier: string;
+  password: string;
+  remember?: boolean;
+}): Promise<ProfileSession> {
+  let response: Response;
+  try {
+    response = await fetch(`${API_BASE_URL}/api/v1/auth/login`, {
+      method: 'POST',
+      headers: {
+        Accept: 'application/json',
+        'Content-Type': 'application/json',
+      },
+      credentials: 'include',
+      body: JSON.stringify({
+        identifier: input.identifier.trim(),
+        password: input.password,
+        remember: Boolean(input.remember),
+      }),
+    });
+  } catch {
+    throw new ProfileAuthError(
+      'service_unavailable',
+      PROFILE_AUTH_MESSAGES.service_unavailable,
+    );
+  }
+
+  const json = (await response.json().catch(() => null)) as {
+    message?: string;
+    data?: {
+      accessToken?: string;
+      user?: {
+        id: string;
+        firstName: string;
+        lastName: string;
+        phone?: string;
+        email?: string;
+      };
+    };
+  } | null;
+
+  if (!response.ok || !json?.data?.accessToken || !json.data.user) {
+    throw new ProfileAuthError(
+      'invalid_credentials',
+      json?.message || PROFILE_AUTH_MESSAGES.invalid_credentials,
+    );
+  }
+
+  const user = json.data.user;
+  const session: ProfileSession = {
+    customer: {
+      id: user.id,
+      name: `${user.firstName} ${user.lastName}`.trim(),
+      identifier: user.phone || user.email || input.identifier.trim(),
+      phone: user.phone,
+      email: user.email,
+    },
+    signedInAt: new Date().toISOString(),
+    accessToken: json.data.accessToken,
+  };
+
+  writeProfileSession(session, Boolean(input.remember));
+  await onAuthLoginSuccess();
+  return session;
+}
+
+async function loginViaDemo(input: {
+  identifier: string;
+  password: string;
+  remember?: boolean;
+}): Promise<ProfileSession> {
+  await delay(700);
+
+  const normalized = normalizeIdentifier(input.identifier);
+  const allowed = DEMO_CUSTOMER.identifierOptions.map((item) =>
+    normalizeIdentifier(item),
+  );
+
+  const matchesId = allowed.includes(normalized);
+  const matchesPassword = input.password === DEMO_CUSTOMER.password;
+
+  if (!matchesId || !matchesPassword) {
+    throw new ProfileAuthError(
+      'invalid_credentials',
+      PROFILE_AUTH_MESSAGES.invalid_credentials,
+    );
+  }
+
+  const session: ProfileSession = {
+    customer: { ...DEMO_CUSTOMER.profile },
+    signedInAt: new Date().toISOString(),
+  };
+
+  writeProfileSession(session, Boolean(input.remember));
+  return session;
+}
+
 /**
- * Mock sign-in. Accepts demo phone or email + password.
- * Artificial delay simulates network latency for loading UX.
+ * Sign-in. Uses backend auth when API base URL is configured.
  */
 export async function loginCustomer(input: {
   identifier: string;
@@ -157,34 +263,16 @@ export async function loginCustomer(input: {
     );
   }
 
-  await delay(700);
-
-  const normalized = normalizeIdentifier(identifier);
-  const allowed = DEMO_CUSTOMER.identifierOptions.map((item) =>
-    normalizeIdentifier(item),
-  );
-
-  const matchesId = allowed.includes(normalized);
-  const matchesPassword = password === DEMO_CUSTOMER.password;
-
-  if (!matchesId || !matchesPassword) {
-    throw new ProfileAuthError(
-      'invalid_credentials',
-      PROFILE_AUTH_MESSAGES.invalid_credentials,
-    );
+  if (isApiEnabled()) {
+    return loginViaApi(input);
   }
 
-  const session: ProfileSession = {
-    customer: { ...DEMO_CUSTOMER.profile },
-    signedInAt: new Date().toISOString(),
-  };
-
-  writeProfileSession(session, Boolean(input.remember));
-  return session;
+  return loginViaDemo(input);
 }
 
 export function logoutCustomer(): void {
   clearProfileSession();
+  onAuthLogout();
 }
 
 export function updateCustomerProfile(
@@ -210,6 +298,7 @@ export function updateCustomerProfile(
   const session: ProfileSession = {
     customer: nextCustomer,
     signedInAt: current.signedInAt,
+    accessToken: current.accessToken,
   };
   writeProfileSession(session, remembered);
   return session;

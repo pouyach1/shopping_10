@@ -277,10 +277,12 @@ function ProductView({ product }: { product: ProductDetails }) {
 
   const handleAddToCart = () => {
     const variantKey = `${product.id}__${selectedColor.name}__${selectedSize}`;
+    const slug = product.href.split('/').filter(Boolean).pop();
 
     const newItem: CartItem = {
       id: variantKey,
       productId: product.id,
+      slug,
       name: product.name,
       price: product.price,
       currency: product.currency,

@@ -51,6 +51,7 @@ export function CartPage() {
     itemCount,
     clearCart,
     addItem,
+    error: cartError,
   } = useCart();
   const navigate = useNavigate();
 
@@ -147,6 +148,11 @@ export function CartPage() {
 
   return (
     <div className={styles.page} dir="rtl">
+      {cartError ? (
+        <p role="alert" style={{ textAlign: 'center', color: '#8a3b2d', padding: '0.75rem 1rem' }}>
+          {cartError}
+        </p>
+      ) : null}
       {items.length === 0 ? (
         <EmptyCart />
       ) : (

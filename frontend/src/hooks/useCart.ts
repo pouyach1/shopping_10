@@ -1,16 +1,31 @@
 import { useMemo, useSyncExternalStore } from 'react';
+
 import { CART_STORAGE_KEY, type CartItem } from '../types/cart';
+import {
+  addCartItem,
+  cartLineToCartItem,
+  clearRemoteCart,
+  fetchCart,
+  removeCartItem,
+  updateCartItem,
+} from '../services/api/cartApi';
+import { resolveBackendProductId } from '../services/api/catalogApi';
+import {
+  ApiError,
+  isAuthenticatedForApi,
+  isMongoObjectId,
+} from '../services/api/http';
+import { registerCartBridge } from '../services/commerceSync';
 
 /**
  * Single source of truth for the shopping cart.
  *
- * State lives in a module-level store that is persisted to localStorage and
- * exposed to React via useSyncExternalStore, so every component that calls
- * useCart() reads and mutates the same cart. No external state library and no
- * provider wrapper are required.
+ * Guest → LocalStorage.
+ * Authenticated + API → backend cart (optimistic local mirror + rollback).
  */
 
 let items: CartItem[] = loadInitial();
+let lastError: string | null = null;
 const listeners = new Set<() => void>();
 
 function validQuantity(quantity: unknown): number {
@@ -26,12 +41,14 @@ function normalize(raw: unknown): CartItem | null {
   return {
     id: item.id,
     productId: typeof item.productId === 'string' ? item.productId : item.id,
+    slug: typeof item.slug === 'string' ? item.slug : undefined,
     name: typeof item.name === 'string' ? item.name : '',
     price: typeof item.price === 'number' ? item.price : 0,
     currency: typeof item.currency === 'string' ? item.currency : '',
     size: typeof item.size === 'string' ? item.size : '',
     color: typeof item.color === 'string' ? item.color : undefined,
-    colorValue: typeof item.colorValue === 'string' ? item.colorValue : undefined,
+    colorValue:
+      typeof item.colorValue === 'string' ? item.colorValue : undefined,
     imageSrc: typeof item.imageSrc === 'string' ? item.imageSrc : '',
     imageAlt: typeof item.imageAlt === 'string' ? item.imageAlt : '',
     quantity: validQuantity(item.quantity),
@@ -52,7 +69,8 @@ function loadInitial(): CartItem[] {
   }
 }
 
-function persist(): void {
+function persistGuest(): void {
+  if (isAuthenticatedForApi()) return;
   try {
     localStorage.setItem(CART_STORAGE_KEY, JSON.stringify({ items }));
   } catch {
@@ -60,10 +78,19 @@ function persist(): void {
   }
 }
 
-function setItems(next: CartItem[]): void {
-  items = next;
-  persist();
+function emit(): void {
   listeners.forEach((listener) => listener());
+}
+
+function setItems(next: CartItem[], options?: { persist?: boolean }): void {
+  items = next;
+  if (options?.persist !== false) persistGuest();
+  emit();
+}
+
+function setError(message: string | null): void {
+  lastError = message;
+  emit();
 }
 
 function subscribe(listener: () => void): () => void {
@@ -77,46 +104,182 @@ function getSnapshot(): CartItem[] {
   return items;
 }
 
+function getErrorSnapshot(): string | null {
+  return lastError;
+}
+
 if (typeof window !== 'undefined') {
-  // Keep other tabs in sync.
   window.addEventListener('storage', (event) => {
-    if (event.key === CART_STORAGE_KEY) {
+    if (event.key === CART_STORAGE_KEY && !isAuthenticatedForApi()) {
       items = loadInitial();
-      listeners.forEach((listener) => listener());
+      emit();
     }
   });
 }
 
+function applyServerCart(serverItems: CartItem[]): void {
+  setItems(serverItems, { persist: false });
+}
+
+registerCartBridge({
+  hydrate: (next) => applyServerCart(next),
+  readLocal: () => items.slice(),
+});
+
+async function resolveProductId(item: CartItem): Promise<string | null> {
+  if (isMongoObjectId(item.productId)) return item.productId;
+  return resolveBackendProductId({
+    id: item.productId,
+    href: item.slug ? `/product/${item.slug}` : undefined,
+  });
+}
+
+function mergeLocalAdd(list: CartItem[], item: CartItem): CartItem[] {
+  const quantity = validQuantity(item.quantity);
+  const index = list.findIndex((existing) => existing.id === item.id);
+  if (index >= 0) {
+    const next = list.slice();
+    const current = next[index]!;
+    next[index] = { ...current, quantity: current.quantity + quantity };
+    return next;
+  }
+  return [...list, { ...item, quantity }];
+}
+
 export function addItem(item: CartItem): void {
   const quantity = validQuantity(item.quantity);
-  const index = items.findIndex((existing) => existing.id === item.id);
+  const prepared = { ...item, quantity };
+  const previous = items.slice();
+  setItems(mergeLocalAdd(items, prepared));
+  setError(null);
 
-  if (index >= 0) {
-    const next = items.slice();
-    const current = next[index];
-    next[index] = { ...current, quantity: current.quantity + quantity };
-    setItems(next);
-    return;
-  }
+  if (!isAuthenticatedForApi()) return;
 
-  setItems([...items, { ...item, quantity }]);
+  void (async () => {
+    try {
+      const productId = await resolveProductId(prepared);
+      if (!productId) {
+        setItems(previous, { persist: false });
+        setError('این محصول هنوز به کاتالوگ سرور متصل نشده است.');
+        return;
+      }
+
+      const cart = await addCartItem({
+        productId,
+        quantity,
+        size: prepared.size,
+        color: prepared.color,
+        colorValue: prepared.colorValue,
+      });
+      applyServerCart(cart.items.map(cartLineToCartItem));
+    } catch (error) {
+      setItems(previous, { persist: false });
+      setError(
+        error instanceof ApiError
+          ? error.message
+          : 'افزودن به سبد انجام نشد.',
+      );
+    }
+  })();
 }
 
 export function removeItem(id: string): void {
+  const previous = items.slice();
+  const target = items.find((item) => item.id === id);
   setItems(items.filter((item) => item.id !== id));
+  setError(null);
+
+  if (!isAuthenticatedForApi() || !target) return;
+
+  void (async () => {
+    try {
+      const productId = isMongoObjectId(target.productId)
+        ? target.productId
+        : await resolveProductId(target);
+      if (!productId) return;
+      const cart = await removeCartItem(productId, {
+        size: target.size,
+        color: target.color,
+      });
+      applyServerCart(cart.items.map(cartLineToCartItem));
+    } catch (error) {
+      setItems(previous, { persist: false });
+      setError(
+        error instanceof ApiError ? error.message : 'حذف از سبد انجام نشد.',
+      );
+    }
+  })();
 }
 
 export function updateQuantity(id: string, quantity: number): void {
-  const next = validQuantity(quantity);
-  setItems(items.map((item) => (item.id === id ? { ...item, quantity: next } : item)));
+  const nextQty = validQuantity(quantity);
+  const previous = items.slice();
+  const target = items.find((item) => item.id === id);
+  setItems(
+    items.map((item) =>
+      item.id === id ? { ...item, quantity: nextQty } : item,
+    ),
+  );
+  setError(null);
+
+  if (!isAuthenticatedForApi() || !target) return;
+
+  void (async () => {
+    try {
+      const productId = isMongoObjectId(target.productId)
+        ? target.productId
+        : await resolveProductId(target);
+      if (!productId) {
+        setItems(previous, { persist: false });
+        setError('این محصول هنوز به کاتالوگ سرور متصل نشده است.');
+        return;
+      }
+      const cart = await updateCartItem(productId, {
+        quantity: nextQty,
+        size: target.size,
+        color: target.color,
+      });
+      applyServerCart(cart.items.map(cartLineToCartItem));
+    } catch (error) {
+      setItems(previous, { persist: false });
+      setError(
+        error instanceof ApiError
+          ? error.message
+          : 'به‌روزرسانی تعداد انجام نشد.',
+      );
+    }
+  })();
 }
 
 export function clearCart(): void {
+  const previous = items.slice();
   setItems([]);
+  setError(null);
+
+  if (!isAuthenticatedForApi()) return;
+
+  void (async () => {
+    try {
+      const cart = await clearRemoteCart();
+      applyServerCart(cart.items.map(cartLineToCartItem));
+    } catch (error) {
+      setItems(previous, { persist: false });
+      setError(
+        error instanceof ApiError ? error.message : 'خالی کردن سبد انجام نشد.',
+      );
+    }
+  })();
+}
+
+export async function syncCartFromServer(): Promise<void> {
+  if (!isAuthenticatedForApi()) return;
+  const cart = await fetchCart();
+  applyServerCart(cart.items.map(cartLineToCartItem));
 }
 
 export function useCart() {
   const cartItems = useSyncExternalStore(subscribe, getSnapshot);
+  const error = useSyncExternalStore(subscribe, getErrorSnapshot);
 
   const subtotal = useMemo(
     () => cartItems.reduce((sum, item) => sum + item.price * item.quantity, 0),
@@ -132,6 +295,7 @@ export function useCart() {
     items: cartItems,
     itemCount,
     subtotal,
+    error,
     addItem,
     removeItem,
     updateQuantity,

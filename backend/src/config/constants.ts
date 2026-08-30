@@ -56,3 +56,13 @@ export const PROTECTED_PRODUCT_FIELDS = [
   '__v',
 ] as const;
 
+/** Cart quantity limits — cart holds intent, not inventory reservation. */
+export const CART_MIN_QUANTITY = 1;
+export const CART_MAX_QUANTITY = 99;
+
+/**
+ * Free-shipping threshold (تومان). Shared commerce constant for future checkout.
+ * Cart summary may expose progress toward this; final shipping is Checkout's job.
+ */
+export const FREE_SHIPPING_THRESHOLD = 5_000_000;
+

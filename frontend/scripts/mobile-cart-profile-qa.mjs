@@ -146,7 +146,7 @@ await noHorizontalOverflow(page, 'profile login @390');
 // Demo login
 await page.locator('#profile-identifier, input[name="identifier"], input[type="tel"], input[autocomplete="username"]').first().fill(DEMO_PHONE);
 await page.locator('input[type="password"]').first().fill(DEMO_PASSWORD);
-await page.getByRole('button', { name: /ورود/ }).click();
+await page.getByRole('button', { name: 'ورود', exact: true }).click();
 await page.getByText('حساب کاربری').first().waitFor({ timeout: 8000 });
 await page.getByRole('navigation', { name: /بخش‌های حساب/ }).waitFor();
 await noHorizontalOverflow(page, 'profile account @390');
@@ -155,13 +155,13 @@ await noHorizontalOverflow(page, 'profile account @390');
 await page.getByRole('link', { name: /علاقه‌مندی/ }).first().click();
 await page.waitForURL('**/wishlist');
 await page.goto(BASE + '/profile', { waitUntil: 'domcontentloaded' });
-await page.getByText('حساب کاربری').first().waitFor();
+await page.getByRole('navigation', { name: /بخش‌های حساب/ }).waitFor();
 await page.getByRole('link', { name: /سبد خرید/ }).first().click();
 await page.waitForURL('**/cart');
 
 // Logout
 await page.goto(BASE + '/profile', { waitUntil: 'domcontentloaded' });
-await page.getByText('حساب کاربری').first().waitFor();
+await page.getByRole('navigation', { name: /بخش‌های حساب/ }).waitFor();
 await page.getByRole('button', { name: /خروج از حساب|^خروج$/ }).click();
 await page.getByRole('heading', { name: /ورود به حساب/ }).waitFor();
 console.log('PASS profile login / nav / logout');
