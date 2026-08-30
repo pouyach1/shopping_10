@@ -1,7 +1,9 @@
 import { z } from 'zod';
 
 import { normalizeIranianPhone } from '../utils/phone';
-import { validationError } from '../utils/AppError';
+import { parseOrThrow, zodErrorToFieldMap } from './shared';
+
+export { parseOrThrow, zodErrorToFieldMap };
 
 const nameSchema = z
   .string()
@@ -109,25 +111,3 @@ export type LoginInput = z.infer<typeof loginSchema>;
 export type UpdateProfileInput = z.infer<typeof updateProfileSchema>;
 export type ChangePasswordInput = z.infer<typeof changePasswordSchema>;
 export type AddressInput = z.infer<typeof addressSchema>;
-
-export function zodErrorToFieldMap(
-  error: z.ZodError,
-): Record<string, string> {
-  const fields: Record<string, string> = {};
-  for (const issue of error.issues) {
-    const key = issue.path.join('.') || '_form';
-    if (!fields[key]) fields[key] = issue.message;
-  }
-  return fields;
-}
-
-export function parseOrThrow<T>(schema: z.ZodType<T>, data: unknown): T {
-  const result = schema.safeParse(data);
-  if (!result.success) {
-    throw validationError(
-      'اطلاعات وارد شده صحیح نیست.',
-      zodErrorToFieldMap(result.error),
-    );
-  }
-  return result.data;
-}
