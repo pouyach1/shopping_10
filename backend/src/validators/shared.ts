@@ -1,6 +1,14 @@
-import { ZodError, type ZodType } from 'zod';
+import { Types } from 'mongoose';
+import { z, ZodError, type ZodType } from 'zod';
 
 import { validationError } from '../utils/AppError';
+
+export const objectIdSchema = z
+  .string()
+  .trim()
+  .refine((value) => Types.ObjectId.isValid(value), {
+    message: 'شناسه نامعتبر است.',
+  });
 
 export function zodErrorToFieldMap(error: ZodError): Record<string, string> {
   const fields: Record<string, string> = {};

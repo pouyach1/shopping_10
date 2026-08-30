@@ -13,6 +13,8 @@ import {
   validationError,
 } from '../utils/AppError';
 import { logger } from '../utils/logger';
+import { requireStoreId } from '../tenant/TenantContext';
+import { storeObjectId, storeScope } from '../tenant/storeScope';
 import {
   parseOrThrow,
   cartAddItemSchema,
@@ -32,6 +34,7 @@ import {
   type CartDto,
   type CartLineDto,
 } from './commerce.mapper';
+import { getFreeShippingThreshold } from './storeConfig.service';
 
 function normalizeVariant(value?: string | null): string {
   return (value ?? '').trim();
@@ -52,10 +55,14 @@ function findLineIndex(
 }
 
 async function getOrCreateCart(userId: string): Promise<CartDocument> {
-  const existing = await Cart.findOne({ user: userId });
+  const existing = await Cart.findOne(storeScope({ user: userId }));
   if (existing) return existing;
   try {
-    return await Cart.create({ user: userId, items: [] });
+    return await Cart.create({
+      storeId: storeObjectId(),
+      user: userId,
+      items: [],
+    });
   } catch (error) {
     // Race: another request created the cart.
     if (
@@ -64,7 +71,7 @@ async function getOrCreateCart(userId: string): Promise<CartDocument> {
       'code' in error &&
       (error as { code?: number }).code === 11000
     ) {
-      const cart = await Cart.findOne({ user: userId });
+      const cart = await Cart.findOne(storeScope({ user: userId }));
       if (cart) return cart;
     }
     throw error;
@@ -76,9 +83,11 @@ async function loadProductsByIds(
 ): Promise<Map<string, ProductDocument>> {
   const unique = [...new Set(ids.filter(Boolean))];
   if (unique.length === 0) return new Map();
-  const docs = await Product.find({
-    _id: { $in: unique.map((id) => new Types.ObjectId(id)) },
-  }).populate('category', 'name slug');
+  const docs = await Product.find(
+    storeScope({
+      _id: { $in: unique.map((id) => new Types.ObjectId(id)) },
+    }),
+  ).populate('category', 'name slug');
   const map = new Map<string, ProductDocument>();
   for (const doc of docs) {
     map.set(String(doc._id), doc);
@@ -172,7 +181,8 @@ export async function getCartDto(userId: string): Promise<CartDto> {
   const items = cart.items.map((item) =>
     toLineDto(item, productMap.get(String(item.product))),
   );
-  return { items, summary: buildCartSummary(items) };
+  const freeShippingThreshold = await getFreeShippingThreshold();
+  return { items, summary: buildCartSummary(items, freeShippingThreshold) };
 }
 
 export async function addCartItem(
@@ -184,10 +194,9 @@ export async function addCartItem(
   const color = normalizeVariant(input.color);
   const quantity = input.quantity;
 
-  const product = await Product.findById(input.productId).populate(
-    'category',
-    'name slug',
-  );
+  const product = await Product.findOne(
+    storeScope({ _id: input.productId }),
+  ).populate('category', 'name slug');
   if (!product) throw notFound('محصول یافت نشد.');
   assertPurchasableProduct(product);
 
@@ -226,6 +235,7 @@ export async function addCartItem(
 
   await cart.save();
   logger.info('cart.item_added', {
+    storeId: requireStoreId(),
     userId,
     productId: input.productId,
     quantity,
@@ -255,7 +265,7 @@ export async function updateCartItem(
     });
   }
 
-  const product = await Product.findById(productId);
+  const product = await Product.findOne(storeScope({ _id: productId }));
   if (!product) throw notFound('محصول یافت نشد.');
 
   // Updates allowed for inspection even if inactive — but stock still enforced when active.
@@ -278,7 +288,12 @@ export async function updateCartItem(
   cart.items[index]!.updatedAt = new Date();
   await cart.save();
 
-  logger.info('cart.item_updated', { userId, productId, quantity: body.quantity });
+  logger.info('cart.item_updated', {
+    storeId: requireStoreId(),
+    userId,
+    productId,
+    quantity: body.quantity,
+  });
   return getCartDto(userId);
 }
 
@@ -307,7 +322,11 @@ export async function removeCartItem(
   }
 
   await cart.save();
-  logger.info('cart.item_removed', { userId, productId });
+  logger.info('cart.item_removed', {
+    storeId: requireStoreId(),
+    userId,
+    productId,
+  });
   return getCartDto(userId);
 }
 
@@ -315,7 +334,7 @@ export async function clearCart(userId: string): Promise<CartDto> {
   const cart = await getOrCreateCart(userId);
   cart.items = [] as typeof cart.items;
   await cart.save();
-  logger.info('cart.cleared', { userId });
+  logger.info('cart.cleared', { storeId: requireStoreId(), userId });
   return getCartDto(userId);
 }
 
@@ -333,7 +352,7 @@ export async function mergeCartItems(
 
   for (const line of input.items) {
     try {
-      const product = await Product.findById(line.productId);
+      const product = await Product.findOne(storeScope({ _id: line.productId }));
       if (!product || product.status !== 'active') {
         skipped.push({
           productId: line.productId,
@@ -389,7 +408,11 @@ export async function mergeCartItems(
     }
   }
 
-  logger.info('cart.merged', { userId, skipped: skipped.length });
+  logger.info('cart.merged', {
+    storeId: requireStoreId(),
+    userId,
+    skipped: skipped.length,
+  });
   const dto = await getCartDto(userId);
   return { ...dto, skipped };
 }

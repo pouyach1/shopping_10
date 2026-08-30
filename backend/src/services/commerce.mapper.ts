@@ -155,22 +155,25 @@ export function resolveLineAvailability(product: PublicProduct | null): {
   return { available: true, purchasable: true };
 }
 
-export function buildCartSummary(items: CartLineDto[]): CartSummaryDto {
+export function buildCartSummary(
+  items: CartLineDto[],
+  freeShippingThreshold = FREE_SHIPPING_THRESHOLD,
+): CartSummaryDto {
   const purchasable = items.filter((item) => item.purchasable);
   const subtotal = purchasable.reduce((sum, item) => sum + item.lineTotal, 0);
   const itemCount = purchasable.reduce((sum, item) => sum + item.quantity, 0);
   const currency = items[0]?.currency ?? 'تومان';
-  const qualifies = subtotal >= FREE_SHIPPING_THRESHOLD;
+  const qualifies = subtotal >= freeShippingThreshold;
   const amountToFreeShipping = qualifies
     ? 0
-    : Math.max(0, FREE_SHIPPING_THRESHOLD - subtotal);
+    : Math.max(0, freeShippingThreshold - subtotal);
 
   return {
     subtotal,
     itemCount,
     lineCount: items.length,
     currency,
-    freeShippingThreshold: FREE_SHIPPING_THRESHOLD,
+    freeShippingThreshold,
     qualifiesForFreeShipping: qualifies,
     amountToFreeShipping,
     hasUnavailableItems: items.some((item) => !item.available),
