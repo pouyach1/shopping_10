@@ -175,6 +175,19 @@ export const REFUND_STATUSES = [
 ] as const;
 export type RefundStatus = (typeof REFUND_STATUSES)[number];
 
+/**
+ * Explicit financial integrity when money and order lifecycle diverge.
+ * Never imply money was refunded unless the provider confirmed it.
+ */
+export const FINANCIAL_INTEGRITY_STATUSES = [
+  'ok',
+  'paid_needs_manual_refund',
+  'refund_pending',
+  'refund_failed',
+] as const;
+export type FinancialIntegrityStatus =
+  (typeof FINANCIAL_INTEGRITY_STATUSES)[number];
+
 export const COMMERCE_EVENTS = [
   'OrderCreated',
   'PaymentPending',
@@ -205,10 +218,12 @@ export const AUDIT_ACTIONS = [
   'inventory.decremented',
   'inventory.restocked',
   'inventory.reservation_released',
+  'inventory.hold_recovered',
   'coupon.applied',
   'refund.created',
   'refund.completed',
   'refund.failed',
+  'payment.needs_manual_refund',
   'notification.sent',
   'notification.failed',
 ] as const;
@@ -219,6 +234,7 @@ export type NotificationChannel = (typeof NOTIFICATION_CHANNELS)[number];
 
 export const NOTIFICATION_DELIVERY_STATUSES = [
   'pending',
+  'processing',
   'sent',
   'failed',
   'retryable',

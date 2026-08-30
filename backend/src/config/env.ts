@@ -18,6 +18,7 @@ const envSchema = z
     JWT_SECRET: z.string().min(1).optional(),
     JWT_EXPIRES_IN: z.string().min(1).default('7d'),
     AUTH_COOKIE_NAME: z.string().min(1).default('luxora_token'),
+    AUTH_COOKIE_SAMESITE: z.enum(['lax', 'strict', 'none']).default('lax'),
     CLIENT_ORIGINS: z
       .string()
       .default('http://localhost:5173,http://127.0.0.1:5173'),
@@ -163,6 +164,7 @@ export const env = {
   JWT_SECRET: jwtSecret,
   JWT_EXPIRES_IN: raw.JWT_EXPIRES_IN,
   AUTH_COOKIE_NAME: raw.AUTH_COOKIE_NAME,
+  AUTH_COOKIE_SAMESITE: raw.AUTH_COOKIE_SAMESITE,
   CLIENT_ORIGINS: raw.CLIENT_ORIGINS.split(',')
     .map((origin) => origin.trim())
     .filter(Boolean),

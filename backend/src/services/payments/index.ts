@@ -18,6 +18,11 @@ export function resetPaymentProviderCache(): void {
   cached = null;
 }
 
+/** Test helper — inject a provider instance (e.g. Zarinpal with stub HTTP). */
+export function setPaymentProvider(provider: PaymentProvider): void {
+  cached = provider;
+}
+
 export function createPaymentProvider(
   providerId: PaymentProviderId,
   overrides?: { http?: HttpJsonClient },

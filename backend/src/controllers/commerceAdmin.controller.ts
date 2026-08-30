@@ -2,6 +2,7 @@ import type { Request, Response } from 'express';
 
 import * as couponService from '../services/coupon.service';
 import * as refundService from '../services/refund.service';
+import { getPaymentTimeline } from '../services/paymentTimeline.service';
 import { asyncHandler } from '../utils/asyncHandler';
 import { orderNumberParamSchema } from '../validators/order.validators';
 import { parseOrThrow } from '../validators/shared';
@@ -50,5 +51,13 @@ export const adminListRefunds = asyncHandler(
         : undefined;
     const refunds = await refundService.listAdminRefunds(orderNumber);
     res.status(200).json({ status: 'success', data: { refunds } });
+  },
+);
+
+export const adminPaymentTimeline = asyncHandler(
+  async (req: Request, res: Response) => {
+    const { orderNumber } = parseOrThrow(orderNumberParamSchema, req.params);
+    const timeline = await getPaymentTimeline(orderNumber);
+    res.status(200).json({ status: 'success', data: { timeline } });
   },
 );

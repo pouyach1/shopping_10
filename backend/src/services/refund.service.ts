@@ -54,6 +54,37 @@ function toPublicRefund(doc: {
   };
 }
 
+/**
+ * Atomically reserve refund capacity on the payment.
+ * Invariant: refundedAmount + amount <= amount (captured).
+ */
+async function reserveRefundAmount(
+  paymentId: Types.ObjectId,
+  amount: number,
+) {
+  return Payment.findOneAndUpdate(
+    {
+      _id: paymentId,
+      status: { $in: ['paid', 'partially_refunded'] },
+      $expr: {
+        $lte: [{ $add: ['$refundedAmount', amount] }, '$amount'],
+      },
+    },
+    { $inc: { refundedAmount: amount } },
+    { returnDocument: 'after' },
+  );
+}
+
+async function releaseRefundAmount(
+  paymentId: Types.ObjectId,
+  amount: number,
+): Promise<void> {
+  await Payment.findOneAndUpdate(
+    { _id: paymentId },
+    { $inc: { refundedAmount: -amount } },
+  );
+}
+
 export async function createAdminRefund(
   orderNumberRaw: string,
   adminId: string,
@@ -83,16 +114,10 @@ export async function createAdminRefund(
     throw conflict('پرداخت قابل بازپرداخت یافت نشد.', undefined, 'PAYMENT_NOT_FOUND');
   }
 
-  const amount = input.amount ?? payment.amount - payment.refundedAmount;
-  if (amount <= 0) {
+  const remaining = payment.amount - payment.refundedAmount;
+  const amount = input.amount ?? remaining;
+  if (!Number.isInteger(amount) || amount <= 0) {
     throw validationError('مبلغ بازپرداخت نامعتبر است.');
-  }
-  if (payment.refundedAmount + amount > payment.amount) {
-    throw conflict(
-      'مبلغ بازپرداخت از مبلغ پرداخت‌شده بیشتر است.',
-      undefined,
-      'REFUND_EXCEEDS_PAID_AMOUNT',
-    );
   }
 
   let refund;
@@ -115,6 +140,24 @@ export async function createAdminRefund(
     if (raced) return toPublicRefund(raced);
     throw conflict('درخواست بازپرداخت تکراری است.', undefined, 'DUPLICATE_REQUEST');
   }
+
+  // Atomic capacity reservation — concurrent refunds cannot over-refund.
+  const reserved = await reserveRefundAmount(payment._id, amount);
+  if (!reserved) {
+    refund.status = 'failed';
+    refund.failureCode = 'REFUND_EXCEEDS_PAID_AMOUNT';
+    refund.failureReason = 'مبلغ بازپرداخت از مبلغ پرداخت‌شده بیشتر است.';
+    await refund.save();
+    throw conflict(
+      'مبلغ بازپرداخت از مبلغ پرداخت‌شده بیشتر است.',
+      undefined,
+      'REFUND_EXCEEDS_PAID_AMOUNT',
+    );
+  }
+
+  await Order.findByIdAndUpdate(order._id, {
+    $set: { financialIntegrityStatus: 'refund_pending' },
+  });
 
   await recordAudit({
     action: 'refund.created',
@@ -146,10 +189,14 @@ export async function createAdminRefund(
   });
 
   if (!result.success) {
+    await releaseRefundAmount(payment._id, amount);
     refund.status = 'failed';
     refund.failureCode = result.failureCode;
     refund.failureReason = result.failureMessage;
     await refund.save();
+    await Order.findByIdAndUpdate(order._id, {
+      $set: { financialIntegrityStatus: 'refund_failed' },
+    });
     await recordAudit({
       action: 'refund.failed',
       actorType: 'admin',
@@ -175,20 +222,35 @@ export async function createAdminRefund(
   refund.completedAt = new Date();
   await refund.save();
 
-  payment.refundedAmount += amount;
-  if (payment.refundedAmount >= payment.amount) {
-    assertPaymentTransition(payment.status, 'refunded');
-    payment.status = 'refunded';
-    payment.refundedAt = new Date();
-    order.paymentStatus = 'refunded';
-  } else {
-    assertPaymentTransition(payment.status, 'partially_refunded');
-    payment.status = 'partially_refunded';
-    order.paymentStatus = 'partially_refunded';
+  const nextStatus =
+    reserved.refundedAmount >= reserved.amount
+      ? 'refunded'
+      : 'partially_refunded';
+
+  if (nextStatus === 'refunded') {
+    assertPaymentTransition(
+      reserved.status === 'partially_refunded' ? 'partially_refunded' : 'paid',
+      'refunded',
+    );
+  } else if (reserved.status === 'paid') {
+    assertPaymentTransition('paid', 'partially_refunded');
   }
-  await payment.save();
-  order.refundedTotal = (order.refundedTotal ?? 0) + amount;
-  await order.save();
+
+  await Payment.findByIdAndUpdate(payment._id, {
+    $set: {
+      status: nextStatus,
+      ...(nextStatus === 'refunded' ? { refundedAt: new Date() } : {}),
+      needsManualRefund: false,
+    },
+  });
+
+  await Order.findByIdAndUpdate(order._id, {
+    $inc: { refundedTotal: amount },
+    $set: {
+      paymentStatus: nextStatus,
+      financialIntegrityStatus: 'ok',
+    },
+  });
 
   await recordAudit({
     action: 'refund.completed',

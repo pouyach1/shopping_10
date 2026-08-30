@@ -124,6 +124,7 @@ async function createOrderAndPayment(token: string, productId: string) {
   const pay = await request(app)
     .post('/api/v1/payments')
     .set('Authorization', `Bearer ${token}`)
+      .set('Idempotency-Key', 'pay-auto-601932799')
     .send({ orderNumber: order.body.data.order.orderNumber });
   expect(pay.status).toBe(201);
   return {

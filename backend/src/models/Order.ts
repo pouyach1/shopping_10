@@ -2,10 +2,12 @@ import { Schema, model, type HydratedDocument, type Types } from 'mongoose';
 
 import {
   DEFAULT_CURRENCY,
+  FINANCIAL_INTEGRITY_STATUSES,
   FULFILLMENT_STATUSES,
   ORDER_STATUSES,
   PAYMENT_METHODS,
   PAYMENT_STATUSES,
+  type FinancialIntegrityStatus,
   type FulfillmentStatus,
   type OrderStatus,
   type PaymentMethodId,
@@ -83,8 +85,19 @@ export interface OrderAttrs {
   history: OrderHistoryEntry[];
   idempotencyKey?: string;
   inventoryDecremented: boolean;
-  /** Soft reservation expiry for unpaid checkout stock. */
+  /**
+   * Set atomically when inventory restoration is claimed.
+   * Prevents double-restock across cancel × expiry races.
+   */
+  inventoryReleaseClaimedAt?: Date | null;
+  inventoryHoldId?: Types.ObjectId;
+  /** Soft reservation expiry for unpaid / COD checkout stock. */
   inventoryReservedUntil?: Date;
+  /**
+   * When money and order state diverge (e.g. late pay after cancel).
+   * Never implies funds were returned unless provider confirmed.
+   */
+  financialIntegrityStatus: FinancialIntegrityStatus;
   cancelledAt?: Date;
   paidAt?: Date;
   createdAt: Date;
@@ -202,7 +215,20 @@ const orderSchema = new Schema<OrderAttrs>(
     history: { type: [historySchema], default: [] },
     idempotencyKey: { type: String, index: true, sparse: true },
     inventoryDecremented: { type: Boolean, default: false },
+    inventoryReleaseClaimedAt: { type: Date, default: null, index: true },
+    inventoryHoldId: {
+      type: Schema.Types.ObjectId,
+      ref: 'InventoryHold',
+      index: true,
+      sparse: true,
+    },
     inventoryReservedUntil: { type: Date, index: true },
+    financialIntegrityStatus: {
+      type: String,
+      enum: FINANCIAL_INTEGRITY_STATUSES,
+      default: 'ok',
+      index: true,
+    },
     cancelledAt: { type: Date },
     paidAt: { type: Date },
   },

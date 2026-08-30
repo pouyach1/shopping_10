@@ -12,27 +12,40 @@ export function notFound(_req: Request, _res: Response, next: NextFunction): voi
 
 export function errorHandler(
   err: unknown,
-  _req: Request,
+  req: Request,
   res: Response,
   _next: NextFunction,
 ): void {
+  const requestId = req.requestId;
+
   if (err instanceof AppError) {
     const appError = err;
     if (appError.statusCode >= 500) {
-      logger.error(appError.message);
+      logger.error(appError.message, {
+        requestId,
+        code: appError.code,
+        details: appError.details,
+      });
     }
+
+    // Never leak provider/Mongo internals or stack-adjacent details in production.
+    const exposeDetails =
+      !env.isProd &&
+      appError.details !== undefined &&
+      appError.statusCode < 500;
 
     res.status(appError.statusCode).json({
       status: 'error',
       code: appError.code,
       message: appError.message,
+      ...(requestId ? { requestId } : {}),
       ...(appError.errors ? { errors: appError.errors } : {}),
-      ...(appError.details !== undefined ? { details: appError.details } : {}),
+      ...(exposeDetails ? { details: appError.details } : {}),
     });
     return;
   }
 
-  // Mongoose duplicate key
+  // Mongoose duplicate key — never echo the index key contents.
   if (
     typeof err === 'object' &&
     err !== null &&
@@ -43,12 +56,16 @@ export function errorHandler(
       status: 'error',
       code: 'CONFLICT',
       message: 'رکورد تکراری است.',
+      ...(requestId ? { requestId } : {}),
     });
     return;
   }
 
   const message = err instanceof Error ? err.message : 'Internal Server Error';
-  logger.error('Unhandled error', env.isProd ? undefined : message);
+  logger.error('Unhandled error', {
+    requestId,
+    message: env.isProd ? undefined : message,
+  });
 
   res.status(500).json({
     status: 'error',
@@ -56,6 +73,7 @@ export function errorHandler(
     message: env.isProd
       ? 'خطای داخلی سرور رخ داد.'
       : message || 'Internal Server Error',
+    ...(requestId ? { requestId } : {}),
   });
 }
 

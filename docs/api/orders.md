@@ -18,26 +18,31 @@ Returns server-calculated lines, issues (`PRICE_CHANGED`, `INSUFFICIENT_STOCK`, 
 
 `POST /orders` (auth)
 
-Optional header: `Idempotency-Key: <8–128 chars>`
+**Required** header: `Idempotency-Key: <8–128 chars>`
+
+Same key + same body → original order. Same key + different body → `409 IDEMPOTENCY_CONFLICT`.
 
 Body: shipping method, payment method (`online` | `cash_on_delivery`), shipping address snapshot, optional `couponCode`, optional `expectedSubtotal` / `expectedTotal` for change acknowledgment.
 
-Server: loads cart → validates → calculates (+ coupon) → snapshots items/address → atomic stock decrement → creates order → redeems coupon atomically → clears cart.
+Server: loads cart → validates → calculates (+ coupon) → durable `InventoryHold` → atomic stock decrement → creates order → commits hold → redeems coupon atomically → clears cart.
+
+Crash between decrement and order create leaves a recoverable hold (scheduler / `recoverOrphanedInventoryHolds`).
 
 Order numbers: `LUX-YYYY-NNNNNN`.
 
-Online orders set `inventoryReservedUntil` (payment TTL). See [payments.md](./payments.md).
+**Online and COD** orders set `inventoryReservedUntil` (payment TTL). Stock is never held forever without expiry processing.
 
 ## Customer orders
 
 - `GET /orders`
 - `GET /orders/:orderNumber`
-- `POST /orders/:orderNumber/cancel`
+- `POST /orders/:orderNumber/cancel` — only `pending` / `awaiting_payment` (Option A: paid orders require admin refund workflow)
 
 ## Admin
 
 - `GET /admin/orders`
 - `GET /admin/orders/:orderNumber`
+- `GET /admin/orders/:orderNumber/timeline` — joined Order/Payment/Refund/Audit/Notification diagnostic
 - `PATCH /admin/orders/:orderNumber/status` `{ "status", "reason?" }`
 - `POST /admin/orders/:orderNumber/refund` — see payments.md
 
@@ -45,7 +50,9 @@ Transitions are centralized in `orderTransitions.ts`.
 
 ## Inventory
 
-`findOneAndUpdate({ stock: { $gte: qty }, status: 'active' }, { $inc: { stock: -qty } })` — concurrent-safe without requiring replica-set transactions. Compensation restores stock if order persistence fails. Cancellation / reservation expiry restocks when `inventoryDecremented`.
+`findOneAndUpdate({ stock: { $gte: qty }, status: 'active' }, { $inc: { stock: -qty } })` — concurrent-safe without requiring replica-set transactions.
+
+Inventory restoration uses a one-time claim (`inventoryReleaseClaimedAt`) shared by customer cancel, admin cancel, and reservation expiry — double restock is impossible.
 
 ## Money
 

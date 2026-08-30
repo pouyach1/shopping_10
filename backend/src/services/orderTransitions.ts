@@ -16,11 +16,14 @@ const ALLOWED: Record<OrderStatus, readonly OrderStatus[]> = {
   failed: [],
 };
 
-/** Customer-initiated cancel allowed only from these states. */
+/**
+ * Customer-initiated cancel — Option A.
+ * Paid orders must go through an explicit refund workflow (admin),
+ * not silent cancel+restock while money remains captured.
+ */
 export const CUSTOMER_CANCELLABLE: readonly OrderStatus[] = [
   'pending',
   'awaiting_payment',
-  'paid',
 ];
 
 export function canTransition(
