@@ -15,6 +15,8 @@ import {
   assertTransition,
   nextFulfillmentForOrderStatus,
 } from './orderTransitions';
+import { recordAudit } from './audit.service';
+import { emitCommerceEvent } from './notifications';
 
 export interface OrderListResult {
   items: PublicOrder[];
@@ -108,9 +110,29 @@ export async function cancelCustomerOrder(
       })),
     );
     order.inventoryDecremented = false;
+    await recordAudit({
+      action: 'inventory.restocked',
+      actorType: 'customer',
+      actorId: userId,
+      entityType: 'order',
+      entityId: String(order._id),
+      orderNumber: order.orderNumber,
+    });
   }
 
   await order.save();
+  await recordAudit({
+    action: 'order.cancelled',
+    actorType: 'customer',
+    actorId: userId,
+    entityType: 'order',
+    entityId: String(order._id),
+    orderNumber: order.orderNumber,
+  });
+  emitCommerceEvent('OrderCancelled', {
+    orderNumber: order.orderNumber,
+    userId,
+  });
   logger.info('order.cancelled', {
     orderNumber: order.orderNumber,
     userId,

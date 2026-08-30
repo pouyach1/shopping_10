@@ -138,3 +138,74 @@ export const ORDERS_MAX_LIMIT = 50;
 /** Idempotency keys expire after 24h. */
 export const IDEMPOTENCY_TTL_MS = 24 * 60 * 60 * 1000;
 
+/** Payment attempt lifecycle (provider-level), distinct from order.paymentStatus. */
+export const PAYMENT_ATTEMPT_STATUSES = [
+  'created',
+  'pending',
+  'redirected',
+  'processing',
+  'paid',
+  'failed',
+  'cancelled',
+  'expired',
+  'refunded',
+  'partially_refunded',
+] as const;
+export type PaymentAttemptStatus = (typeof PAYMENT_ATTEMPT_STATUSES)[number];
+
+export const PAYMENT_PROVIDER_IDS = [
+  'mock',
+  'zarinpal',
+  'idpay',
+  'stripe',
+] as const;
+export type PaymentProviderId = (typeof PAYMENT_PROVIDER_IDS)[number];
+
+/** How long unpaid order stock stays reserved after checkout (ms). */
+export const PAYMENT_RESERVATION_TTL_MS = 30 * 60 * 1000;
+
+export const COUPON_TYPES = ['percentage', 'fixed'] as const;
+export type CouponType = (typeof COUPON_TYPES)[number];
+
+export const REFUND_STATUSES = [
+  'pending',
+  'processing',
+  'succeeded',
+  'failed',
+] as const;
+export type RefundStatus = (typeof REFUND_STATUSES)[number];
+
+export const COMMERCE_EVENTS = [
+  'OrderCreated',
+  'PaymentPending',
+  'PaymentSuccessful',
+  'PaymentFailed',
+  'OrderCancelled',
+  'OrderShipped',
+  'OrderDelivered',
+  'RefundCreated',
+  'RefundSuccessful',
+  'RefundFailed',
+] as const;
+export type CommerceEventType = (typeof COMMERCE_EVENTS)[number];
+
+export const AUDIT_ACTIONS = [
+  'payment.created',
+  'payment.verified',
+  'payment.failed',
+  'payment.expired',
+  'order.created',
+  'order.cancelled',
+  'inventory.decremented',
+  'inventory.restocked',
+  'coupon.applied',
+  'refund.created',
+  'refund.completed',
+  'refund.failed',
+] as const;
+export type AuditAction = (typeof AUDIT_ACTIONS)[number];
+
+export const PAYMENTS_DEFAULT_PAGE = 1;
+export const PAYMENTS_DEFAULT_LIMIT = 20;
+export const PAYMENTS_MAX_LIMIT = 50;
+

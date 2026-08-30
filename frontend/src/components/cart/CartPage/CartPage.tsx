@@ -22,9 +22,9 @@ import { useCart } from '../../../hooks/useCart';
 import { saveOrderSnapshot } from '../../../lib/orderSnapshot';
 import { formatPrice } from '../../../lib/formatCurrency';
 import { resolveShippingCost } from '../../../config/shipping';
-import { isAuthenticatedForApi } from '../../../services/api/http';
-import { ApiError } from '../../../services/api/http';
+import { ApiError, isAuthenticatedForApi } from '../../../services/api/http';
 import { createOrder } from '../../../services/api/ordersApi';
+import { createPayment } from '../../../services/api/paymentsApi';
 
 import styles from './CartPage.module.css';
 
@@ -175,7 +175,7 @@ export function CartPage() {
       expectedTotal: total,
       idempotencyKey,
     })
-      .then((order) => {
+      .then(async (order) => {
         saveOrderSnapshot({
           orderId: order.orderNumber,
           itemCount: order.itemCount,
@@ -189,6 +189,18 @@ export function CartPage() {
           currency: order.currency,
         });
         clearCart();
+
+        if (paymentMethod === 'zarinpal') {
+          const payment = await createPayment({
+            orderNumber: order.orderNumber,
+            idempotencyKey: `pay-${idempotencyKey}`,
+          });
+          if (payment.redirectUrl) {
+            window.location.assign(payment.redirectUrl);
+            return;
+          }
+        }
+
         navigate('/order/confirmation');
       })
       .catch((error: unknown) => {

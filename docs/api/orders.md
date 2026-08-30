@@ -9,10 +9,10 @@ Base: `/api/v1`
 `POST /checkout/preview` (auth)
 
 ```json
-{ "shippingMethodId": "post-express" }
+{ "shippingMethodId": "post-express", "couponCode": "SAVE10" }
 ```
 
-Returns server-calculated lines, issues (`PRICE_CHANGED`, `INSUFFICIENT_STOCK`, …), shipping, totals. Never trusts client money.
+Returns server-calculated lines, issues (`PRICE_CHANGED`, `INSUFFICIENT_STOCK`, …), shipping, optional coupon discount, totals. Never trusts client money.
 
 ## Create order
 
@@ -20,11 +20,13 @@ Returns server-calculated lines, issues (`PRICE_CHANGED`, `INSUFFICIENT_STOCK`, 
 
 Optional header: `Idempotency-Key: <8–128 chars>`
 
-Body: shipping method, payment method (`online` | `cash_on_delivery`), shipping address snapshot, optional `expectedSubtotal` / `expectedTotal` for change acknowledgment.
+Body: shipping method, payment method (`online` | `cash_on_delivery`), shipping address snapshot, optional `couponCode`, optional `expectedSubtotal` / `expectedTotal` for change acknowledgment.
 
-Server: loads cart → validates → calculates → snapshots items/address → atomic stock decrement → creates order → clears cart.
+Server: loads cart → validates → calculates (+ coupon) → snapshots items/address → atomic stock decrement → creates order → redeems coupon atomically → clears cart.
 
 Order numbers: `LUX-YYYY-NNNNNN`.
+
+Online orders set `inventoryReservedUntil` (payment TTL). See [payments.md](./payments.md).
 
 ## Customer orders
 
@@ -37,12 +39,13 @@ Order numbers: `LUX-YYYY-NNNNNN`.
 - `GET /admin/orders`
 - `GET /admin/orders/:orderNumber`
 - `PATCH /admin/orders/:orderNumber/status` `{ "status", "reason?" }`
+- `POST /admin/orders/:orderNumber/refund` — see payments.md
 
 Transitions are centralized in `orderTransitions.ts`.
 
 ## Inventory
 
-`findOneAndUpdate({ stock: { $gte: qty }, status: 'active' }, { $inc: { stock: -qty } })` — concurrent-safe without requiring replica-set transactions. Compensation restores stock if order persistence fails. Cancellation restocks when `inventoryDecremented`.
+`findOneAndUpdate({ stock: { $gte: qty }, status: 'active' }, { $inc: { stock: -qty } })` — concurrent-safe without requiring replica-set transactions. Compensation restores stock if order persistence fails. Cancellation / reservation expiry restocks when `inventoryDecremented`.
 
 ## Money
 

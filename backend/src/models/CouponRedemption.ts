@@ -1,0 +1,69 @@
+import { Schema, model, type HydratedDocument, type Types } from 'mongoose';
+
+export interface CouponRedemptionAttrs {
+  coupon: Types.ObjectId;
+  code: string;
+  user: Types.ObjectId;
+  order: Types.ObjectId;
+  orderNumber: string;
+  discountAmount: number;
+  createdAt: Date;
+}
+
+const schema = new Schema<CouponRedemptionAttrs>(
+  {
+    coupon: {
+      type: Schema.Types.ObjectId,
+      ref: 'Coupon',
+      required: true,
+      index: true,
+    },
+    code: { type: String, required: true, maxlength: 40 },
+    user: {
+      type: Schema.Types.ObjectId,
+      ref: 'User',
+      required: true,
+      index: true,
+    },
+    order: {
+      type: Schema.Types.ObjectId,
+      ref: 'Order',
+      required: true,
+    },
+    orderNumber: { type: String, required: true, maxlength: 40 },
+    discountAmount: { type: Number, required: true, min: 0 },
+  },
+  { timestamps: { createdAt: true, updatedAt: false } },
+);
+
+schema.index({ coupon: 1, order: 1 }, { unique: true });
+schema.index({ coupon: 1, user: 1, createdAt: -1 });
+
+export type CouponRedemptionDocument = HydratedDocument<CouponRedemptionAttrs>;
+
+export const CouponRedemption = model<CouponRedemptionAttrs>(
+  'CouponRedemption',
+  schema,
+);
+
+/** Per-user usage counter for atomic per-user limits. */
+export interface CouponUserUsageAttrs {
+  coupon: Types.ObjectId;
+  user: Types.ObjectId;
+  count: number;
+}
+
+const usageSchema = new Schema<CouponUserUsageAttrs>({
+  coupon: { type: Schema.Types.ObjectId, ref: 'Coupon', required: true },
+  user: { type: Schema.Types.ObjectId, ref: 'User', required: true },
+  count: { type: Number, default: 0, min: 0 },
+});
+
+usageSchema.index({ coupon: 1, user: 1 }, { unique: true });
+
+export type CouponUserUsageDocument = HydratedDocument<CouponUserUsageAttrs>;
+
+export const CouponUserUsage = model<CouponUserUsageAttrs>(
+  'CouponUserUsage',
+  usageSchema,
+);
