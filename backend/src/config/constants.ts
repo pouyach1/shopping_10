@@ -263,3 +263,8 @@ export const PAYMENTS_DEFAULT_PAGE = 1;
 export const PAYMENTS_DEFAULT_LIMIT = 20;
 export const PAYMENTS_MAX_LIMIT = 50;
 
+ * Free-shipping threshold (تومان). Shared commerce constant for future checkout.
+ * Cart summary may expose progress toward this; final shipping is Checkout's job.
+ */
+export const FREE_SHIPPING_THRESHOLD = 5_000_000;
+

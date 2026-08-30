@@ -14,6 +14,10 @@ export class ApiError extends Error {
       errors?: Record<string, string>;
       details?: unknown;
     },
+
+  constructor(
+    message: string,
+    options: { status: number; code?: string; errors?: Record<string, string> },
   ) {
     super(message);
     this.name = 'ApiError';
