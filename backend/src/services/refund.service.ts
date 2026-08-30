@@ -170,6 +170,7 @@ export async function createAdminRefund(
   });
   emitCommerceEvent('RefundCreated', {
     orderNumber: order.orderNumber,
+    userId: String(order.user),
     amount,
     currency: payment.currency,
   });
@@ -208,6 +209,7 @@ export async function createAdminRefund(
     });
     emitCommerceEvent('RefundFailed', {
       orderNumber: order.orderNumber,
+      userId: String(order.user),
       reason: result.failureMessage,
     });
     throw conflict(
@@ -263,11 +265,48 @@ export async function createAdminRefund(
   });
   emitCommerceEvent('RefundSuccessful', {
     orderNumber: order.orderNumber,
+    userId: String(order.user),
     amount,
     currency: payment.currency,
   });
 
   return toPublicRefund(refund);
+}
+
+/**
+ * Retry a failed refund with a new idempotency key.
+ * Does not re-use the failed key (that would return the failed record).
+ */
+export async function retryFailedRefund(
+  refundId: string,
+  adminId: string,
+  newIdempotencyKey: string,
+): Promise<PublicRefund> {
+  const previous = await Refund.findById(refundId);
+  if (!previous) throw notFound('بازپرداخت یافت نشد.', 'REFUND_NOT_FOUND');
+  if (previous.status !== 'failed') {
+    throw conflict(
+      'فقط بازپرداخت ناموفق قابل تلاش مجدد است.',
+      undefined,
+      'REFUND_FAILED',
+    );
+  }
+
+  await recordAudit({
+    action: 'refund.retried',
+    actorType: 'admin',
+    actorId: adminId,
+    entityType: 'refund',
+    entityId: String(previous._id),
+    orderNumber: previous.orderNumber,
+    metadata: { previousIdempotencyKey: previous.idempotencyKey },
+  });
+
+  return createAdminRefund(previous.orderNumber, adminId, {
+    amount: previous.amount,
+    reason: previous.reason ?? 'retry',
+    idempotencyKey: newIdempotencyKey,
+  });
 }
 
 export async function listAdminRefunds(orderNumberRaw?: string) {

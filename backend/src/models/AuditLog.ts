@@ -9,6 +9,7 @@ export interface AuditLogAttrs {
   entityType: string;
   entityId?: string;
   orderNumber?: string;
+  requestId?: string;
   metadata?: Record<string, unknown>;
   createdAt: Date;
 }
@@ -25,6 +26,7 @@ const schema = new Schema<AuditLogAttrs>(
     entityType: { type: String, required: true, maxlength: 40, index: true },
     entityId: { type: String, maxlength: 64, index: true },
     orderNumber: { type: String, maxlength: 40, index: true },
+    requestId: { type: String, maxlength: 128, index: true },
     metadata: { type: Schema.Types.Mixed },
   },
   { timestamps: { createdAt: true, updatedAt: false } },

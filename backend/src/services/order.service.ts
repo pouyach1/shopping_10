@@ -276,6 +276,19 @@ export async function updateAdminOrderStatus(
     });
   }
 
+  if (body.status === 'shipped') {
+    emitCommerceEvent('OrderShipped', {
+      orderNumber: updated.orderNumber,
+      userId: String(updated.user),
+    });
+  }
+  if (body.status === 'delivered') {
+    emitCommerceEvent('OrderDelivered', {
+      orderNumber: updated.orderNumber,
+      userId: String(updated.user),
+    });
+  }
+
   logger.info('order.status_updated', {
     orderNumber: updated.orderNumber,
     from: previous,

@@ -37,23 +37,34 @@ Conversion (provider boundary only): `1 تومان = 10 ریال`.
 - `GET /payments/:paymentId` (owner only)
 - `POST /payments/webhooks/:provider` — HMAC `x-luxora-webhook-signature` (separate rate limit)
 
-## Admin / ops
+## Admin / ops (Phase 7)
 
-- `GET /admin/payments`
-- `GET /admin/payments/:paymentId` — includes failure reason, provider tx id, webhook events
+All under `requireAuth` + `requireRole('admin')`:
+
+- `GET /admin/payments` / `GET /admin/payments/:paymentId`
 - `POST /admin/payments/:paymentId/reconcile` `{ applySafeFix?: boolean }`
+- `POST /admin/payments/reconcile-open` — scan open payments (bounded)
+- `POST /admin/payments/:paymentId/retry-verification` — only when safe (not already paid)
+- `POST /admin/payments/:paymentId/manual-review`
 - `POST /admin/payments/release-expired`
-- `POST /admin/notifications/process`
+- `GET /admin/orders/:orderNumber/timeline` — chronological order/payment/refund/inventory/notification/audit
+- `GET /admin/notifications` / `POST /admin/notifications/:id/retry` / `POST /admin/notifications/process`
+- `GET /admin/refunds` / `POST /admin/refunds/:id/retry`
 - `POST /admin/orders/:orderNumber/refund`
+- `GET /admin/scheduler/health`
 - Coupons CRUD
+
+Health: `GET /api/v1/health` (liveness), `GET /api/v1/health/ready` (Mongo + critical deps; notification providers do not block ready).
 
 ## Reconciliation
 
 Detects:
 
-- provider paid / local pending → optional safe fix (`applySafeFix: true`)
-- local paid / provider failed → report only (manual review)
-- order/payment mismatch → report only
+- `provider_paid_local_pending` → optional safe fix (`applySafeFix: true`)
+- `local_paid_provider_failed` → report only (manual review)
+- `order_payment_mismatch` → report only
+- `provider_unreachable` / timeout → leave open; never mark failed from ambiguity
+- `already_reconciled` / `in_sync`
 
 ## Inventory reservation expiry
 

@@ -227,6 +227,10 @@ export const AUDIT_ACTIONS = [
   'payment.needs_manual_refund',
   'notification.sent',
   'notification.failed',
+  'notification.retried',
+  'payment.verify_retried',
+  'refund.retried',
+  'reconciliation.manual_review',
 ] as const;
 export type AuditAction = (typeof AUDIT_ACTIONS)[number];
 

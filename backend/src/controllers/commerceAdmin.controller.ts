@@ -61,3 +61,24 @@ export const adminPaymentTimeline = asyncHandler(
     res.status(200).json({ status: 'success', data: { timeline } });
   },
 );
+
+export const adminRetryRefund = asyncHandler(
+  async (req: Request, res: Response) => {
+    const refundId = String(req.params.refundId ?? '');
+    const idempotencyKey = String(req.body?.idempotencyKey ?? '');
+    if (idempotencyKey.length < 8) {
+      res.status(400).json({
+        status: 'error',
+        code: 'BAD_REQUEST',
+        message: 'idempotencyKey الزامی است.',
+      });
+      return;
+    }
+    const refund = await refundService.retryFailedRefund(
+      refundId,
+      req.user!.id,
+      idempotencyKey,
+    );
+    res.status(201).json({ status: 'success', data: { refund } });
+  },
+);
