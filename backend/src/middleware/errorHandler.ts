@@ -27,6 +27,7 @@ export function errorHandler(
       code: appError.code,
       message: appError.message,
       ...(appError.errors ? { errors: appError.errors } : {}),
+      ...(appError.details !== undefined ? { details: appError.details } : {}),
     });
     return;
   }

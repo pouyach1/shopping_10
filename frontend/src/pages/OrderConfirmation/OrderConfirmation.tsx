@@ -54,6 +54,18 @@ export function OrderConfirmation() {
             <dt>شماره سفارش</dt>
             <dd>{order.orderId}</dd>
           </div>
+          {order.orderStatus ? (
+            <div className={styles.row}>
+              <dt>وضعیت سفارش</dt>
+              <dd>{order.orderStatus}</dd>
+            </div>
+          ) : null}
+          {order.paymentStatus ? (
+            <div className={styles.row}>
+              <dt>وضعیت پرداخت</dt>
+              <dd>{order.paymentStatus}</dd>
+            </div>
+          ) : null}
           <div className={styles.row}>
             <dt>تعداد اقلام</dt>
             <dd>{order.itemCount}</dd>
@@ -77,8 +89,9 @@ export function OrderConfirmation() {
         </dl>
 
         <p className={styles.note}>
-          اتصال درگاه پرداخت در فاز بعدی فعال می‌شود. این صفحه برای
-          نمایش جریان تکمیل سفارش در دمو طراحی شده است.
+          {order.paymentStatus
+            ? 'سفارش با محاسبهٔ سرور ثبت شد. اتصال درگاه پرداخت در فاز بعد فعال می‌شود.'
+            : 'اتصال درگاه پرداخت در فاز بعدی فعال می‌شود. این صفحه برای نمایش جریان تکمیل سفارش در دمو طراحی شده است.'}
         </p>
 
         <div className={styles.actions}>

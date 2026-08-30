@@ -139,8 +139,17 @@ See [docs/api/cart.md](../docs/api/cart.md) and [docs/api/wishlist.md](../docs/a
 - Unavailable products stay inspectable (`available: false`)
 - `POST /cart/merge` and `POST /wishlist/merge` for guest → auth migration
 
-## Phase 4 (recommended)
+## Phase 4 — Checkout + Orders
 
-1. Checkout + Orders with line-item snapshots and stock decrement
-2. Wire Admin Products UI to `/api/v1/admin/products`
-3. Optional guest cart cookie session if multi-device guests are required
+- `POST /checkout/preview`, `POST /orders` (Idempotency-Key supported)
+- Item + address snapshots; integer تومان; shared shipping rules
+- Atomic stock decrement + compensation; cancel restocks
+- Customer/admin order APIs + centralized transitions
+- See [docs/api/orders.md](../docs/api/orders.md)
+
+## Phase 5 (recommended)
+
+1. Payment gateway + webhooks
+2. Wire Admin Orders UI to `/api/v1/admin/orders`
+3. Notifications (email/SMS)
+4. Replica-set multi-doc transactions where operationally standard

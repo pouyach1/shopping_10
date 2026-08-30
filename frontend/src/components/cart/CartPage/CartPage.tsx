@@ -22,6 +22,9 @@ import { useCart } from '../../../hooks/useCart';
 import { saveOrderSnapshot } from '../../../lib/orderSnapshot';
 import { formatPrice } from '../../../lib/formatCurrency';
 import { resolveShippingCost } from '../../../config/shipping';
+import { isAuthenticatedForApi } from '../../../services/api/http';
+import { ApiError } from '../../../services/api/http';
+import { createOrder } from '../../../services/api/ordersApi';
 
 import styles from './CartPage.module.css';
 
@@ -130,20 +133,78 @@ export function CartPage() {
     setCheckoutError(null);
     setIsSubmitting(true);
 
-    const orderId = `LX-${Date.now().toString(36).toUpperCase()}`;
+    const finishLocal = () => {
+      const orderId = `LX-${Date.now().toString(36).toUpperCase()}`;
+      saveOrderSnapshot({
+        orderId,
+        itemCount,
+        subtotal,
+        shipping,
+        total,
+        customerName: `${customer.firstName} ${customer.lastName}`.trim(),
+        createdAt: new Date().toISOString(),
+      });
+      clearCart();
+      navigate('/order/confirmation');
+    };
 
-    saveOrderSnapshot({
-      orderId,
-      itemCount,
-      subtotal,
-      shipping,
-      total,
-      customerName: `${customer.firstName} ${customer.lastName}`.trim(),
-      createdAt: new Date().toISOString(),
-    });
+    if (!isAuthenticatedForApi()) {
+      finishLocal();
+      return;
+    }
 
-    clearCart();
-    navigate('/order/confirmation');
+    const idempotencyKey =
+      typeof crypto !== 'undefined' && 'randomUUID' in crypto
+        ? crypto.randomUUID()
+        : `chk-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+
+    void createOrder({
+      shippingMethodId: shippingMethod,
+      paymentMethod,
+      shippingAddress: {
+        recipientName: `${customer.firstName} ${customer.lastName}`.trim(),
+        phone: customer.phone.trim(),
+        province: customer.province.trim(),
+        city: customer.city.trim(),
+        addressLine: customer.address.trim(),
+        postalCode: customer.postalCode.trim() || undefined,
+        landline: customer.landline.trim() || undefined,
+        notes: customer.description.trim() || undefined,
+      },
+      expectedSubtotal: subtotal,
+      expectedTotal: total,
+      idempotencyKey,
+    })
+      .then((order) => {
+        saveOrderSnapshot({
+          orderId: order.orderNumber,
+          itemCount: order.itemCount,
+          subtotal: order.subtotal,
+          shipping: order.shippingCost,
+          total: order.total,
+          customerName: order.shippingAddress.recipientName,
+          createdAt: order.createdAt,
+          paymentStatus: order.paymentStatus,
+          orderStatus: order.status,
+          currency: order.currency,
+        });
+        clearCart();
+        navigate('/order/confirmation');
+      })
+      .catch((error: unknown) => {
+        setIsSubmitting(false);
+        if (error instanceof ApiError) {
+          if (error.code === 'CHECKOUT_CHANGED') {
+            setCheckoutError(
+              'سبد خرید تغییر کرده است. لطفاً قیمت و موجودی را دوباره بررسی کنید.',
+            );
+            return;
+          }
+          setCheckoutError(error.message);
+          return;
+        }
+        setCheckoutError('ثبت سفارش انجام نشد. لطفاً دوباره تلاش کنید.');
+      });
   };
 
   return (
