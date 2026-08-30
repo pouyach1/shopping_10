@@ -1,33 +1,17 @@
-import { randomUUID } from 'node:crypto';
-
 import cors from 'cors';
 import cookieParser from 'cookie-parser';
 import express, {
   type Application,
-  type NextFunction,
-  type Request,
-  type Response,
 } from 'express';
 import helmet from 'helmet';
 
 import { env } from './config/env';
 import routes from './routes';
 import { apiRateLimiter, errorHandler, notFound } from './middleware/errorHandler';
-
-function requestIdMiddleware(
-  req: Request,
-  res: Response,
-  next: NextFunction,
-): void {
-  const incoming = req.header('x-request-id')?.trim();
-  const requestId =
-    incoming && incoming.length > 0 && incoming.length <= 128
-      ? incoming
-      : randomUUID();
-  req.requestId = requestId;
-  res.setHeader('x-request-id', requestId);
-  next();
-}
+import {
+  csrfCookieGuard,
+  requestIdMiddleware,
+} from './middleware/requestContext';
 
 /**
  * Builds the Express application without binding a port (test-friendly).
@@ -65,11 +49,21 @@ export function createApp(): Application {
         callback(new Error('Origin not allowed by CORS'));
       },
       credentials: true,
+      exposedHeaders: ['X-Request-Id'],
     }),
   );
 
-  app.use(express.json({ limit: env.JSON_BODY_LIMIT }));
+  app.use(
+    express.json({
+      limit: env.JSON_BODY_LIMIT,
+      verify: (req, _res, buf) => {
+        (req as express.Request & { rawBody?: string }).rawBody =
+          buf.toString('utf8');
+      },
+    }),
+  );
   app.use(cookieParser());
+  app.use(csrfCookieGuard);
   if (!env.isTest) {
     app.use(apiRateLimiter);
   }
