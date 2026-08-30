@@ -63,8 +63,11 @@ export interface PublicOrder {
   itemCount: number;
   subtotal: number;
   discountTotal: number;
+  couponDiscount: number;
+  couponCode?: string;
   shippingCost: number;
   total: number;
+  refundedTotal: number;
   history: PublicOrderHistory[];
   createdAt: string;
   updatedAt: string;
@@ -135,8 +138,11 @@ export function toPublicOrder(order: OrderDocument | OrderAttrs & { _id: { toStr
     itemCount: order.itemCount,
     subtotal: order.subtotal,
     discountTotal: order.discountTotal,
+    couponDiscount: order.couponDiscount ?? 0,
+    couponCode: order.couponCode,
     shippingCost: order.shippingCost,
     total: order.total,
+    refundedTotal: order.refundedTotal ?? 0,
     history: (order.history ?? []).map(mapHistory),
     createdAt: order.createdAt.toISOString(),
     updatedAt: order.updatedAt.toISOString(),

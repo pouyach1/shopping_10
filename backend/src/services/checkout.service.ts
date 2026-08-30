@@ -1,6 +1,9 @@
 import { Types } from 'mongoose';
 
-import { FREE_SHIPPING_THRESHOLD, type ShippingMethodId } from '../config/constants';
+import {
+  FREE_SHIPPING_THRESHOLD,
+  type ShippingMethodId,
+} from '../config/constants';
 import { Cart } from '../models/Cart';
 import { Product, type ProductDocument } from '../models/Product';
 import { Order, type OrderDocument } from '../models/Order';
@@ -29,6 +32,10 @@ import { allocateOrderNumber } from './orderNumber.service';
 import { toPublicOrder, type PublicOrder } from './order.mapper';
 import { resolveShippingCost } from './shipping.service';
 import { clearCart } from './cart.service';
+import { quoteCoupon, redeemCouponForOrder } from './coupon.service';
+import { recordAudit } from './audit.service';
+import { emitCommerceEvent } from './notifications';
+import { env } from '../config/env';
 
 export interface CheckoutIssue {
   code:
@@ -65,6 +72,7 @@ export interface CheckoutLinePreview {
   purchasable: boolean;
   priceChanged: boolean;
   stock: number;
+  categoryId?: string;
 }
 
 export interface CheckoutPreviewDto {
@@ -74,6 +82,8 @@ export interface CheckoutPreviewDto {
   summary: {
     subtotal: number;
     discountTotal: number;
+    couponDiscount: number;
+    couponCode?: string;
     shippingCost: number;
     total: number;
     itemCount: number;
@@ -239,6 +249,15 @@ function buildPreviewFromCart(
       purchasable,
       priceChanged,
       stock: product.stock,
+      categoryId: product.category
+        ? String(
+            typeof product.category === 'object' &&
+              product.category !== null &&
+              '_id' in product.category
+              ? (product.category as { _id: unknown })._id
+              : product.category,
+          )
+        : undefined,
     });
   }
 
@@ -249,6 +268,7 @@ function buildPreviewFromCart(
   const discountTotal = moneyInt(
     purchasableItems.reduce((sum, item) => sum + item.lineDiscount, 0),
   );
+  // Shipping qualifies on merchandise subtotal before coupon.
   const shipping = resolveShippingCost(shippingMethodId, subtotal);
   const itemCount = purchasableItems.reduce((sum, item) => sum + item.quantity, 0);
   const total = moneyInt(subtotal + shipping.cost);
@@ -266,6 +286,7 @@ function buildPreviewFromCart(
     summary: {
       subtotal,
       discountTotal,
+      couponDiscount: 0,
       shippingCost: shipping.cost,
       total,
       itemCount,
@@ -278,6 +299,35 @@ function buildPreviewFromCart(
   };
 }
 
+async function applyCouponToPreview(
+  preview: CheckoutPreviewDto,
+  userId: string,
+  couponCode?: string,
+): Promise<CheckoutPreviewDto> {
+  if (!couponCode) return preview;
+  const quote = await quoteCoupon(couponCode, {
+    userId,
+    merchandiseSubtotal: preview.summary.subtotal,
+    productIds: preview.items.map((i) => i.productId),
+    categoryIds: preview.items
+      .map((i) => i.categoryId)
+      .filter((id): id is string => Boolean(id)),
+  });
+  const merchandiseAfter = moneyInt(
+    preview.summary.subtotal - quote.discountAmount,
+  );
+  const total = moneyInt(merchandiseAfter + preview.summary.shippingCost);
+  return {
+    ...preview,
+    summary: {
+      ...preview.summary,
+      couponDiscount: quote.discountAmount,
+      couponCode: quote.code,
+      total,
+    },
+  };
+}
+
 export async function previewCheckout(
   userId: string,
   raw: unknown,
@@ -287,11 +337,12 @@ export async function previewCheckout(
   const products = await loadProducts(
     cart.items.map((item) => String(item.product)),
   );
-  const preview = buildPreviewFromCart(
+  let preview = buildPreviewFromCart(
     cart.items,
     products,
     input.shippingMethodId,
   );
+  preview = await applyCouponToPreview(preview, userId, input.couponCode);
   logger.info('checkout.preview', {
     userId,
     ready: preview.ready,
@@ -339,11 +390,12 @@ export async function createOrder(
   const products = await loadProducts(
     cart.items.map((item) => String(item.product)),
   );
-  const preview = buildPreviewFromCart(
+  let preview = buildPreviewFromCart(
     cart.items,
     products,
     input.shippingMethodId,
   );
+  preview = await applyCouponToPreview(preview, userId, input.couponCode);
 
   if (preview.issues.some((i) => i.code === 'PRICE_CHANGED')) {
     // Soft: allow if client acknowledges new totals via expectedTotal match.
@@ -402,10 +454,13 @@ export async function createOrder(
   // Atomic per-SKU decrements with compensation on failure.
   await decrementMany(stockLines);
 
-  let order: OrderDocument;
+  let order: OrderDocument | undefined;
   try {
     const orderNumber = await allocateOrderNumber();
     const now = new Date();
+    const reservedUntil = new Date(
+      now.getTime() + env.PAYMENT_RESERVATION_TTL_MS,
+    );
     order = await Order.create({
       orderNumber,
       user: new Types.ObjectId(userId),
@@ -449,8 +504,11 @@ export async function createOrder(
       itemCount: preview.summary.itemCount,
       subtotal: preview.summary.subtotal,
       discountTotal: preview.summary.discountTotal,
+      couponDiscount: preview.summary.couponDiscount,
+      couponCode: preview.summary.couponCode,
       shippingCost: preview.summary.shippingCost,
       total: preview.summary.total,
+      refundedTotal: 0,
       history: [
         {
           fromStatus: null,
@@ -463,7 +521,26 @@ export async function createOrder(
       ],
       idempotencyKey: idempotencyKey || undefined,
       inventoryDecremented: true,
+      inventoryReservedUntil:
+        input.paymentMethod === 'online' ? reservedUntil : undefined,
     });
+
+    if (preview.summary.couponCode) {
+      const redeemed = await redeemCouponForOrder({
+        code: preview.summary.couponCode,
+        userId,
+        orderId: String(order._id),
+        orderNumber: order.orderNumber,
+        merchandiseSubtotal: preview.summary.subtotal,
+        productIds: preview.items.map((i) => i.productId),
+        categoryIds: preview.items
+          .map((i) => i.categoryId)
+          .filter((id): id is string => Boolean(id)),
+      });
+      order.couponId = new Types.ObjectId(redeemed.couponId);
+      order.couponDiscount = redeemed.discountAmount;
+      await order.save();
+    }
 
     await clearCart(userId);
 
@@ -496,17 +573,36 @@ export async function createOrder(
       }
     }
   } catch (error) {
+    if (order) {
+      await Order.deleteOne({ _id: order._id }).catch(() => undefined);
+    }
     await restoreMany(stockLines);
     throw error;
   }
 
-  logger.info('checkout.order_created', {
+  await recordAudit({
+    action: 'order.created',
+    actorType: 'customer',
+    actorId: userId,
+    entityType: 'order',
+    entityId: String(order!._id),
+    orderNumber: order!.orderNumber,
+    metadata: { total: order!.total },
+  });
+  emitCommerceEvent('OrderCreated', {
+    orderNumber: order!.orderNumber,
     userId,
-    orderNumber: order.orderNumber,
-    total: order.total,
+    amount: order!.total,
+    currency: order!.currency,
   });
 
-  return toPublicOrder(order);
+  logger.info('checkout.order_created', {
+    userId,
+    orderNumber: order!.orderNumber,
+    total: order!.total,
+  });
+
+  return toPublicOrder(order!);
 }
 
 export function requireIdempotencyKey(headerValue: unknown): string | undefined {

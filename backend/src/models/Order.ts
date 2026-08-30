@@ -71,12 +71,20 @@ export interface OrderAttrs {
   currency: string;
   itemCount: number;
   subtotal: number;
+  /** Product sale markdowns (not coupon). */
   discountTotal: number;
+  /** Server-calculated coupon discount. */
+  couponDiscount: number;
+  couponCode?: string;
+  couponId?: Types.ObjectId;
   shippingCost: number;
   total: number;
+  refundedTotal: number;
   history: OrderHistoryEntry[];
   idempotencyKey?: string;
   inventoryDecremented: boolean;
+  /** Soft reservation expiry for unpaid checkout stock. */
+  inventoryReservedUntil?: Date;
   cancelledAt?: Date;
   paidAt?: Date;
   createdAt: Date;
@@ -185,11 +193,16 @@ const orderSchema = new Schema<OrderAttrs>(
     itemCount: { type: Number, required: true, min: 0 },
     subtotal: { type: Number, required: true, min: 0 },
     discountTotal: { type: Number, required: true, min: 0, default: 0 },
+    couponDiscount: { type: Number, required: true, min: 0, default: 0 },
+    couponCode: { type: String, maxlength: 40, index: true, sparse: true },
+    couponId: { type: Schema.Types.ObjectId, ref: 'Coupon' },
     shippingCost: { type: Number, required: true, min: 0 },
     total: { type: Number, required: true, min: 0 },
+    refundedTotal: { type: Number, default: 0, min: 0 },
     history: { type: [historySchema], default: [] },
     idempotencyKey: { type: String, index: true, sparse: true },
     inventoryDecremented: { type: Boolean, default: false },
+    inventoryReservedUntil: { type: Date, index: true },
     cancelledAt: { type: Date },
     paidAt: { type: Date },
   },
@@ -199,6 +212,11 @@ const orderSchema = new Schema<OrderAttrs>(
 orderSchema.index({ user: 1, createdAt: -1 });
 orderSchema.index({ user: 1, idempotencyKey: 1 }, { unique: true, sparse: true });
 orderSchema.index({ status: 1, createdAt: -1 });
+orderSchema.index({
+  status: 1,
+  paymentStatus: 1,
+  inventoryReservedUntil: 1,
+});
 
 export type OrderDocument = HydratedDocument<OrderAttrs>;
 

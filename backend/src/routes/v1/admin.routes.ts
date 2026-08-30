@@ -3,6 +3,8 @@ import { Router } from 'express';
 import * as categoriesController from '../../controllers/categories.controller';
 import * as productsController from '../../controllers/products.controller';
 import * as ordersController from '../../controllers/orders.controller';
+import * as paymentsController from '../../controllers/payments.controller';
+import * as commerceAdminController from '../../controllers/commerceAdmin.controller';
 import { requireAuth, requireRole } from '../../middleware/authenticate';
 
 const router = Router();
@@ -24,5 +26,22 @@ router.delete('/products/:id', productsController.adminArchive);
 router.get('/orders', ordersController.adminList);
 router.get('/orders/:orderNumber', ordersController.adminGet);
 router.patch('/orders/:orderNumber/status', ordersController.adminUpdateStatus);
+router.post(
+  '/orders/:orderNumber/refund',
+  commerceAdminController.adminCreateRefund,
+);
+
+router.get('/payments', paymentsController.adminList);
+router.get('/payments/:paymentId', paymentsController.adminGet);
+router.post(
+  '/payments/release-expired',
+  paymentsController.adminReleaseExpired,
+);
+
+router.get('/refunds', commerceAdminController.adminListRefunds);
+
+router.get('/coupons', commerceAdminController.adminListCoupons);
+router.post('/coupons', commerceAdminController.adminCreateCoupon);
+router.patch('/coupons/:id', commerceAdminController.adminUpdateCoupon);
 
 export default router;

@@ -40,7 +40,15 @@ export function createApp(): Application {
     }),
   );
 
-  app.use(express.json({ limit: env.JSON_BODY_LIMIT }));
+  app.use(
+    express.json({
+      limit: env.JSON_BODY_LIMIT,
+      verify: (req, _res, buf) => {
+        (req as express.Request & { rawBody?: string }).rawBody =
+          buf.toString('utf8');
+      },
+    }),
+  );
   app.use(cookieParser());
   if (!env.isTest) {
     app.use(apiRateLimiter);

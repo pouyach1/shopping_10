@@ -41,6 +41,7 @@ declare global {
         role: UserRole;
       };
       requestId?: string;
+      rawBody?: string;
     }
   }
 }

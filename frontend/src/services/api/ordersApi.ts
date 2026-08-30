@@ -27,6 +27,8 @@ export interface CheckoutPreview {
   summary: {
     subtotal: number;
     discountTotal: number;
+    couponDiscount?: number;
+    couponCode?: string;
     shippingCost: number;
     total: number;
     itemCount: number;

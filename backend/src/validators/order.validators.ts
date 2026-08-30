@@ -34,6 +34,7 @@ export const checkoutAddressSchema = z
 export const checkoutPreviewSchema = z
   .object({
     shippingMethodId: z.enum(shippingMethodIds),
+    couponCode: z.string().trim().min(3).max(40).optional(),
   })
   .strict();
 
@@ -42,6 +43,7 @@ export const createOrderSchema = z
     shippingMethodId: z.enum(shippingMethodIds),
     paymentMethod: z.enum(PAYMENT_METHODS).default('online'),
     shippingAddress: checkoutAddressSchema,
+    couponCode: z.string().trim().min(3).max(40).optional(),
     /** Optional client-known totals for CHANGE detection — never authoritative. */
     expectedSubtotal: z.number().int().min(0).optional(),
     expectedTotal: z.number().int().min(0).optional(),

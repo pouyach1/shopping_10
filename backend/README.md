@@ -147,9 +147,42 @@ See [docs/api/cart.md](../docs/api/cart.md) and [docs/api/wishlist.md](../docs/a
 - Customer/admin order APIs + centralized transitions
 - See [docs/api/orders.md](../docs/api/orders.md)
 
-## Phase 5 (recommended)
+## Phase 5 — Payments, coupons, refunds, notifications
 
-1. Payment gateway + webhooks
-2. Wire Admin Orders UI to `/api/v1/admin/orders`
-3. Notifications (email/SMS)
-4. Replica-set multi-doc transactions where operationally standard
+Production commerce foundation (provider-agnostic):
+
+- **PaymentProvider** interface + `mock` (tests/dev) + `zarinpal` stub
+- `Payment` model with explicit transitions (`paymentTransitions.ts`)
+- `POST /api/v1/payments`, callback, signed webhooks — verify with provider before marking paid
+- Inventory reservation TTL + `releaseExpiredReservations()` (worker-ready, no Redis/Kafka)
+- Coupon engine with atomic usage limits; server-side totals
+- Admin refunds (full/partial, idempotent); never trust client amounts
+- Commerce event bus + mock notification provider; `AuditLog` for money ops
+- Structured error codes (`PAYMENT_*`, `COUPON_*`, `REFUND_*`, …)
+- See [docs/api/payments.md](../docs/api/payments.md)
+
+### Payment lifecycle (attempt)
+
+`created → pending → redirected → processing → paid`  
+also: `failed | cancelled | expired`; `paid → partially_refunded | refunded`
+
+### Late success after cancel
+
+Policy: verify payment, then **auto-refund** and keep order cancelled. Never leave paid+cancelled.
+
+### Environment (payments)
+
+| Variable | Notes |
+| --- | --- |
+| `PAYMENT_PROVIDER` | `mock` (dev/test) / `zarinpal` / … — mock forbidden in production |
+| `PAYMENT_CALLBACK_URL` | Browser return URL |
+| `PAYMENT_WEBHOOK_SECRET` | Required in production (16+) |
+| `PAYMENT_RESERVATION_TTL_MS` | Default 30m |
+| `ZARINPAL_MERCHANT_ID` | Required when provider=zarinpal |
+
+## Phase 6 (recommended)
+
+1. Live Zarinpal HTTP client
+2. SMS/email notification providers
+3. Admin Orders UI wired to payment/refund panels
+4. Scheduled worker calling `releaseExpiredReservations`

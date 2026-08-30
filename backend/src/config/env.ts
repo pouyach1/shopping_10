@@ -1,6 +1,11 @@
 import dotenv from 'dotenv';
 import { z } from 'zod';
 
+import {
+  PAYMENT_PROVIDER_IDS,
+  PAYMENT_RESERVATION_TTL_MS,
+} from './constants';
+
 dotenv.config();
 
 const envSchema = z
@@ -21,6 +26,22 @@ const envSchema = z
     AUTH_RATE_LIMIT_MAX: z.coerce.number().int().positive().default(20),
     API_RATE_LIMIT_WINDOW_MS: z.coerce.number().int().positive().default(900_000),
     API_RATE_LIMIT_MAX: z.coerce.number().int().positive().default(300),
+    PAYMENT_PROVIDER: z.enum(PAYMENT_PROVIDER_IDS).default('mock'),
+    PAYMENT_CALLBACK_URL: z
+      .string()
+      .url()
+      .default('http://localhost:5173/payment/callback'),
+    PAYMENT_WEBHOOK_SECRET: z.string().optional(),
+    ZARINPAL_MERCHANT_ID: z.string().optional(),
+    ZARINPAL_SANDBOX: z
+      .enum(['true', 'false'])
+      .default('true')
+      .transform((value) => value === 'true'),
+    PAYMENT_RESERVATION_TTL_MS: z.coerce
+      .number()
+      .int()
+      .positive()
+      .default(PAYMENT_RESERVATION_TTL_MS),
   })
   .superRefine((value, ctx) => {
     if (value.NODE_ENV === 'production') {
@@ -32,19 +53,36 @@ const envSchema = z
             'JWT_SECRET is required in production and must be at least 32 characters',
         });
       }
-      if (
-        !value.MONGODB_URI ||
-        value.MONGODB_URI.includes('127.0.0.1') ||
-        value.MONGODB_URI.includes('localhost')
-      ) {
-        // Localhost URIs are allowed but warn via custom — actually for production
-        // local Mongo can be valid in some deploys; only enforce JWT_SECRET strictly.
-      }
       if (value.CLIENT_ORIGINS.trim() === '*' || value.CLIENT_ORIGINS.trim() === '') {
         ctx.addIssue({
           code: 'custom',
           path: ['CLIENT_ORIGINS'],
           message: 'CLIENT_ORIGINS must list explicit origins in production',
+        });
+      }
+      if (
+        !value.PAYMENT_WEBHOOK_SECRET ||
+        value.PAYMENT_WEBHOOK_SECRET.length < 16
+      ) {
+        ctx.addIssue({
+          code: 'custom',
+          path: ['PAYMENT_WEBHOOK_SECRET'],
+          message:
+            'PAYMENT_WEBHOOK_SECRET is required in production (16+ characters)',
+        });
+      }
+      if (value.PAYMENT_PROVIDER === 'zarinpal' && !value.ZARINPAL_MERCHANT_ID) {
+        ctx.addIssue({
+          code: 'custom',
+          path: ['ZARINPAL_MERCHANT_ID'],
+          message: 'ZARINPAL_MERCHANT_ID is required when PAYMENT_PROVIDER=zarinpal',
+        });
+      }
+      if (value.PAYMENT_PROVIDER === 'mock') {
+        ctx.addIssue({
+          code: 'custom',
+          path: ['PAYMENT_PROVIDER'],
+          message: 'PAYMENT_PROVIDER=mock is not allowed in production',
         });
       }
     }
@@ -77,6 +115,12 @@ if (raw.NODE_ENV === 'development' && !raw.JWT_SECRET) {
   );
 }
 
+const webhookSecret =
+  raw.PAYMENT_WEBHOOK_SECRET ??
+  (raw.NODE_ENV === 'production'
+    ? ''
+    : 'dev-only-webhook-secret-change-me');
+
 export const env = {
   NODE_ENV: raw.NODE_ENV,
   isProd: raw.NODE_ENV === 'production',
@@ -95,6 +139,12 @@ export const env = {
   AUTH_RATE_LIMIT_MAX: raw.AUTH_RATE_LIMIT_MAX,
   API_RATE_LIMIT_WINDOW_MS: raw.API_RATE_LIMIT_WINDOW_MS,
   API_RATE_LIMIT_MAX: raw.API_RATE_LIMIT_MAX,
+  PAYMENT_PROVIDER: raw.PAYMENT_PROVIDER,
+  PAYMENT_CALLBACK_URL: raw.PAYMENT_CALLBACK_URL,
+  PAYMENT_WEBHOOK_SECRET: webhookSecret,
+  ZARINPAL_MERCHANT_ID: raw.ZARINPAL_MERCHANT_ID,
+  ZARINPAL_SANDBOX: raw.ZARINPAL_SANDBOX,
+  PAYMENT_RESERVATION_TTL_MS: raw.PAYMENT_RESERVATION_TTL_MS,
 } as const;
 
 export type Env = typeof env;
