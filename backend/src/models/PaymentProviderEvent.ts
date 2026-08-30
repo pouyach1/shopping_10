@@ -44,6 +44,8 @@ const schema = new Schema<PaymentProviderEventAttrs>(
 
 schema.index({ provider: 1, eventId: 1 }, { unique: true });
 schema.index({ authority: 1, createdAt: -1 });
+/** Admin payment detail / timeline lookup by payment id */
+schema.index({ payment: 1, createdAt: -1 });
 
 export type PaymentProviderEventDocument =
   HydratedDocument<PaymentProviderEventAttrs>;

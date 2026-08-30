@@ -2,9 +2,9 @@ import type { NextFunction, Request, Response } from 'express';
 import rateLimit from 'express-rate-limit';
 
 import { env } from '../config/env';
+import { checkDbReady } from '../config/db';
 import { AppError } from '../utils/AppError';
 import { logger } from '../utils/logger';
-import { getDbState } from '../config/db';
 
 export function notFound(_req: Request, _res: Response, next: NextFunction): void {
   next(new AppError(404, 'مسیر درخواستی یافت نشد.', { code: 'NOT_FOUND' }));
@@ -110,12 +110,22 @@ export function healthLive(_req: Request, res: Response): void {
   });
 }
 
-export function healthReady(_req: Request, res: Response): void {
-  const db = getDbState();
-  const ready = db === 'connected';
+export async function healthReady(
+  _req: Request,
+  res: Response,
+): Promise<void> {
+  const dbCheck = await checkDbReady();
+  const ready = dbCheck.ready;
   res.status(ready ? 200 : 503).json({
     status: ready ? 'ready' : 'not_ready',
-    db,
+    db: dbCheck.state,
+    dbPing: dbCheck.ping
+      ? {
+          ok: dbCheck.ping.ok,
+          latencyMs: dbCheck.ping.latencyMs,
+          ...(dbCheck.ping.category ? { category: dbCheck.ping.category } : {}),
+        }
+      : undefined,
     commerce: {
       paymentProvider: env.PAYMENT_PROVIDER,
       smsProvider: env.SMS_PROVIDER,

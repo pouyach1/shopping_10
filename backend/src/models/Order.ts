@@ -238,6 +238,8 @@ const orderSchema = new Schema<OrderAttrs>(
 orderSchema.index({ user: 1, createdAt: -1 });
 orderSchema.index({ user: 1, idempotencyKey: 1 }, { unique: true, sparse: true });
 orderSchema.index({ status: 1, createdAt: -1 });
+/** Unfiltered admin order list sorts by createdAt */
+orderSchema.index({ createdAt: -1 });
 orderSchema.index({
   status: 1,
   paymentStatus: 1,

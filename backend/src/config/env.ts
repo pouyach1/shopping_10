@@ -15,6 +15,34 @@ const envSchema = z
       .default('development'),
     PORT: z.coerce.number().int().positive().default(4000),
     MONGODB_URI: z.string().min(1).default('mongodb://127.0.0.1:27017/luxora'),
+    MONGODB_MAX_POOL_SIZE: z.coerce.number().int().positive().default(20),
+    MONGODB_MIN_POOL_SIZE: z.coerce.number().int().min(0).default(0),
+    MONGODB_MAX_IDLE_MS: z.coerce.number().int().positive().default(60_000),
+    MONGODB_SERVER_SELECTION_TIMEOUT_MS: z.coerce
+      .number()
+      .int()
+      .positive()
+      .default(10_000),
+    MONGODB_CONNECT_TIMEOUT_MS: z.coerce.number().int().positive().default(10_000),
+    MONGODB_SOCKET_TIMEOUT_MS: z.coerce.number().int().positive().default(45_000),
+    MONGODB_HEARTBEAT_FREQUENCY_MS: z.coerce
+      .number()
+      .int()
+      .positive()
+      .default(10_000),
+    MONGODB_PING_TIMEOUT_MS: z.coerce.number().int().positive().default(2_000),
+    /** createIndexes on connect — NEVER enables syncIndexes (which can drop indexes). */
+    MONGODB_AUTO_INDEX: z
+      .enum(['true', 'false'])
+      .optional()
+      .transform((value) => {
+        if (value === 'true') return true;
+        if (value === 'false') return false;
+        // Defaults: off in production, on in development/test.
+        const nodeEnv = process.env.NODE_ENV ?? 'development';
+        return nodeEnv !== 'production';
+      }),
+    SHUTDOWN_TIMEOUT_MS: z.coerce.number().int().positive().default(10_000),
     JWT_SECRET: z.string().min(1).optional(),
     JWT_EXPIRES_IN: z.string().min(1).default('7d'),
     AUTH_COOKIE_NAME: z.string().min(1).default('luxora_token'),
@@ -96,6 +124,41 @@ const envSchema = z
   })
   .superRefine((value, ctx) => {
     if (value.NODE_ENV === 'production') {
+      if (!value.MONGODB_URI || value.MONGODB_URI.trim().length < 10) {
+        ctx.addIssue({
+          code: 'custom',
+          path: ['MONGODB_URI'],
+          message: 'MONGODB_URI is required in production',
+        });
+      } else {
+        const uri = value.MONGODB_URI.trim();
+        const looksMongo =
+          uri.startsWith('mongodb://') || uri.startsWith('mongodb+srv://');
+        if (!looksMongo) {
+          ctx.addIssue({
+            code: 'custom',
+            path: ['MONGODB_URI'],
+            message:
+              'MONGODB_URI must start with mongodb:// or mongodb+srv://',
+          });
+        }
+        if (/localhost|127\.0\.0\.1/i.test(uri) && !process.env.ALLOW_LOCAL_MONGO_IN_PROD) {
+          ctx.addIssue({
+            code: 'custom',
+            path: ['MONGODB_URI'],
+            message:
+              'Production MONGODB_URI points at localhost — set ALLOW_LOCAL_MONGO_IN_PROD=1 only for deliberate local prod-mode tests',
+          });
+        }
+      }
+      if (value.MONGODB_AUTO_INDEX === true) {
+        ctx.addIssue({
+          code: 'custom',
+          path: ['MONGODB_AUTO_INDEX'],
+          message:
+            'MONGODB_AUTO_INDEX must be false in production (create indexes via ops/migration, never syncIndexes on boot)',
+        });
+      }
       if (!value.JWT_SECRET || value.JWT_SECRET.length < 32) {
         ctx.addIssue({
           code: 'custom',
@@ -205,6 +268,16 @@ export const env = {
   isDev: raw.NODE_ENV === 'development',
   PORT: raw.PORT,
   MONGODB_URI: raw.MONGODB_URI,
+  MONGODB_MAX_POOL_SIZE: raw.MONGODB_MAX_POOL_SIZE,
+  MONGODB_MIN_POOL_SIZE: raw.MONGODB_MIN_POOL_SIZE,
+  MONGODB_MAX_IDLE_MS: raw.MONGODB_MAX_IDLE_MS,
+  MONGODB_SERVER_SELECTION_TIMEOUT_MS: raw.MONGODB_SERVER_SELECTION_TIMEOUT_MS,
+  MONGODB_CONNECT_TIMEOUT_MS: raw.MONGODB_CONNECT_TIMEOUT_MS,
+  MONGODB_SOCKET_TIMEOUT_MS: raw.MONGODB_SOCKET_TIMEOUT_MS,
+  MONGODB_HEARTBEAT_FREQUENCY_MS: raw.MONGODB_HEARTBEAT_FREQUENCY_MS,
+  MONGODB_PING_TIMEOUT_MS: raw.MONGODB_PING_TIMEOUT_MS,
+  MONGODB_AUTO_INDEX: raw.MONGODB_AUTO_INDEX,
+  SHUTDOWN_TIMEOUT_MS: raw.SHUTDOWN_TIMEOUT_MS,
   JWT_SECRET: jwtSecret,
   JWT_EXPIRES_IN: raw.JWT_EXPIRES_IN,
   AUTH_COOKIE_NAME: raw.AUTH_COOKIE_NAME,
