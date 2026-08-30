@@ -76,6 +76,8 @@ schema.index(
   { payment: 1, idempotencyKey: 1 },
   { unique: true },
 );
+/** Service looks up refunds globally by idempotencyKey — enforce uniqueness. */
+schema.index({ idempotencyKey: 1 }, { unique: true });
 schema.index({ status: 1, createdAt: -1 });
 
 export type RefundDocument = HydratedDocument<RefundAttrs>;

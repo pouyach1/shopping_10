@@ -41,6 +41,8 @@ const schema = new Schema<CouponRedemptionAttrs>(
 
 schema.index({ coupon: 1, order: 1 }, { unique: true });
 schema.index({ coupon: 1, user: 1, createdAt: -1 });
+/** releaseCouponForOrder: findOneAndUpdate({ order, releasedAt: null }) */
+schema.index({ order: 1, releasedAt: 1 });
 
 export type CouponRedemptionDocument = HydratedDocument<CouponRedemptionAttrs>;
 

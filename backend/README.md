@@ -100,14 +100,30 @@ Search is isolated in `catalogSearch.service.ts` (regex over name/description/sk
 
 ## Environment
 
-See [`.env.example`](./.env.example).
+See [`.env.example`](./.env.example) and [MongoDB operations](../docs/ops/mongodb.md).
 
 Production fails fast when:
 
 - `JWT_SECRET` is missing or shorter than 32 characters
 - `CLIENT_ORIGINS` is empty or `*`
+- `MONGODB_URI` is missing / not `mongodb://` or `mongodb+srv://`
+- `MONGODB_URI` points at localhost (unless `ALLOW_LOCAL_MONGO_IN_PROD=1`)
+- `MONGODB_AUTO_INDEX=true` (must be false — no index rebuild/drop on boot)
+- `PAYMENT_PROVIDER=mock`
+- payment/SMS/email provider credentials missing when those providers are selected
 
 Development may boot with a temporary JWT secret (logged as a warning). Prefer setting a real secret even locally.
+
+### MongoDB readiness
+
+| Endpoint | Meaning |
+| --- | --- |
+| `GET /api/v1/health` / `.../live` | Process alive (200 even if Mongo is down) |
+| `GET /api/v1/health/ready` | Mongo connected **and** ping OK (503 otherwise) |
+
+Connection pool, timeouts, and heartbeat are configured via `MONGODB_*` env vars. Credentials are never logged. Graceful shutdown: stop HTTP → stop schedulers → disconnect Mongo (`SIGTERM`/`SIGINT`).
+
+**Backups** are an operator responsibility (Atlas snapshots / `mongodump`) — not performed by the app.
 
 ## Security defaults
 
@@ -195,10 +211,18 @@ Policy: verify payment, then **auto-refund** and keep order cancelled. Never lea
 - SMS/Email abstractions + idempotent `NotificationDelivery`
 - Expanded audit actions (`payment.webhook_*`, `notification.*`, `inventory.reservation_released`)
 
-## Phase 7 (recommended)
+## Phase 7.5 — Integrity hardening
 
-1. Wire live Kavenegar SMS + SMTP email transports
+See Phase 7.5 commit notes: provider-verify-first callbacks, reservation expiry honesty, admin paid-cancel refusal, orphan hold recovery, coupon rollback release.
+
+## MongoDB production readiness
+
+See [docs/ops/mongodb.md](../docs/ops/mongodb.md).
+
+## Phase 8+ (later)
+
+1. Wire live Kavenegar SMS + SMTP email transports in store deployments
 2. Zarinpal refund/reverse when merchant plan supports it
 3. Admin UI panels for payments, webhooks, notifications, reconcile
-4. Multi-instance scheduler leadership (or external cron only)
+4. Multi-store tenancy (storeId / config boundary)
 5. Payment analytics / dispute tooling
