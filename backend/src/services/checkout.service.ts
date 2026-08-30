@@ -1,0 +1,522 @@
+import { Types } from 'mongoose';
+
+import { FREE_SHIPPING_THRESHOLD, type ShippingMethodId } from '../config/constants';
+import { Cart } from '../models/Cart';
+import { Product, type ProductDocument } from '../models/Product';
+import { Order, type OrderDocument } from '../models/Order';
+import {
+  IdempotencyRecord,
+  idempotencyExpiry,
+} from '../models/IdempotencyRecord';
+import {
+  badRequest,
+  conflict,
+  validationError,
+} from '../utils/AppError';
+import { logger } from '../utils/logger';
+import {
+  parseOrThrow,
+  createOrderSchema,
+  checkoutPreviewSchema,
+  hashCheckoutRequest,
+  type CreateOrderInput,
+  type CheckoutAddressInput,
+} from '../validators/order.validators';
+import { toPublicProduct, derivePricing } from './catalog.mapper';
+import { resolveLineAvailability } from './commerce.mapper';
+import { decrementMany, restoreMany } from './inventory.service';
+import { allocateOrderNumber } from './orderNumber.service';
+import { toPublicOrder, type PublicOrder } from './order.mapper';
+import { resolveShippingCost } from './shipping.service';
+import { clearCart } from './cart.service';
+
+export interface CheckoutIssue {
+  code:
+    | 'PRODUCT_UNAVAILABLE'
+    | 'PRODUCT_ARCHIVED'
+    | 'INSUFFICIENT_STOCK'
+    | 'PRICE_CHANGED'
+    | 'INVALID_VARIANT';
+  productId: string;
+  lineId: string;
+  message: string;
+}
+
+export interface CheckoutLinePreview {
+  lineId: string;
+  productId: string;
+  name: string;
+  slug: string;
+  sku: string;
+  imageSrc: string;
+  productKind: string;
+  size: string;
+  color: string;
+  colorValue?: string;
+  quantity: number;
+  unitPrice: number;
+  unitFinalPrice: number;
+  originalPrice?: number;
+  lineSubtotal: number;
+  lineDiscount: number;
+  lineTotal: number;
+  currency: string;
+  available: boolean;
+  purchasable: boolean;
+  priceChanged: boolean;
+  stock: number;
+}
+
+export interface CheckoutPreviewDto {
+  ready: boolean;
+  items: CheckoutLinePreview[];
+  issues: CheckoutIssue[];
+  summary: {
+    subtotal: number;
+    discountTotal: number;
+    shippingCost: number;
+    total: number;
+    itemCount: number;
+    currency: string;
+    freeShippingThreshold: number;
+    qualifiesForFreeShipping: boolean;
+  };
+  shippingMethodId: ShippingMethodId;
+  shippingMethodTitle: string;
+}
+
+function normalizeVariant(value?: string | null): string {
+  return (value ?? '').trim();
+}
+
+function moneyInt(value: number): number {
+  return Math.trunc(value);
+}
+
+async function loadCartOrThrow(userId: string) {
+  const cart = await Cart.findOne({ user: userId });
+  if (!cart || cart.items.length === 0) {
+    throw conflict('سبد خرید خالی است.', undefined, 'CART_EMPTY');
+  }
+  return cart;
+}
+
+async function loadProducts(
+  ids: string[],
+): Promise<Map<string, ProductDocument>> {
+  const docs = await Product.find({
+    _id: { $in: ids.map((id) => new Types.ObjectId(id)) },
+  }).populate('category', 'name slug');
+  return new Map(docs.map((doc) => [String(doc._id), doc]));
+}
+
+function buildPreviewFromCart(
+  cartItems: Array<{
+    _id?: { toString(): string };
+    product: unknown;
+    quantity: number;
+    size: string;
+    color: string;
+    colorValue?: string;
+    unitPriceSnapshot: number;
+  }>,
+  products: Map<string, ProductDocument>,
+  shippingMethodId: string,
+): CheckoutPreviewDto {
+  const items: CheckoutLinePreview[] = [];
+  const issues: CheckoutIssue[] = [];
+
+  for (const item of cartItems) {
+    const productId = String(item.product);
+    const size = normalizeVariant(item.size);
+    const color = normalizeVariant(item.color);
+    const lineId = `${productId}__${color}__${size}`;
+    const product = products.get(productId);
+
+    if (!product) {
+      issues.push({
+        code: 'PRODUCT_UNAVAILABLE',
+        productId,
+        lineId,
+        message: 'محصول دیگر در دسترس نیست.',
+      });
+      items.push({
+        lineId,
+        productId,
+        name: 'محصول نامشخص',
+        slug: '',
+        sku: '',
+        imageSrc: '',
+        productKind: 'other',
+        size,
+        color,
+        colorValue: item.colorValue,
+        quantity: item.quantity,
+        unitPrice: item.unitPriceSnapshot,
+        unitFinalPrice: item.unitPriceSnapshot,
+        lineSubtotal: 0,
+        lineDiscount: 0,
+        lineTotal: 0,
+        currency: 'تومان',
+        available: false,
+        purchasable: false,
+        priceChanged: false,
+        stock: 0,
+      });
+      continue;
+    }
+
+    const publicProduct = toPublicProduct(product);
+    const availability = resolveLineAvailability(publicProduct);
+    const pricing = derivePricing(product.price, product.salePrice);
+    const unitFinal = moneyInt(pricing.displayPrice);
+    const unitList = moneyInt(pricing.price);
+    const priceChanged = moneyInt(item.unitPriceSnapshot) !== unitFinal;
+    const purchasable =
+      availability.purchasable && item.quantity <= product.stock;
+
+    if (product.status !== 'active') {
+      issues.push({
+        code: 'PRODUCT_ARCHIVED',
+        productId,
+        lineId,
+        message: 'این محصول دیگر موجود نیست.',
+      });
+    } else if (product.stock < item.quantity) {
+      issues.push({
+        code: 'INSUFFICIENT_STOCK',
+        productId,
+        lineId,
+        message: `موجودی کافی نیست (حداکثر ${product.stock}).`,
+      });
+    } else if (priceChanged) {
+      issues.push({
+        code: 'PRICE_CHANGED',
+        productId,
+        lineId,
+        message: 'قیمت این محصول تغییر کرده است.',
+      });
+    }
+
+    // Soft variant check — sizes/colors are advisory on catalog today.
+    if (
+      product.sizes.length > 0 &&
+      size &&
+      !product.sizes.includes(size)
+    ) {
+      issues.push({
+        code: 'INVALID_VARIANT',
+        productId,
+        lineId,
+        message: 'سایز انتخاب‌شده معتبر نیست.',
+      });
+    }
+
+    const lineSubtotal = moneyInt(unitList * item.quantity);
+    const lineTotal = moneyInt(unitFinal * item.quantity);
+    const lineDiscount = moneyInt(lineSubtotal - lineTotal);
+
+    items.push({
+      lineId,
+      productId,
+      name: product.name,
+      slug: product.slug,
+      sku: product.sku,
+      imageSrc: publicProduct.imageSrc ?? '',
+      productKind: product.productKind,
+      size,
+      color,
+      colorValue: item.colorValue,
+      quantity: item.quantity,
+      unitPrice: unitList,
+      unitFinalPrice: unitFinal,
+      originalPrice: pricing.originalPrice,
+      lineSubtotal,
+      lineDiscount,
+      lineTotal: purchasable ? lineTotal : 0,
+      currency: product.currency,
+      available: availability.available,
+      purchasable,
+      priceChanged,
+      stock: product.stock,
+    });
+  }
+
+  const purchasableItems = items.filter((item) => item.purchasable);
+  const subtotal = moneyInt(
+    purchasableItems.reduce((sum, item) => sum + item.lineTotal, 0),
+  );
+  const discountTotal = moneyInt(
+    purchasableItems.reduce((sum, item) => sum + item.lineDiscount, 0),
+  );
+  const shipping = resolveShippingCost(shippingMethodId, subtotal);
+  const itemCount = purchasableItems.reduce((sum, item) => sum + item.quantity, 0);
+  const total = moneyInt(subtotal + shipping.cost);
+
+  const blocking = issues.filter((issue) => issue.code !== 'PRICE_CHANGED');
+  const ready =
+    purchasableItems.length > 0 &&
+    purchasableItems.length === items.length &&
+    blocking.length === 0;
+
+  return {
+    ready,
+    items,
+    issues,
+    summary: {
+      subtotal,
+      discountTotal,
+      shippingCost: shipping.cost,
+      total,
+      itemCount,
+      currency: items[0]?.currency ?? 'تومان',
+      freeShippingThreshold: FREE_SHIPPING_THRESHOLD,
+      qualifiesForFreeShipping: subtotal >= FREE_SHIPPING_THRESHOLD,
+    },
+    shippingMethodId: shipping.methodId,
+    shippingMethodTitle: shipping.title,
+  };
+}
+
+export async function previewCheckout(
+  userId: string,
+  raw: unknown,
+): Promise<CheckoutPreviewDto> {
+  const input = parseOrThrow(checkoutPreviewSchema, raw);
+  const cart = await loadCartOrThrow(userId);
+  const products = await loadProducts(
+    cart.items.map((item) => String(item.product)),
+  );
+  const preview = buildPreviewFromCart(
+    cart.items,
+    products,
+    input.shippingMethodId,
+  );
+  logger.info('checkout.preview', {
+    userId,
+    ready: preview.ready,
+    issues: preview.issues.length,
+  });
+  return preview;
+}
+
+function assertAddress(address: CheckoutAddressInput): void {
+  if (!address.recipientName || !address.phone || !address.addressLine) {
+    throw validationError(
+      'آدرس ارسال ناقص است.',
+      undefined,
+      'INVALID_ADDRESS',
+    );
+  }
+}
+
+export async function createOrder(
+  userId: string,
+  raw: unknown,
+  idempotencyKey?: string,
+): Promise<PublicOrder> {
+  const input: CreateOrderInput = parseOrThrow(createOrderSchema, raw);
+  assertAddress(input.shippingAddress);
+
+  if (idempotencyKey) {
+    const existing = await IdempotencyRecord.findOne({
+      key: idempotencyKey,
+      userId,
+    });
+    if (existing) {
+      const order = await Order.findOne({ orderNumber: existing.orderNumber });
+      if (order) {
+        logger.info('checkout.idempotency_replay', {
+          userId,
+          orderNumber: order.orderNumber,
+        });
+        return toPublicOrder(order);
+      }
+    }
+  }
+
+  const cart = await loadCartOrThrow(userId);
+  const products = await loadProducts(
+    cart.items.map((item) => String(item.product)),
+  );
+  const preview = buildPreviewFromCart(
+    cart.items,
+    products,
+    input.shippingMethodId,
+  );
+
+  if (preview.issues.some((i) => i.code === 'PRICE_CHANGED')) {
+    // Soft: allow if client acknowledges new totals via expectedTotal match.
+    if (
+      input.expectedTotal == null ||
+      input.expectedTotal !== preview.summary.total
+    ) {
+      throw conflict(
+        'سبد خرید تغییر کرده است. لطفاً دوباره بررسی کنید.',
+        undefined,
+        'CHECKOUT_CHANGED',
+        preview,
+      );
+    }
+  }
+
+  const blocking = preview.issues.filter((i) => i.code !== 'PRICE_CHANGED');
+  if (blocking.length > 0 || !preview.ready) {
+    throw conflict(
+      'سبد خرید برای ثبت سفارش آماده نیست.',
+      undefined,
+      'CHECKOUT_CHANGED',
+      preview,
+    );
+  }
+
+  if (
+    input.expectedSubtotal != null &&
+    input.expectedSubtotal !== preview.summary.subtotal
+  ) {
+    throw conflict(
+      'مبالغ سبد تغییر کرده است.',
+      undefined,
+      'CHECKOUT_CHANGED',
+      preview,
+    );
+  }
+
+  if (
+    input.expectedTotal != null &&
+    input.expectedTotal !== preview.summary.total
+  ) {
+    throw conflict(
+      'مبالغ سبد تغییر کرده است.',
+      undefined,
+      'CHECKOUT_CHANGED',
+      preview,
+    );
+  }
+
+  const stockLines = preview.items.map((item) => ({
+    productId: item.productId,
+    quantity: item.quantity,
+  }));
+
+  // Atomic per-SKU decrements with compensation on failure.
+  await decrementMany(stockLines);
+
+  let order: OrderDocument;
+  try {
+    const orderNumber = await allocateOrderNumber();
+    const now = new Date();
+    order = await Order.create({
+      orderNumber,
+      user: new Types.ObjectId(userId),
+      status: 'awaiting_payment',
+      paymentStatus: 'unpaid',
+      fulfillmentStatus: 'unfulfilled',
+      items: preview.items.map((item) => ({
+        productId: new Types.ObjectId(item.productId),
+        sku: item.sku,
+        name: item.name,
+        slug: item.slug,
+        imageSrc: item.imageSrc,
+        productKind: item.productKind,
+        size: item.size,
+        color: item.color,
+        colorValue: item.colorValue,
+        quantity: item.quantity,
+        unitPrice: item.unitPrice,
+        unitSalePrice:
+          item.unitFinalPrice < item.unitPrice ? item.unitFinalPrice : undefined,
+        unitFinalPrice: item.unitFinalPrice,
+        lineSubtotal: item.lineSubtotal,
+        lineDiscount: item.lineDiscount,
+        lineTotal: item.lineTotal,
+        currency: item.currency,
+      })),
+      shippingAddress: {
+        recipientName: input.shippingAddress.recipientName,
+        phone: input.shippingAddress.phone,
+        province: input.shippingAddress.province,
+        city: input.shippingAddress.city,
+        addressLine: input.shippingAddress.addressLine,
+        postalCode: input.shippingAddress.postalCode,
+        landline: input.shippingAddress.landline,
+        notes: input.shippingAddress.notes,
+      },
+      shippingMethodId: preview.shippingMethodId as ShippingMethodId,
+      shippingMethodTitle: preview.shippingMethodTitle,
+      paymentMethod: input.paymentMethod,
+      currency: preview.summary.currency,
+      itemCount: preview.summary.itemCount,
+      subtotal: preview.summary.subtotal,
+      discountTotal: preview.summary.discountTotal,
+      shippingCost: preview.summary.shippingCost,
+      total: preview.summary.total,
+      history: [
+        {
+          fromStatus: null,
+          toStatus: 'awaiting_payment' as const,
+          actorType: 'customer' as const,
+          actorId: userId,
+          reason: 'ثبت سفارش',
+          at: now,
+        },
+      ],
+      idempotencyKey: idempotencyKey || undefined,
+      inventoryDecremented: true,
+    });
+
+    await clearCart(userId);
+
+    if (idempotencyKey) {
+      try {
+        await IdempotencyRecord.create({
+          key: idempotencyKey,
+          userId,
+          requestHash: hashCheckoutRequest(raw),
+          orderNumber: order.orderNumber,
+          expiresAt: idempotencyExpiry(),
+        });
+      } catch {
+        // Unique race: another request won — return that order if present.
+        const raced = await IdempotencyRecord.findOne({
+          key: idempotencyKey,
+          userId,
+        });
+        if (raced && raced.orderNumber !== order.orderNumber) {
+          const other = await Order.findOne({
+            orderNumber: raced.orderNumber,
+          });
+          if (other) {
+            // Compensate duplicate inventory/order — cancel duplicate and restore.
+            await Order.deleteOne({ _id: order._id });
+            await restoreMany(stockLines);
+            return toPublicOrder(other);
+          }
+        }
+      }
+    }
+  } catch (error) {
+    await restoreMany(stockLines);
+    throw error;
+  }
+
+  logger.info('checkout.order_created', {
+    userId,
+    orderNumber: order.orderNumber,
+    total: order.total,
+  });
+
+  return toPublicOrder(order);
+}
+
+export function requireIdempotencyKey(headerValue: unknown): string | undefined {
+  if (headerValue == null || headerValue === '') return undefined;
+  if (typeof headerValue !== 'string') {
+    throw badRequest('کلید Idempotency نامعتبر است.');
+  }
+  const key = headerValue.trim();
+  if (key.length < 8 || key.length > 128) {
+    throw badRequest('کلید Idempotency نامعتبر است.');
+  }
+  return key;
+}
