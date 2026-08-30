@@ -10,6 +10,8 @@ beforeAll(async () => {
   mongo = await MongoMemoryServer.create();
   process.env.MONGODB_URI = mongo.getUri();
   await connectDB(mongo.getUri());
+  // Ensure partial unique indexes (e.g. one open payment per order) exist.
+  await mongoose.connection.syncIndexes();
 });
 
 beforeEach(async () => {

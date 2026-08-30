@@ -208,6 +208,22 @@ export async function updateAdminOrderStatus(
   const order = await Order.findOne({ orderNumber });
   if (!order) throw notFound('سفارش یافت نشد.', 'ORDER_NOT_FOUND');
 
+  // Never cancel/fail a financially captured order via status change.
+  // Restocking while Payment remains paid creates silent inventory+money divergence.
+  // Check before transition graph so the error code is actionable for admins.
+  if (
+    (body.status === 'cancelled' || body.status === 'failed') &&
+    (order.paymentStatus === 'paid' ||
+      order.paymentStatus === 'partially_refunded' ||
+      order.status === 'paid')
+  ) {
+    throw conflict(
+      'سفارش پرداخت‌شده را لغو نکنید — از مسیر بازپرداخت استفاده کنید.',
+      undefined,
+      'ORDER_REQUIRES_REFUND',
+    );
+  }
+
   assertTransition(order.status, body.status);
 
   const previous = order.status;

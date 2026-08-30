@@ -166,21 +166,42 @@ export async function createPayment(
   const provider = getPaymentProvider();
   const expiresAt = reservationExpiry();
 
-  const payment = await Payment.create({
-    order: order._id,
-    orderNumber: order.orderNumber,
-    user: new Types.ObjectId(userId),
-    provider: provider.id,
-    status: 'created',
-    amount: order.total,
-    currency: order.currency,
-    idempotencyKey,
-    requestHash,
-    expiresAt,
-    refundedAmount: 0,
-    needsManualRefund: false,
-    metadata: input.simulate ? { simulate: input.simulate } : undefined,
-  });
+  let payment;
+  try {
+    payment = await Payment.create({
+      order: order._id,
+      orderNumber: order.orderNumber,
+      user: new Types.ObjectId(userId),
+      provider: provider.id,
+      status: 'created',
+      amount: order.total,
+      currency: order.currency,
+      idempotencyKey,
+      requestHash,
+      expiresAt,
+      refundedAmount: 0,
+      needsManualRefund: false,
+      metadata: input.simulate ? { simulate: input.simulate } : undefined,
+    });
+  } catch (createError) {
+    // Partial unique index: one open payment per order — concurrent create loses.
+    const isDup =
+      typeof createError === 'object' &&
+      createError !== null &&
+      'code' in createError &&
+      (createError as { code?: number }).code === 11000;
+    if (isDup) {
+      const raced = await Payment.findOne({
+        orderNumber: input.orderNumber,
+        user: userId,
+        status: { $in: ['created', 'pending', 'redirected', 'processing'] },
+      }).sort({ createdAt: -1 });
+      if (raced) return toPublicPayment(raced);
+      const byKey = await Payment.findOne({ user: userId, idempotencyKey });
+      if (byKey) return toPublicPayment(byKey);
+    }
+    throw createError;
+  }
 
   if (!order.inventoryReservedUntil) {
     order.inventoryReservedUntil = expiresAt;
@@ -254,21 +275,28 @@ async function markPaymentFailed(
   code: string,
   reason: string,
 ): Promise<void> {
-  if (!isOpenPaymentStatus(payment.status) && payment.status !== 'processing') {
+  // Atomic — never overwrite paid/refunded via a stale in-memory document.
+  const failed = await Payment.findOneAndUpdate(
+    {
+      _id: payment._id,
+      status: { $in: ['created', 'pending', 'redirected', 'processing'] },
+    },
+    {
+      $set: {
+        status: 'failed',
+        failureCode: code,
+        failureReason: reason,
+      },
+    },
+    { returnDocument: 'after' },
+  );
+  if (!failed) {
     return;
   }
-  if (payment.status !== 'failed') {
-    assertPaymentTransition(
-      payment.status === 'redirected' || payment.status === 'pending'
-        ? payment.status
-        : payment.status,
-      'failed',
-    );
-    payment.status = 'failed';
-  }
-  payment.failureCode = code;
-  payment.failureReason = reason;
-  await payment.save();
+
+  payment.status = failed.status;
+  payment.failureCode = failed.failureCode;
+  payment.failureReason = failed.failureReason;
 
   const order = await Order.findById(payment.order);
   if (order && order.paymentStatus !== 'paid') {
@@ -316,7 +344,19 @@ async function applySuccessfulPayment(
   const claimed = await Payment.findOneAndUpdate(
     {
       _id: payment._id,
-      status: { $in: ['created', 'pending', 'redirected', 'processing'] },
+      // Include terminal open-adjacent states so provider-confirmed capture
+      // after expiry / false NOK can still enter the late-payment path.
+      status: {
+        $in: [
+          'created',
+          'pending',
+          'redirected',
+          'processing',
+          'expired',
+          'failed',
+          'cancelled',
+        ],
+      },
     },
     { $set: { status: 'processing' } },
     { returnDocument: 'after' },
@@ -563,14 +603,10 @@ export async function handlePaymentCallback(
     };
   }
 
-  if (payment.status === 'expired') {
-    throw conflict('مهلت پرداخت منقضی شده است.', undefined, 'PAYMENT_EXPIRED');
-  }
-
-  if (input.status && input.status.toUpperCase() !== 'OK') {
-    await markPaymentFailed(payment, 'CALLBACK_NOK', 'کاربر پرداخت را لغو کرد');
-    throw conflict('پرداخت ناموفق بود.', undefined, 'PAYMENT_FAILED');
-  }
+  // Browser Status is a signal only — always verify with the provider.
+  // Never terminal-fail on NOK/expired without provider confirmation.
+  const browserSaysNok =
+    Boolean(input.status) && input.status!.toUpperCase() !== 'OK';
 
   await recordAudit({
     action: 'payment.verification_started',
@@ -579,7 +615,12 @@ export async function handlePaymentCallback(
     entityType: 'payment',
     entityId: String(payment._id),
     orderNumber: payment.orderNumber,
-    metadata: { source: 'callback' },
+    metadata: {
+      source: 'callback',
+      browserStatus: input.status ?? null,
+      browserSaysNok,
+      localStatus: payment.status,
+    },
   });
 
   const provider = getPaymentProvider();
@@ -621,10 +662,15 @@ export async function handlePaymentCallback(
     }
     await markPaymentFailed(
       payment,
-      verified.failureCode ?? 'VERIFY_FAILED',
-      verified.failureMessage ?? 'تایید ناموفق',
+      verified.failureCode ?? (browserSaysNok ? 'CALLBACK_NOK' : 'VERIFY_FAILED'),
+      verified.failureMessage ??
+        (browserSaysNok ? 'کاربر پرداخت را لغو کرد' : 'تایید ناموفق'),
     );
-    throw conflict('تایید پرداخت ناموفق بود.', undefined, 'PAYMENT_VERIFICATION_FAILED');
+    throw conflict(
+      'پرداخت ناموفق بود.',
+      undefined,
+      browserSaysNok ? 'PAYMENT_FAILED' : 'PAYMENT_VERIFICATION_FAILED',
+    );
   }
 
   if (verified.amount !== payment.amount) {
@@ -750,6 +796,21 @@ export async function handleProviderWebhook(
       metadata: payment.metadata,
     });
     if (!verified.success || verified.amount !== payment.amount) {
+      // Timeout / unreachable ≠ proven failure — leave open for reconcile.
+      if (
+        verified.failureCode === 'PROVIDER_TIMEOUT' ||
+        verified.failureCode === 'PROVIDER_ERROR' ||
+        verified.failureCode === 'PROVIDER_UNAVAILABLE'
+      ) {
+        await PaymentProviderEvent.updateOne(
+          { provider: provider.id, eventId: event.eventId },
+          {
+            outcome: 'ignored',
+            note: `webhook_verify_${verified.failureCode ?? 'unknown'}`,
+          },
+        );
+        return { ok: true };
+      }
       await markPaymentFailed(
         payment,
         verified.failureCode ?? 'WEBHOOK_VERIFY_FAILED',
@@ -813,11 +874,21 @@ export async function handleProviderWebhook(
           : event.status === 'cancelled'
             ? 'cancelled'
             : 'failed';
-      assertPaymentTransition(payment.status, target);
-      payment.status = target;
-      payment.failureCode = `webhook_${event.status}`;
-      await payment.save();
-      if (target === 'expired') {
+      // Atomic transition — never stale-save over a concurrent paid claim.
+      const moved = await Payment.findOneAndUpdate(
+        {
+          _id: payment._id,
+          status: { $in: ['created', 'pending', 'redirected', 'processing'] },
+        },
+        {
+          $set: {
+            status: target,
+            failureCode: `webhook_${event.status}`,
+          },
+        },
+        { returnDocument: 'after' },
+      );
+      if (moved && target === 'expired') {
         await expireOrderReservation(payment.orderNumber);
       }
     }
@@ -919,16 +990,20 @@ export async function releaseExpiredReservations(
 
   let released = 0;
   for (const order of orders) {
+    // Do NOT terminalize open payments here.
+    // Customer cancel leaves payments open so late provider success can enter
+    // handleLatePaymentOnCancelledOrder. Reservation expiry must behave the same:
+    // cancel+restock the order, leave payment open for verify/reconcile.
     const openPayments = await Payment.find({
       orderNumber: order.orderNumber,
       status: { $in: ['created', 'pending', 'redirected', 'processing'] },
     });
     for (const payment of openPayments) {
-      if (isOpenPaymentStatus(payment.status)) {
-        assertPaymentTransition(payment.status, 'expired');
-        payment.status = 'expired';
-        await payment.save();
-      }
+      await Payment.findByIdAndUpdate(payment._id, {
+        $set: {
+          'metadata.reservationExpiredAt': now.toISOString(),
+        },
+      });
     }
     await expireOrderReservation(order.orderNumber);
     released += 1;

@@ -88,6 +88,19 @@ export async function reconcilePayment(
 
       if (
         verified.success &&
+        (payment.status === 'failed' ||
+          payment.status === 'expired' ||
+          payment.status === 'cancelled')
+      ) {
+        findings.push('provider_paid_local_terminal');
+        notes.push(
+          'Provider reports paid while local payment is terminal — needs recovery',
+        );
+        needsManualReview = true;
+      }
+
+      if (
+        verified.success &&
         (payment.status === 'paid' ||
           payment.status === 'refunded' ||
           payment.status === 'partially_refunded') &&
@@ -127,18 +140,22 @@ export async function reconcilePayment(
   let appliedFix = false;
   if (
     options?.applySafeFix &&
-    findings.includes('provider_paid_local_pending')
+    (findings.includes('provider_paid_local_pending') ||
+      findings.includes('provider_paid_local_terminal'))
   ) {
     await applySuccessfulPaymentForReconcile(
       payment,
       providerTransactionId,
     );
     appliedFix = true;
-    notes.push('Applied safe fix: marked payment/order paid from provider truth');
+    notes.push(
+      'Applied safe fix: applied provider-confirmed capture to local state',
+    );
   } else if (
     options?.applySafeFix &&
     needsManualReview &&
-    !findings.includes('provider_paid_local_pending')
+    !findings.includes('provider_paid_local_pending') &&
+    !findings.includes('provider_paid_local_terminal')
   ) {
     await recordAudit({
       action: 'reconciliation.manual_review',

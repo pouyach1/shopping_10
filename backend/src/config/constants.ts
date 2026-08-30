@@ -251,6 +251,7 @@ export type NotificationDeliveryStatus =
 export const RECONCILIATION_FINDINGS = [
   'in_sync',
   'provider_paid_local_pending',
+  'provider_paid_local_terminal',
   'local_paid_provider_failed',
   'order_payment_mismatch',
   'provider_unreachable',

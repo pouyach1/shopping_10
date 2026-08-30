@@ -8,7 +8,9 @@ import { conflict } from '../utils/AppError';
 const ALLOWED: Record<OrderStatus, readonly OrderStatus[]> = {
   pending: ['awaiting_payment', 'cancelled', 'failed'],
   awaiting_payment: ['paid', 'cancelled', 'failed'],
-  paid: ['processing', 'cancelled', 'failed'],
+  // Paid → cancelled/failed is NOT allowed here: money is captured.
+  // Use the refund workflow (admin refund) — never restock while paid.
+  paid: ['processing'],
   processing: ['shipped', 'cancelled'],
   shipped: ['delivered'],
   delivered: [],
