@@ -1,26 +1,51 @@
 import mongoose from 'mongoose';
-import { env } from './env';
 
-/**
- * Establishes the Mongoose connection to MongoDB.
- *
- * Connection lifecycle events are logged. A short server-selection timeout is
- * used so that, when MongoDB is not running, startup fails fast instead of
- * hanging for the Mongoose default of 30s (the caller decides whether that is
- * fatal).
- */
-export async function connectDB(): Promise<void> {
+import { env } from './env';
+import { logger } from '../utils/logger';
+
+let listenersAttached = false;
+
+function attachListeners(): void {
+  if (listenersAttached) return;
+  listenersAttached = true;
+
   mongoose.connection.on('connected', () => {
-    console.log('[db] MongoDB connected');
+    logger.info('MongoDB connected');
   });
-  mongoose.connection.on('error', (error) => {
-    console.error('[db] MongoDB connection error:', error.message);
+  mongoose.connection.on('error', (error: Error) => {
+    logger.error('MongoDB connection error', error.message);
   });
   mongoose.connection.on('disconnected', () => {
-    console.warn('[db] MongoDB disconnected');
+    logger.warn('MongoDB disconnected');
   });
+}
 
-  await mongoose.connect(env.MONGODB_URI, {
-    serverSelectionTimeoutMS: 5000,
+export async function connectDB(uri = env.MONGODB_URI): Promise<typeof mongoose> {
+  attachListeners();
+  return mongoose.connect(uri, {
+    serverSelectionTimeoutMS: env.isProd ? 10_000 : 5_000,
   });
+}
+
+export async function disconnectDB(): Promise<void> {
+  if (mongoose.connection.readyState === 0) return;
+  await mongoose.connection.close();
+  logger.info('MongoDB connection closed');
+}
+
+export function isDbReady(): boolean {
+  return mongoose.connection.readyState === 1;
+}
+
+export function getDbState(): 'connected' | 'disconnected' | 'connecting' | 'disconnecting' {
+  switch (mongoose.connection.readyState) {
+    case 1:
+      return 'connected';
+    case 2:
+      return 'connecting';
+    case 3:
+      return 'disconnecting';
+    default:
+      return 'disconnected';
+  }
 }

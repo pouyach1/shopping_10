@@ -1,20 +1,53 @@
-import express from 'express';
-import type { Application } from 'express';
+import cors from 'cors';
+import cookieParser from 'cookie-parser';
+import express, { type Application } from 'express';
+import helmet from 'helmet';
+
+import { env } from './config/env';
 import routes from './routes';
-import { notFound, errorHandler } from './middleware/errorHandler';
+import { apiRateLimiter, errorHandler, notFound } from './middleware/errorHandler';
 
 /**
- * Builds and configures the Express application (no network binding here, so it
- * stays easy to test/import). All feature routes live under the `/api` prefix.
+ * Builds the Express application without binding a port (test-friendly).
  */
 export function createApp(): Application {
   const app = express();
 
-  app.use(express.json());
+  app.disable('x-powered-by');
+  app.set('trust proxy', 1);
+
+  app.use(
+    helmet({
+      crossOriginResourcePolicy: { policy: 'cross-origin' },
+    }),
+  );
+
+  app.use(
+    cors({
+      origin(origin, callback) {
+        // Non-browser clients (curl, server-to-server, tests) send no Origin.
+        if (!origin) {
+          callback(null, true);
+          return;
+        }
+        if (env.CLIENT_ORIGINS.includes(origin)) {
+          callback(null, true);
+          return;
+        }
+        callback(new Error('Origin not allowed by CORS'));
+      },
+      credentials: true,
+    }),
+  );
+
+  app.use(express.json({ limit: env.JSON_BODY_LIMIT }));
+  app.use(cookieParser());
+  if (!env.isTest) {
+    app.use(apiRateLimiter);
+  }
 
   app.use('/api', routes);
 
-  // 404 + error handling must be registered last.
   app.use(notFound);
   app.use(errorHandler);
 
