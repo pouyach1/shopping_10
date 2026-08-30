@@ -27,7 +27,14 @@ import {
 } from '../validators/order.validators';
 import { toPublicProduct, derivePricing } from './catalog.mapper';
 import { resolveLineAvailability } from './commerce.mapper';
-import { decrementMany, restoreMany } from './inventory.service';
+import { restoreMany } from './inventory.service';
+import {
+  beginInventoryHold,
+  claimReleaseDecrementedHold,
+  commitInventoryHold,
+  decrementUnderHold,
+} from './inventoryHold.service';
+import { InventoryHold } from '../models/InventoryHold';
 import { allocateOrderNumber } from './orderNumber.service';
 import { toPublicOrder, type PublicOrder } from './order.mapper';
 import { resolveShippingCost } from './shipping.service';
@@ -364,25 +371,31 @@ function assertAddress(address: CheckoutAddressInput): void {
 export async function createOrder(
   userId: string,
   raw: unknown,
-  idempotencyKey?: string,
+  idempotencyKey: string,
 ): Promise<PublicOrder> {
   const input: CreateOrderInput = parseOrThrow(createOrderSchema, raw);
   assertAddress(input.shippingAddress);
+  const requestHash = hashCheckoutRequest(raw);
 
-  if (idempotencyKey) {
-    const existing = await IdempotencyRecord.findOne({
-      key: idempotencyKey,
-      userId,
-    });
-    if (existing) {
-      const order = await Order.findOne({ orderNumber: existing.orderNumber });
-      if (order) {
-        logger.info('checkout.idempotency_replay', {
-          userId,
-          orderNumber: order.orderNumber,
-        });
-        return toPublicOrder(order);
-      }
+  const existing = await IdempotencyRecord.findOne({
+    key: idempotencyKey,
+    userId,
+  });
+  if (existing) {
+    if (existing.requestHash !== requestHash) {
+      throw conflict(
+        'کلید تکرار با درخواست متفاوت در تداخل است.',
+        undefined,
+        'IDEMPOTENCY_CONFLICT',
+      );
+    }
+    const order = await Order.findOne({ orderNumber: existing.orderNumber });
+    if (order) {
+      logger.info('checkout.idempotency_replay', {
+        userId,
+        orderNumber: order.orderNumber,
+      });
+      return toPublicOrder(order);
     }
   }
 
@@ -398,7 +411,6 @@ export async function createOrder(
   preview = await applyCouponToPreview(preview, userId, input.couponCode);
 
   if (preview.issues.some((i) => i.code === 'PRICE_CHANGED')) {
-    // Soft: allow if client acknowledges new totals via expectedTotal match.
     if (
       input.expectedTotal == null ||
       input.expectedTotal !== preview.summary.total
@@ -451,8 +463,15 @@ export async function createOrder(
     quantity: item.quantity,
   }));
 
-  // Atomic per-SKU decrements with compensation on failure.
-  await decrementMany(stockLines);
+  // Durable hold → decrement → create order. Crash between decrement and
+  // create leaves a recoverable hold (not silent inventory loss).
+  const hold = await beginInventoryHold({ userId, items: stockLines });
+  try {
+    await decrementUnderHold(hold);
+  } catch (error) {
+    await claimReleaseDecrementedHold(hold._id, 'decrement_failed');
+    throw error;
+  }
 
   let order: OrderDocument | undefined;
   try {
@@ -519,11 +538,16 @@ export async function createOrder(
           at: now,
         },
       ],
-      idempotencyKey: idempotencyKey || undefined,
+      idempotencyKey,
       inventoryDecremented: true,
-      inventoryReservedUntil:
-        input.paymentMethod === 'online' ? reservedUntil : undefined,
+      inventoryReleaseClaimedAt: null,
+      inventoryHoldId: hold._id,
+      financialIntegrityStatus: 'ok',
+      // Online + COD: never hold inventory forever without a reservation TTL.
+      inventoryReservedUntil: reservedUntil,
     });
+
+    await commitInventoryHold(hold._id, order._id, order.orderNumber);
 
     if (preview.summary.couponCode) {
       const redeemed = await redeemCouponForOrder({
@@ -544,31 +568,44 @@ export async function createOrder(
 
     await clearCart(userId);
 
-    if (idempotencyKey) {
-      try {
-        await IdempotencyRecord.create({
-          key: idempotencyKey,
-          userId,
-          requestHash: hashCheckoutRequest(raw),
-          orderNumber: order.orderNumber,
-          expiresAt: idempotencyExpiry(),
+    try {
+      await IdempotencyRecord.create({
+        key: idempotencyKey,
+        userId,
+        requestHash,
+        orderNumber: order.orderNumber,
+        expiresAt: idempotencyExpiry(),
+      });
+    } catch {
+      const raced = await IdempotencyRecord.findOne({
+        key: idempotencyKey,
+        userId,
+      });
+      if (raced && raced.requestHash !== requestHash) {
+        await Order.deleteOne({ _id: order._id });
+        await restoreMany(stockLines);
+        await InventoryHold.updateOne(
+          { _id: hold._id },
+          { $set: { status: 'released', releasedAt: new Date() } },
+        );
+        throw conflict(
+          'کلید تکرار با درخواست متفاوت در تداخل است.',
+          undefined,
+          'IDEMPOTENCY_CONFLICT',
+        );
+      }
+      if (raced && raced.orderNumber !== order.orderNumber) {
+        const other = await Order.findOne({
+          orderNumber: raced.orderNumber,
         });
-      } catch {
-        // Unique race: another request won — return that order if present.
-        const raced = await IdempotencyRecord.findOne({
-          key: idempotencyKey,
-          userId,
-        });
-        if (raced && raced.orderNumber !== order.orderNumber) {
-          const other = await Order.findOne({
-            orderNumber: raced.orderNumber,
-          });
-          if (other) {
-            // Compensate duplicate inventory/order — cancel duplicate and restore.
-            await Order.deleteOne({ _id: order._id });
-            await restoreMany(stockLines);
-            return toPublicOrder(other);
-          }
+        if (other) {
+          await Order.deleteOne({ _id: order._id });
+          await restoreMany(stockLines);
+          await InventoryHold.updateOne(
+            { _id: hold._id },
+            { $set: { status: 'released', releasedAt: new Date() } },
+          );
+          return toPublicOrder(other);
         }
       }
     }
@@ -576,7 +613,21 @@ export async function createOrder(
     if (order) {
       await Order.deleteOne({ _id: order._id }).catch(() => undefined);
     }
-    await restoreMany(stockLines);
+    const holdFresh = await InventoryHold.findById(hold._id);
+    if (holdFresh?.status === 'decremented') {
+      await claimReleaseDecrementedHold(hold._id, 'order_create_failed');
+    } else if (holdFresh?.status === 'committed') {
+      await restoreMany(stockLines);
+      await InventoryHold.updateOne(
+        { _id: hold._id },
+        { $set: { status: 'released', releasedAt: new Date() } },
+      );
+    } else if (holdFresh?.status === 'open') {
+      await InventoryHold.updateOne(
+        { _id: hold._id },
+        { $set: { status: 'released', releasedAt: new Date() } },
+      );
+    }
     throw error;
   }
 
@@ -605,8 +656,17 @@ export async function createOrder(
   return toPublicOrder(order!);
 }
 
-export function requireIdempotencyKey(headerValue: unknown): string | undefined {
-  if (headerValue == null || headerValue === '') return undefined;
+/**
+ * Idempotency-Key is required for money-moving order creation.
+ */
+export function requireIdempotencyKey(headerValue: unknown): string {
+  if (headerValue == null || headerValue === '') {
+    throw badRequest(
+      'هدر Idempotency-Key الزامی است.',
+      undefined,
+      'BAD_REQUEST',
+    );
+  }
   if (typeof headerValue !== 'string') {
     throw badRequest('کلید Idempotency نامعتبر است.');
   }

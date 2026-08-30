@@ -18,20 +18,23 @@ import {
   notFound,
 } from '../utils/AppError';
 import { recordAudit } from './audit.service';
-import { restoreMany } from './inventory.service';
 import { emitCommerceEvent } from './notifications';
 import {
   assertPaymentTransition,
   isOpenPaymentStatus,
 } from './paymentTransitions';
-import { assertTransition } from './orderTransitions';
 import { getPaymentProvider } from './payments';
+import { claimAndRestoreOrderInventory } from './inventoryRelease.service';
 import {
   parseOrThrow,
   createPaymentSchema,
   paymentCallbackSchema,
   paymentListQuerySchema,
 } from '../validators/payment.validators';
+
+function hashPaymentRequest(body: unknown): string {
+  return createHash('sha256').update(JSON.stringify(body ?? {})).digest('hex');
+}
 
 export interface PublicPayment {
   id: string;
@@ -115,25 +118,37 @@ async function loadOwnedPayableOrder(
 export async function createPayment(
   userId: string,
   raw: unknown,
-  idempotencyKey?: string,
+  idempotencyKey: string,
 ): Promise<PublicPayment> {
   const input = parseOrThrow(createPaymentSchema, raw);
+  const requestHash = hashPaymentRequest({
+    orderNumber: input.orderNumber,
+    simulate: input.simulate ?? null,
+  });
 
-  if (idempotencyKey) {
-    const existing = await Payment.findOne({
-      user: userId,
-      idempotencyKey,
-    });
-    if (existing) {
-      if (existing.orderNumber !== input.orderNumber) {
-        throw conflict(
-          'کلید تکرار با درخواست متفاوت در تداخل است.',
-          undefined,
-          'IDEMPOTENCY_CONFLICT',
-        );
-      }
-      return toPublicPayment(existing);
+  const existing = await Payment.findOne({
+    user: userId,
+    idempotencyKey,
+  });
+  if (existing) {
+    if (
+      existing.requestHash &&
+      existing.requestHash !== requestHash
+    ) {
+      throw conflict(
+        'کلید تکرار با درخواست متفاوت در تداخل است.',
+        undefined,
+        'IDEMPOTENCY_CONFLICT',
+      );
     }
+    if (existing.orderNumber !== input.orderNumber) {
+      throw conflict(
+        'کلید تکرار با درخواست متفاوت در تداخل است.',
+        undefined,
+        'IDEMPOTENCY_CONFLICT',
+      );
+    }
+    return toPublicPayment(existing);
   }
 
   // Reuse open payment for same order (double-click / refresh).
@@ -158,9 +173,11 @@ export async function createPayment(
     status: 'created',
     amount: order.total,
     currency: order.currency,
-    idempotencyKey: idempotencyKey || undefined,
+    idempotencyKey,
+    requestHash,
     expiresAt,
     refundedAmount: 0,
+    needsManualRefund: false,
     metadata: input.simulate ? { simulate: input.simulate } : undefined,
   });
 
@@ -275,26 +292,24 @@ async function markPaymentFailed(
 
 /**
  * Apply verified success to payment + order.
- * Late success after cancel → auto-refund policy (no paid+cancelled).
- * Concurrent callback+webhook: atomic claim ensures one success transition
- * and one PaymentSuccessful notification enqueue.
+ *
+ * Payment success only moves the order to paid via conditional update on a
+ * still-payable status. Late success after cancel never marks the order paid;
+ * auto-refund only when the provider confirms — otherwise needs_manual_refund.
  */
 async function applySuccessfulPayment(
   payment: PaymentDocument,
   providerTransactionId: string | undefined,
   source: 'callback' | 'webhook' | 'reconcile',
-): Promise<{ outcome: 'paid' | 'auto_refunded' | 'already_paid' }> {
+): Promise<{
+  outcome: 'paid' | 'auto_refunded' | 'needs_manual_refund' | 'already_paid';
+}> {
   if (
     payment.status === 'paid' ||
     payment.status === 'refunded' ||
     payment.status === 'partially_refunded'
   ) {
     return { outcome: 'already_paid' };
-  }
-
-  const order = await Order.findById(payment.order);
-  if (!order) {
-    throw notFound('سفارش یافت نشد.', 'ORDER_NOT_FOUND');
   }
 
   const claimed = await Payment.findOneAndUpdate(
@@ -319,62 +334,6 @@ async function applySuccessfulPayment(
     return { outcome: 'already_paid' };
   }
 
-  // Scenario D: payment succeeds after cancel — refund, keep cancelled.
-  if (order.status === 'cancelled' || order.status === 'failed') {
-    const paidDoc = await Payment.findOneAndUpdate(
-      { _id: payment._id, status: 'processing' },
-      {
-        $set: {
-          status: 'paid',
-          paidAt: new Date(),
-          verifiedAt: new Date(),
-          providerTransactionId:
-            providerTransactionId ?? claimed.providerTransactionId,
-        },
-      },
-      { returnDocument: 'after' },
-    );
-    if (!paidDoc) return { outcome: 'already_paid' };
-
-    const provider = getPaymentProvider();
-    const refund = await provider.refundPayment({
-      authority: paidDoc.authority!,
-      providerTransactionId: paidDoc.providerTransactionId,
-      amount: paidDoc.amount,
-      currency: paidDoc.currency,
-      reason: 'order_already_cancelled',
-      idempotencyKey: `auto-refund-${String(paidDoc._id)}`,
-    });
-
-    if (refund.success) {
-      await Payment.findOneAndUpdate(
-        { _id: paidDoc._id, status: 'paid' },
-        {
-          $set: {
-            status: 'refunded',
-            refundedAt: new Date(),
-            refundedAmount: paidDoc.amount,
-            failureReason: 'auto_refund_cancelled_order',
-          },
-        },
-      );
-    }
-
-    await recordAudit({
-      action: 'payment.verified',
-      actorType: 'system',
-      entityType: 'payment',
-      entityId: String(payment._id),
-      orderNumber: order.orderNumber,
-      metadata: {
-        source,
-        policy: 'auto_refund_cancelled_order',
-        refundSuccess: refund.success,
-      },
-    });
-    return { outcome: 'auto_refunded' };
-  }
-
   const paidDoc = await Payment.findOneAndUpdate(
     { _id: payment._id, status: 'processing' },
     {
@@ -393,14 +352,13 @@ async function applySuccessfulPayment(
     return { outcome: 'already_paid' };
   }
 
-  const previous = order.status;
-  if (previous !== 'paid') {
-    assertTransition(previous, 'paid');
-  }
+  // Atomic order transition — only if still payable (never from cancelled).
+  const priorOrder = await Order.findById(paidDoc.order).select('status');
   const orderUpdated = await Order.findOneAndUpdate(
     {
-      _id: order._id,
-      paymentStatus: { $ne: 'paid' },
+      _id: paidDoc.order,
+      status: { $in: ['awaiting_payment', 'pending'] },
+      paymentStatus: { $nin: ['paid'] },
     },
     {
       $set: {
@@ -408,10 +366,11 @@ async function applySuccessfulPayment(
         paymentStatus: 'paid',
         paidAt: new Date(),
         inventoryReservedUntil: null,
+        financialIntegrityStatus: 'ok',
       },
       $push: {
         history: {
-          fromStatus: previous,
+          fromStatus: priorOrder?.status ?? 'awaiting_payment',
           toStatus: 'paid',
           actorType: 'system',
           reason: `payment_${source}`,
@@ -422,33 +381,158 @@ async function applySuccessfulPayment(
     { returnDocument: 'after' },
   );
 
+  if (orderUpdated) {
+    await recordAudit({
+      action: 'payment.verified',
+      actorType: 'system',
+      entityType: 'payment',
+      entityId: String(payment._id),
+      orderNumber: orderUpdated.orderNumber,
+      metadata: { source, amount: paidDoc.amount },
+    });
+    emitCommerceEvent('PaymentSuccessful', {
+      orderNumber: orderUpdated.orderNumber,
+      userId: String(orderUpdated.user),
+      paymentId: String(payment._id),
+      amount: paidDoc.amount,
+      currency: paidDoc.currency,
+    });
+    return { outcome: 'paid' };
+  }
+
+  // Order not payable — typically cancelled/failed. Do NOT flip to paid.
+  const order = await Order.findById(paidDoc.order);
+  if (!order) {
+    throw notFound('سفارش یافت نشد.', 'ORDER_NOT_FOUND');
+  }
+
+  if (order.status === 'paid' && order.paymentStatus === 'paid') {
+    return { outcome: 'already_paid' };
+  }
+
+  if (order.status === 'cancelled' || order.status === 'failed') {
+    return handleLatePaymentOnCancelledOrder(paidDoc, order, source);
+  }
+
+  // Unexpected state — keep payment paid, flag for ops.
+  await Order.findByIdAndUpdate(order._id, {
+    $set: {
+      financialIntegrityStatus: 'paid_needs_manual_refund',
+    },
+  });
+  await Payment.findByIdAndUpdate(paidDoc._id, {
+    $set: {
+      needsManualRefund: true,
+      financialHoldReason: `late_payment_unexpected_${order.status}`,
+    },
+  });
   await recordAudit({
-    action: 'payment.verified',
+    action: 'payment.needs_manual_refund',
     actorType: 'system',
     entityType: 'payment',
-    entityId: String(payment._id),
+    entityId: String(paidDoc._id),
     orderNumber: order.orderNumber,
-    metadata: { source, amount: paidDoc.amount },
+    metadata: { source, orderStatus: order.status },
   });
+  return { outcome: 'needs_manual_refund' };
+}
 
-  // Emit only when this caller won the payment claim (exactly once across races).
-  emitCommerceEvent('PaymentSuccessful', {
-    orderNumber: order.orderNumber,
-    userId: String(order.user),
-    paymentId: String(payment._id),
+async function handleLatePaymentOnCancelledOrder(
+  paidDoc: PaymentDocument,
+  order: OrderDocument,
+  source: string,
+): Promise<{
+  outcome: 'auto_refunded' | 'needs_manual_refund';
+}> {
+  const provider = getPaymentProvider();
+  const refund = await provider.refundPayment({
+    authority: paidDoc.authority!,
+    providerTransactionId: paidDoc.providerTransactionId,
     amount: paidDoc.amount,
     currency: paidDoc.currency,
+    reason: 'order_already_cancelled',
+    idempotencyKey: `auto-refund-${String(paidDoc._id)}`,
   });
 
-  void orderUpdated;
-  return { outcome: 'paid' };
+  if (refund.success) {
+    await Payment.findOneAndUpdate(
+      { _id: paidDoc._id, status: 'paid' },
+      {
+        $set: {
+          status: 'refunded',
+          refundedAt: new Date(),
+          refundedAmount: paidDoc.amount,
+          needsManualRefund: false,
+          financialHoldReason: 'auto_refund_cancelled_order',
+        },
+      },
+    );
+    await Order.findByIdAndUpdate(order._id, {
+      $set: {
+        financialIntegrityStatus: 'ok',
+        paymentStatus: 'refunded',
+      },
+    });
+    await recordAudit({
+      action: 'payment.verified',
+      actorType: 'system',
+      entityType: 'payment',
+      entityId: String(paidDoc._id),
+      orderNumber: order.orderNumber,
+      metadata: {
+        source,
+        policy: 'auto_refund_cancelled_order',
+        refundSuccess: true,
+      },
+    });
+    await recordAudit({
+      action: 'payment.refunded',
+      actorType: 'system',
+      entityType: 'payment',
+      entityId: String(paidDoc._id),
+      orderNumber: order.orderNumber,
+      metadata: { reason: 'order_already_cancelled' },
+    });
+    return { outcome: 'auto_refunded' };
+  }
+
+  // Provider did not confirm refund — NEVER label as auto_refunded.
+  await Payment.findByIdAndUpdate(paidDoc._id, {
+    $set: {
+      needsManualRefund: true,
+      financialHoldReason:
+        refund.failureCode === 'NOT_SUPPORTED'
+          ? 'provider_refund_not_supported'
+          : 'provider_refund_failed',
+    },
+  });
+  await Order.findByIdAndUpdate(order._id, {
+    $set: {
+      financialIntegrityStatus: 'paid_needs_manual_refund',
+    },
+  });
+  await recordAudit({
+    action: 'payment.needs_manual_refund',
+    actorType: 'system',
+    entityType: 'payment',
+    entityId: String(paidDoc._id),
+    orderNumber: order.orderNumber,
+    metadata: {
+      source,
+      failureCode: refund.failureCode,
+      failureMessage: refund.failureMessage,
+    },
+  });
+  return { outcome: 'needs_manual_refund' };
 }
 
 /** Controlled reconcile entry — same domain logic as callback/webhook success. */
 export async function applySuccessfulPaymentForReconcile(
   payment: PaymentDocument,
   providerTransactionId?: string,
-): Promise<{ outcome: 'paid' | 'auto_refunded' | 'already_paid' }> {
+): Promise<{
+  outcome: 'paid' | 'auto_refunded' | 'needs_manual_refund' | 'already_paid';
+}> {
   return applySuccessfulPayment(payment, providerTransactionId, 'reconcile');
 }
 
@@ -458,7 +542,11 @@ export async function applySuccessfulPaymentForReconcile(
 export async function handlePaymentCallback(
   userId: string,
   raw: unknown,
-): Promise<{ payment: PublicPayment; orderStatus: string }> {
+): Promise<{
+  payment: PublicPayment;
+  orderStatus: string;
+  outcome?: string;
+}> {
   const input = parseOrThrow(paymentCallbackSchema, raw);
   const payment = await Payment.findOne({
     authority: input.authority,
@@ -540,10 +628,8 @@ export async function handlePaymentCallback(
   const fresh = await Payment.findById(payment._id);
   return {
     payment: toPublicPayment(fresh ?? payment),
-    orderStatus:
-      result.outcome === 'auto_refunded'
-        ? (order?.status ?? 'cancelled')
-        : (order?.status ?? 'paid'),
+    orderStatus: order?.status ?? 'paid',
+    outcome: result.outcome,
   };
 }
 
@@ -663,6 +749,42 @@ export async function handleProviderWebhook(
     event.status === 'cancelled' ||
     event.status === 'expired'
   ) {
+    // Failure webhooks are NOT authoritative money-moving events.
+    // A Luxora-HMAC signature only proves our endpoint secret — not provider truth.
+    // Re-verify with the provider before mutating an open payment to a terminal failure.
+    if (!isOpenPaymentStatus(payment.status)) {
+      return { ok: true };
+    }
+    try {
+      const verified = await provider.verifyPayment({
+        authority: payment.authority!,
+        amount: payment.amount,
+        currency: payment.currency,
+        providerTransactionId: payment.providerTransactionId,
+        metadata: payment.metadata,
+      });
+      if (verified.success && verified.amount === payment.amount) {
+        // Provider still says paid — ignore forged/stale failure webhook.
+        await applySuccessfulPayment(
+          payment,
+          verified.providerTransactionId,
+          'webhook',
+        );
+        await PaymentProviderEvent.updateOne(
+          { provider: provider.id, eventId: event.eventId },
+          { outcome: 'ignored', note: 'failure_webhook_but_provider_paid' },
+        );
+        return { ok: true };
+      }
+    } catch {
+      // Provider unreachable — do not mark failed from webhook alone.
+      await PaymentProviderEvent.updateOne(
+        { provider: provider.id, eventId: event.eventId },
+        { outcome: 'ignored', note: 'failure_webhook_verify_unreachable' },
+      );
+      return { ok: true };
+    }
+
     if (isOpenPaymentStatus(payment.status)) {
       const target =
         event.status === 'expired'
@@ -694,7 +816,7 @@ export async function expireOrderReservation(
   });
   if (!existing) return;
 
-  // Atomic claim: only one release path restocks.
+  // Atomic cancel claim — does not restock yet.
   const claimed = await Order.findOneAndUpdate(
     {
       _id: existing._id,
@@ -707,7 +829,6 @@ export async function expireOrderReservation(
         status: 'cancelled',
         paymentStatus: 'failed',
         cancelledAt: new Date(),
-        inventoryDecremented: false,
         inventoryReservedUntil: null,
       },
       $push: {
@@ -724,27 +845,16 @@ export async function expireOrderReservation(
   );
 
   if (!claimed) {
-    // Already released, paid, or cancelled — idempotent no-op.
     return;
   }
 
-  await restoreMany(
-    existing.items.map((item) => ({
-      productId: String(item.productId),
-      quantity: item.quantity,
-    })),
-  );
+  // Shared one-time inventory release (cancel × expiry safe).
+  await claimAndRestoreOrderInventory(claimed._id, 'payment_expired', {
+    type: 'system',
+  });
 
   await recordAudit({
     action: 'inventory.reservation_released',
-    actorType: 'system',
-    entityType: 'order',
-    entityId: String(claimed._id),
-    orderNumber: claimed.orderNumber,
-    metadata: { reason: 'payment_expired' },
-  });
-  await recordAudit({
-    action: 'inventory.restocked',
     actorType: 'system',
     entityType: 'order',
     entityId: String(claimed._id),
@@ -857,6 +967,8 @@ export async function getAdminPayment(paymentId: string) {
     failureReason: payment.failureReason,
     providerTransactionId: payment.providerTransactionId,
     refundedAmount: payment.refundedAmount,
+    needsManualRefund: payment.needsManualRefund,
+    financialHoldReason: payment.financialHoldReason,
     verifiedAt: payment.verifiedAt?.toISOString(),
     refundedAt: payment.refundedAt?.toISOString(),
     webhookEvents: events.map((event) => ({

@@ -6,6 +6,10 @@ import helmet from 'helmet';
 import { env } from './config/env';
 import routes from './routes';
 import { apiRateLimiter, errorHandler, notFound } from './middleware/errorHandler';
+import {
+  csrfCookieGuard,
+  requestIdMiddleware,
+} from './middleware/requestContext';
 
 /**
  * Builds the Express application without binding a port (test-friendly).
@@ -15,6 +19,8 @@ export function createApp(): Application {
 
   app.disable('x-powered-by');
   app.set('trust proxy', 1);
+
+  app.use(requestIdMiddleware);
 
   app.use(
     helmet({
@@ -37,6 +43,7 @@ export function createApp(): Application {
         callback(new Error('Origin not allowed by CORS'));
       },
       credentials: true,
+      exposedHeaders: ['X-Request-Id'],
     }),
   );
 
@@ -50,6 +57,7 @@ export function createApp(): Application {
     }),
   );
   app.use(cookieParser());
+  app.use(csrfCookieGuard);
   if (!env.isTest) {
     app.use(apiRateLimiter);
   }

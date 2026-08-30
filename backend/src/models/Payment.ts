@@ -27,6 +27,10 @@ export interface PaymentAttrs {
   refundedAt?: Date;
   refundedAmount: number;
   expiresAt?: Date;
+  /** True when funds are captured but automatic refund did not confirm. */
+  needsManualRefund: boolean;
+  financialHoldReason?: string;
+  requestHash?: string;
   metadata?: Record<string, unknown>;
   createdAt: Date;
   updatedAt: Date;
@@ -62,7 +66,13 @@ const paymentSchema = new Schema<PaymentAttrs>(
     },
     amount: { type: Number, required: true, min: 0 },
     currency: { type: String, required: true, default: DEFAULT_CURRENCY },
-    authority: { type: String, index: true, sparse: true, maxlength: 200 },
+    authority: {
+      type: String,
+      index: true,
+      sparse: true,
+      unique: true,
+      maxlength: 200,
+    },
     providerTransactionId: {
       type: String,
       index: true,
@@ -78,6 +88,9 @@ const paymentSchema = new Schema<PaymentAttrs>(
     refundedAt: { type: Date },
     refundedAmount: { type: Number, default: 0, min: 0 },
     expiresAt: { type: Date, index: true },
+    needsManualRefund: { type: Boolean, default: false, index: true },
+    financialHoldReason: { type: String, maxlength: 200 },
+    requestHash: { type: String, maxlength: 128 },
     metadata: { type: Schema.Types.Mixed },
   },
   { timestamps: true },

@@ -57,14 +57,18 @@ Detects:
 
 ## Inventory reservation expiry
 
-`inventoryReservedUntil` + atomic `inventoryDecremented` claim.
+`inventoryReservedUntil` + shared one-time release claim (`inventoryReleaseClaimedAt`).
+
+Applies to **online and COD** unpaid orders.
 
 Run via:
 
 1. `ENABLE_RESERVATION_SCHEDULER=true` on **one** process, or
 2. External cron → `POST /admin/payments/release-expired`
 
-Duplicate ticks are safe (no double restock).
+Duplicate ticks are safe (no double restock). The same claim is used by customer cancel.
+
+Late payment after cancel: order stays cancelled. If the provider confirms auto-refund → payment `refunded`. If refund is unsupported/fails → payment stays `paid` with `needsManualRefund` and order `financialIntegrityStatus=paid_needs_manual_refund`. Never labeled `auto_refunded` without provider confirmation.
 
 ## Notifications
 
@@ -72,9 +76,9 @@ Commerce events enqueue `NotificationDelivery` rows with deterministic keys:
 
 `event:channel:recipient:entityId`
 
-Duplicate PaymentSuccessful (callback+webhook) → one SMS/email.
+Workers claim rows with a lease (`status=processing`, `lockedUntil`) so two workers cannot both send the same delivery. Crashed leases expire and become retryable (at-least-once + idempotent keys).
 
-Statuses: `pending | sent | failed | retryable | permanent_failure`
+Statuses: `pending | processing | sent | failed | retryable | permanent_failure`
 
 SMS/Email providers are abstracted (`mock` / `kavenegar` boundary / `smtp` boundary).
 Notification failure never rolls back payment.
@@ -93,9 +97,29 @@ Official v4:
 - StartPay `/pg/StartPay/{authority}`
 - Sandbox hosts: `sandbox.zarinpal.com`
 - Verify codes: `100` success, `101` already verified (idempotent OK)
+- Automatic refund API is **not** part of this adapter (`NOT_SUPPORTED`) — unresolved captures surface as `needsManualRefund`
 
 Requires production credentials. Automated tests never call the live network.
 
+## Webhook trust
+
+`x-luxora-webhook-signature` proves possession of **our** webhook secret — it is not a Zarinpal-signed payload.
+
+Paid events still require provider `verifyPayment`. Failure/cancel webhooks re-verify with the provider before mutating open payments; a forged failure cannot overturn a paid capture.
+
 ## Idempotency
 
+**Required** `Idempotency-Key` on `POST /payments` (and `POST /orders`).
+
+Same key + same normalized body → original result. Same key + different body → `409 IDEMPOTENCY_CONFLICT`.
+
 Open payments reused on double-click. Payment success claimed atomically so callback/webhook races produce one paid transition and one notification delivery.
+
+Refund capacity is reserved with an atomic `$expr` update so concurrent refunds cannot exceed the captured amount.
+
+## Cookie / CSRF model
+
+- Default `AUTH_COOKIE_SAMESITE=lax` (blocks most cross-site POSTs).
+- Cookie-authenticated mutating requests require Origin/Referer in `CLIENT_ORIGINS`.
+- Bearer `Authorization` clients skip the cookie CSRF guard.
+- Cross-site cookie SPAs may set `AUTH_COOKIE_SAMESITE=none` (Secure) and still pass Origin checks.

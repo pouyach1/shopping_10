@@ -48,6 +48,11 @@ router.post(
 
 router.get('/refunds', commerceAdminController.adminListRefunds);
 
+router.get(
+  '/orders/:orderNumber/timeline',
+  commerceAdminController.adminPaymentTimeline,
+);
+
 router.get('/coupons', commerceAdminController.adminListCoupons);
 router.post('/coupons', commerceAdminController.adminCreateCoupon);
 router.patch('/coupons/:id', commerceAdminController.adminUpdateCoupon);

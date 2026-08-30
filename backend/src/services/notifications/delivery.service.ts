@@ -178,22 +178,43 @@ export async function enqueueNotificationsForEvent(
   }
 }
 
+const NOTIFICATION_LEASE_MS = 60_000;
+
 export async function processPendingNotifications(
   limit = 50,
 ): Promise<{ processed: number; sent: number; failed: number }> {
   const now = new Date();
-  const pending = await NotificationDelivery.find({
-    status: { $in: ['pending', 'retryable'] },
-    $or: [{ nextAttemptAt: { $lte: now } }, { nextAttemptAt: null }],
-  })
-    .sort({ createdAt: 1 })
-    .limit(limit);
-
   let sent = 0;
   let failed = 0;
+  let processed = 0;
 
-  for (const delivery of pending) {
-    delivery.attempts += 1;
+  for (let i = 0; i < limit; i += 1) {
+    // Claim one delivery with a lease so two workers cannot send the same row.
+    const delivery = await NotificationDelivery.findOneAndUpdate(
+      {
+        status: { $in: ['pending', 'retryable'] },
+        $and: [
+          {
+            $or: [{ nextAttemptAt: { $lte: now } }, { nextAttemptAt: null }],
+          },
+          {
+            $or: [{ lockedUntil: null }, { lockedUntil: { $lte: now } }],
+          },
+        ],
+      },
+      {
+        $set: {
+          status: 'processing',
+          lockedUntil: new Date(Date.now() + NOTIFICATION_LEASE_MS),
+        },
+        $inc: { attempts: 1 },
+      },
+      { sort: { createdAt: 1 }, returnDocument: 'after' },
+    );
+
+    if (!delivery) break;
+    processed += 1;
+
     try {
       if (delivery.channel === 'sms') {
         const result = await smsProvider.send({
@@ -204,6 +225,7 @@ export async function processPendingNotifications(
           delivery.status = 'sent';
           delivery.sentAt = new Date();
           delivery.lastError = undefined;
+          delivery.lockedUntil = undefined;
           sent += 1;
           await recordAudit({
             action: 'notification.sent',
@@ -216,6 +238,7 @@ export async function processPendingNotifications(
         } else if (result.retryable && delivery.attempts < 5) {
           delivery.status = 'retryable';
           delivery.lastError = result.failureMessage;
+          delivery.lockedUntil = undefined;
           delivery.nextAttemptAt = new Date(
             Date.now() + delivery.attempts * 60_000,
           );
@@ -223,6 +246,7 @@ export async function processPendingNotifications(
         } else {
           delivery.status = 'permanent_failure';
           delivery.lastError = result.failureMessage;
+          delivery.lockedUntil = undefined;
           failed += 1;
           await recordAudit({
             action: 'notification.failed',
@@ -243,6 +267,7 @@ export async function processPendingNotifications(
           delivery.status = 'sent';
           delivery.sentAt = new Date();
           delivery.lastError = undefined;
+          delivery.lockedUntil = undefined;
           sent += 1;
           await recordAudit({
             action: 'notification.sent',
@@ -255,6 +280,7 @@ export async function processPendingNotifications(
         } else if (result.retryable && delivery.attempts < 5) {
           delivery.status = 'retryable';
           delivery.lastError = result.failureMessage;
+          delivery.lockedUntil = undefined;
           delivery.nextAttemptAt = new Date(
             Date.now() + delivery.attempts * 60_000,
           );
@@ -262,6 +288,7 @@ export async function processPendingNotifications(
         } else {
           delivery.status = 'permanent_failure';
           delivery.lastError = result.failureMessage;
+          delivery.lockedUntil = undefined;
           failed += 1;
           await recordAudit({
             action: 'notification.failed',
@@ -278,11 +305,27 @@ export async function processPendingNotifications(
         delivery.attempts < 5 ? 'retryable' : 'permanent_failure';
       delivery.lastError =
         error instanceof Error ? error.message : 'unknown';
+      delivery.lockedUntil = undefined;
       delivery.nextAttemptAt = new Date(Date.now() + delivery.attempts * 60_000);
       failed += 1;
     }
     await delivery.save();
   }
 
-  return { processed: pending.length, sent, failed };
+  // Recover leases from crashed workers (processing past lockedUntil).
+  await NotificationDelivery.updateMany(
+    {
+      status: 'processing',
+      lockedUntil: { $lte: now },
+    },
+    {
+      $set: {
+        status: 'retryable',
+        nextAttemptAt: now,
+        lockedUntil: null,
+      },
+    },
+  );
+
+  return { processed, sent, failed };
 }

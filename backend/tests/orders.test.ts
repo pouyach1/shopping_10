@@ -102,6 +102,7 @@ describe('Checkout + Orders', () => {
     const empty = await request(app)
       .post('/api/v1/orders')
       .set('Authorization', `Bearer ${token}`)
+      .set('Idempotency-Key', 'ord-auto-145442838')
       .send({
         shippingMethodId: 'post-express',
         paymentMethod: 'online',
@@ -197,6 +198,7 @@ describe('Checkout + Orders', () => {
     const created = await request(app)
       .post('/api/v1/orders')
       .set('Authorization', `Bearer ${token}`)
+      .set('Idempotency-Key', 'ord-auto-351873329')
       .send({
         shippingMethodId: 'tipax',
         paymentMethod: 'cash_on_delivery',
@@ -292,6 +294,7 @@ describe('Checkout + Orders', () => {
     const withoutAck = await request(app)
       .post('/api/v1/orders')
       .set('Authorization', `Bearer ${token}`)
+      .set('Idempotency-Key', 'ord-auto-151569709')
       .send({
         shippingMethodId: 'express',
         paymentMethod: 'online',
@@ -303,6 +306,7 @@ describe('Checkout + Orders', () => {
     const withAck = await request(app)
       .post('/api/v1/orders')
       .set('Authorization', `Bearer ${token}`)
+      .set('Idempotency-Key', 'ord-auto-36036367')
       .send({
         shippingMethodId: 'express',
         paymentMethod: 'online',
@@ -330,6 +334,7 @@ describe('Checkout + Orders', () => {
     const created = await request(app)
       .post('/api/v1/orders')
       .set('Authorization', `Bearer ${owner.token}`)
+      .set('Idempotency-Key', 'ord-auto-866067762')
       .send({
         shippingMethodId: 'post-express',
         paymentMethod: 'online',
@@ -378,6 +383,7 @@ describe('Checkout + Orders', () => {
     const created = await request(app)
       .post('/api/v1/orders')
       .set('Authorization', `Bearer ${token}`)
+      .set('Idempotency-Key', 'ord-auto-650784085')
       .send({
         shippingMethodId: 'post-express',
         paymentMethod: 'online',

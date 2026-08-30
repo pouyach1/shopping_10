@@ -6,9 +6,8 @@ import {
   adminOrderStatusSchema,
   cancelOrderSchema,
 } from '../validators/order.validators';
-import { notFound } from '../utils/AppError';
+import { conflict, notFound } from '../utils/AppError';
 import { logger } from '../utils/logger';
-import { restoreMany } from './inventory.service';
 import { toPublicOrder, type PublicOrder } from './order.mapper';
 import {
   assertCustomerCancellable,
@@ -17,6 +16,8 @@ import {
 } from './orderTransitions';
 import { recordAudit } from './audit.service';
 import { emitCommerceEvent } from './notifications';
+import { claimAndRestoreOrderInventory } from './inventoryRelease.service';
+import { CUSTOMER_CANCELLABLE } from './orderTransitions';
 
 export interface OrderListResult {
   items: PublicOrder[];
@@ -76,6 +77,10 @@ export async function getCustomerOrder(
   return toPublicOrder(order);
 }
 
+/**
+ * Customer cancel — atomic status claim, then one-time inventory release.
+ * Paid orders are not customer-cancellable (Option A).
+ */
 export async function cancelCustomerOrder(
   userId: string,
   orderNumberRaw: string,
@@ -85,60 +90,70 @@ export async function cancelCustomerOrder(
     orderNumber: orderNumberRaw,
   });
   const body = parseOrThrow(cancelOrderSchema, rawBody ?? {});
-  const order = await findOwnedOrder(orderNumber, userId);
 
-  assertCustomerCancellable(order.status);
-  assertTransition(order.status, 'cancelled');
+  const owned = await findOwnedOrder(orderNumber, userId);
+  assertCustomerCancellable(owned.status);
+  assertTransition(owned.status, 'cancelled');
 
-  const previous = order.status;
-  order.status = 'cancelled';
-  order.cancelledAt = new Date();
-  order.history.push({
-    fromStatus: previous,
-    toStatus: 'cancelled',
-    actorType: 'customer',
-    actorId: userId,
-    reason: body.reason || 'لغو توسط مشتری',
-    at: new Date(),
-  });
+  const previous = owned.status;
+  const cancelled = await Order.findOneAndUpdate(
+    {
+      _id: owned._id,
+      user: userId,
+      status: { $in: [...CUSTOMER_CANCELLABLE] },
+    },
+    {
+      $set: {
+        status: 'cancelled',
+        cancelledAt: new Date(),
+      },
+      $push: {
+        history: {
+          fromStatus: previous,
+          toStatus: 'cancelled',
+          actorType: 'customer',
+          actorId: userId,
+          reason: body.reason || 'لغو توسط مشتری',
+          at: new Date(),
+        },
+      },
+    },
+    { returnDocument: 'after' },
+  );
 
-  if (order.inventoryDecremented) {
-    await restoreMany(
-      order.items.map((item) => ({
-        productId: String(item.productId),
-        quantity: item.quantity,
-      })),
+  if (!cancelled) {
+    throw conflict(
+      'این سفارش قابل لغو نیست.',
+      undefined,
+      'ORDER_NOT_CANCELLABLE',
     );
-    order.inventoryDecremented = false;
-    await recordAudit({
-      action: 'inventory.restocked',
-      actorType: 'customer',
-      actorId: userId,
-      entityType: 'order',
-      entityId: String(order._id),
-      orderNumber: order.orderNumber,
-    });
   }
 
-  await order.save();
+  await claimAndRestoreOrderInventory(cancelled._id, 'customer_cancel', {
+    type: 'customer',
+    id: userId,
+  });
+
   await recordAudit({
     action: 'order.cancelled',
     actorType: 'customer',
     actorId: userId,
     entityType: 'order',
-    entityId: String(order._id),
-    orderNumber: order.orderNumber,
+    entityId: String(cancelled._id),
+    orderNumber: cancelled.orderNumber,
   });
   emitCommerceEvent('OrderCancelled', {
-    orderNumber: order.orderNumber,
+    orderNumber: cancelled.orderNumber,
     userId,
   });
   logger.info('order.cancelled', {
-    orderNumber: order.orderNumber,
+    orderNumber: cancelled.orderNumber,
     userId,
     actor: 'customer',
   });
-  return toPublicOrder(order);
+
+  const fresh = await Order.findById(cancelled._id);
+  return toPublicOrder(fresh ?? cancelled);
 }
 
 export async function listAdminOrders(rawQuery: unknown): Promise<OrderListResult> {
@@ -194,42 +209,69 @@ export async function updateAdminOrderStatus(
     return toPublicOrder(order);
   }
 
-  order.status = body.status;
-  const fulfillment = nextFulfillmentForOrderStatus(body.status);
-  if (fulfillment) order.fulfillmentStatus = fulfillment;
+  // Admin marking paid: refuse if already cancelled (use refund workflow).
+  if (body.status === 'paid' && previous === 'cancelled') {
+    throw conflict(
+      'سفارش لغوشده قابل پرداخت‌شدن دستی نیست.',
+      undefined,
+      'INVALID_ORDER_TRANSITION',
+    );
+  }
 
+  const fulfillment = nextFulfillmentForOrderStatus(body.status);
+  const setFields: Record<string, unknown> = {
+    status: body.status,
+  };
+  if (fulfillment) setFields.fulfillmentStatus = fulfillment;
   if (body.status === 'paid') {
-    order.paymentStatus = 'paid';
-    order.paidAt = new Date();
+    setFields.paymentStatus = 'paid';
+    setFields.paidAt = new Date();
+    setFields.inventoryReservedUntil = null;
   }
   if (body.status === 'cancelled' || body.status === 'failed') {
-    order.cancelledAt = new Date();
-    if (order.inventoryDecremented) {
-      await restoreMany(
-        order.items.map((item) => ({
-          productId: String(item.productId),
-          quantity: item.quantity,
-        })),
-      );
-      order.inventoryDecremented = false;
-    }
+    setFields.cancelledAt = new Date();
   }
 
-  order.history.push({
-    fromStatus: previous,
-    toStatus: body.status,
-    actorType: 'admin',
-    actorId: adminId,
-    reason: body.reason,
-    at: new Date(),
-  });
+  const updated = await Order.findOneAndUpdate(
+    { _id: order._id, status: previous },
+    {
+      $set: setFields,
+      $push: {
+        history: {
+          fromStatus: previous,
+          toStatus: body.status,
+          actorType: 'admin',
+          actorId: adminId,
+          reason: body.reason,
+          at: new Date(),
+        },
+      },
+    },
+    { returnDocument: 'after' },
+  );
 
-  await order.save();
+  if (!updated) {
+    throw conflict(
+      'تغییر وضعیت سفارش مجاز نیست.',
+      undefined,
+      'INVALID_ORDER_TRANSITION',
+    );
+  }
+
+  if (body.status === 'cancelled' || body.status === 'failed') {
+    await claimAndRestoreOrderInventory(updated._id, 'admin_cancel', {
+      type: 'admin',
+      id: adminId,
+    });
+  }
+
   logger.info('order.status_updated', {
-    orderNumber: order.orderNumber,
+    orderNumber: updated.orderNumber,
     from: previous,
     to: body.status,
     adminId,
   });
-  return toPublicOrder(order);
+
+  const fresh = await Order.findById(updated._id);
+  return toPublicOrder(fresh ?? updated);
 }

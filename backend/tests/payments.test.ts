@@ -152,6 +152,7 @@ describe('Phase 5 — Payments', () => {
     const third = await request(app)
       .post('/api/v1/payments')
       .set('Authorization', `Bearer ${token}`)
+      .set('Idempotency-Key', 'pay-auto-870837416')
       .send({ orderNumber });
     expect(third.status).toBe(201);
     expect(third.body.data.payment.id).toBe(first.body.data.payment.id);
@@ -169,6 +170,7 @@ describe('Phase 5 — Payments', () => {
     const pay = await request(app)
       .post('/api/v1/payments')
       .set('Authorization', `Bearer ${token}`)
+      .set('Idempotency-Key', 'pay-auto-550538565')
       .send({ orderNumber });
     expect(pay.status).toBe(201);
     const authority = pay.body.data.payment.authority as string;
@@ -195,6 +197,7 @@ describe('Phase 5 — Payments', () => {
     const pay = await request(app)
       .post('/api/v1/payments')
       .set('Authorization', `Bearer ${token}`)
+      .set('Idempotency-Key', 'pay-auto-971208360')
       .send({ orderNumber });
     const authority = pay.body.data.payment.authority as string;
 
@@ -228,6 +231,7 @@ describe('Phase 5 — Payments', () => {
     const pay = await request(app)
       .post('/api/v1/payments')
       .set('Authorization', `Bearer ${token}`)
+      .set('Idempotency-Key', 'pay-auto-282332780')
       .send({ orderNumber });
     const authority = pay.body.data.payment.authority as string;
     const body = {
@@ -267,6 +271,7 @@ describe('Phase 5 — Payments', () => {
     const pay = await request(app)
       .post('/api/v1/payments')
       .set('Authorization', `Bearer ${token}`)
+      .set('Idempotency-Key', 'pay-auto-984344310')
       .send({ orderNumber });
     const authority = pay.body.data.payment.authority as string;
 
@@ -299,6 +304,7 @@ describe('Phase 5 — Payments', () => {
     const failPay = await request(app)
       .post('/api/v1/payments')
       .set('Authorization', `Bearer ${token}`)
+      .set('Idempotency-Key', 'pay-auto-818780048')
       .send({ orderNumber, simulate: 'failure' });
     // may reuse open payment without simulate if open exists — cancel first
     // Create fresh order for failure simulation
@@ -308,6 +314,7 @@ describe('Phase 5 — Payments', () => {
     const fail = await request(app)
       .post('/api/v1/payments')
       .set('Authorization', `Bearer ${t2}`)
+      .set('Idempotency-Key', 'pay-auto-536340666')
       .send({ orderNumber: o2.orderNumber, simulate: 'failure' });
     expect(fail.status).toBe(201);
     const failCb = await request(app)
@@ -326,6 +333,7 @@ describe('Phase 5 — Payments', () => {
     const wrong = await request(app)
       .post('/api/v1/payments')
       .set('Authorization', `Bearer ${t3}`)
+      .set('Idempotency-Key', 'pay-auto-37325620')
       .send({ orderNumber: o3.orderNumber, simulate: 'wrong_amount' });
     const wrongCb = await request(app)
       .post('/api/v1/payments/callback')
@@ -354,6 +362,7 @@ describe('Phase 5 — Payments', () => {
     const forged = await request(app)
       .post('/api/v1/payments')
       .set('Authorization', `Bearer ${token}`)
+      .set('Idempotency-Key', 'pay-auto-509183402')
       .send({ orderNumber, amount: 1 });
     expect(forged.status).toBe(422);
     void failPay;
@@ -368,12 +377,14 @@ describe('Phase 5 — Payments', () => {
 
     const guest = await request(app)
       .post('/api/v1/payments')
+      .set('Idempotency-Key', 'pay-auto-707459240')
       .send({ orderNumber });
     expect(guest.status).toBe(401);
 
     const pay = await request(app)
       .post('/api/v1/payments')
       .set('Authorization', `Bearer ${a.token}`)
+      .set('Idempotency-Key', 'pay-auto-839189822')
       .send({ orderNumber });
     expect(pay.status).toBe(201);
 
@@ -408,6 +419,7 @@ describe('Phase 5 — Payments', () => {
     const pay = await request(app)
       .post('/api/v1/payments')
       .set('Authorization', `Bearer ${token}`)
+      .set('Idempotency-Key', 'pay-auto-146892541')
       .send({ orderNumber });
     expect(pay.status).toBe(409);
     expect(pay.body.code).toBe('ORDER_ALREADY_CANCELLED');
@@ -418,6 +430,7 @@ describe('Phase 5 — Payments', () => {
     const created = await request(app)
       .post('/api/v1/payments')
       .set('Authorization', `Bearer ${t2}`)
+      .set('Idempotency-Key', 'pay-auto-44215568')
       .send({ orderNumber: o2.orderNumber });
     await request(app)
       .post('/api/v1/payments/callback')
@@ -705,6 +718,7 @@ describe('Phase 5 — Refunds', () => {
     const pay = await request(app)
       .post('/api/v1/payments')
       .set('Authorization', `Bearer ${token}`)
+      .set('Idempotency-Key', 'pay-auto-123475530')
       .send({ orderNumber });
     await request(app)
       .post('/api/v1/payments/callback')
@@ -763,6 +777,7 @@ describe('Phase 5 — Refunds', () => {
     const pay2 = await request(app)
       .post('/api/v1/payments')
       .set('Authorization', `Bearer ${u2.token}`)
+      .set('Idempotency-Key', 'pay-auto-639263313')
       .send({ orderNumber: o2.orderNumber });
     await request(app)
       .post('/api/v1/payments/callback')
