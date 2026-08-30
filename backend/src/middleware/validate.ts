@@ -1,7 +1,7 @@
 import type { NextFunction, Request, Response } from 'express';
 import type { ZodType } from 'zod';
 
-import { parseOrThrow } from '../validators/auth.validators';
+import { parseOrThrow } from '../validators/shared';
 
 type RequestPart = 'body' | 'query' | 'params';
 
