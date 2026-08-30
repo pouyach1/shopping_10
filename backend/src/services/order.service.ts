@@ -17,6 +17,7 @@ import {
 import { recordAudit } from './audit.service';
 import { emitCommerceEvent } from './notifications';
 import { claimAndRestoreOrderInventory } from './inventoryRelease.service';
+import { releaseCouponForOrder } from './coupon.service';
 import { CUSTOMER_CANCELLABLE } from './orderTransitions';
 
 export interface OrderListResult {
@@ -132,6 +133,11 @@ export async function cancelCustomerOrder(
   await claimAndRestoreOrderInventory(cancelled._id, 'customer_cancel', {
     type: 'customer',
     id: userId,
+  });
+  await releaseCouponForOrder({
+    orderId: String(cancelled._id),
+    orderNumber: cancelled.orderNumber,
+    reason: 'customer_cancel',
   });
 
   await recordAudit({
@@ -262,6 +268,11 @@ export async function updateAdminOrderStatus(
     await claimAndRestoreOrderInventory(updated._id, 'admin_cancel', {
       type: 'admin',
       id: adminId,
+    });
+    await releaseCouponForOrder({
+      orderId: String(updated._id),
+      orderNumber: updated.orderNumber,
+      reason: 'admin_cancel',
     });
   }
 

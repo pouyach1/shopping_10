@@ -7,6 +7,8 @@ export interface CouponRedemptionAttrs {
   order: Types.ObjectId;
   orderNumber: string;
   discountAmount: number;
+  /** Set when cancel/expiry reclaims the usage slot (one-time). */
+  releasedAt?: Date | null;
   createdAt: Date;
 }
 
@@ -32,6 +34,7 @@ const schema = new Schema<CouponRedemptionAttrs>(
     },
     orderNumber: { type: String, required: true, maxlength: 40 },
     discountAmount: { type: Number, required: true, min: 0 },
+    releasedAt: { type: Date, default: null },
   },
   { timestamps: { createdAt: true, updatedAt: false } },
 );
