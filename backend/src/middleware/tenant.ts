@@ -9,6 +9,7 @@ import { Store } from '../models/Store';
 import {
   runWithTenantContext,
   type TenantContext,
+  assertStoreIdMatchesContext,
 } from '../tenant/TenantContext';
 import { badRequest, notFound } from '../utils/AppError';
 import { asyncHandler } from '../utils/asyncHandler';
@@ -102,3 +103,28 @@ export const resolveTenant = asyncHandler(
     });
   },
 );
+
+/**
+ * Reject body/query storeId that disagrees with resolved tenant context.
+ * Must run after resolveTenant.
+ */
+export const rejectClientStoreIdSmuggling = (
+  req: Request,
+  _res: Response,
+  next: NextFunction,
+): void => {
+  const bodyStoreId =
+    req.body && typeof req.body === 'object' && 'storeId' in req.body
+      ? String((req.body as { storeId?: unknown }).storeId ?? '')
+      : undefined;
+  const queryStoreId =
+    typeof req.query.storeId === 'string' ? req.query.storeId : undefined;
+
+  if (bodyStoreId) {
+    assertStoreIdMatchesContext(bodyStoreId);
+  }
+  if (queryStoreId) {
+    assertStoreIdMatchesContext(queryStoreId);
+  }
+  next();
+};

@@ -5,6 +5,7 @@ import { createApp } from '../src/app';
 import { User } from '../src/models/User';
 import { Product } from '../src/models/Product';
 import { Order } from '../src/models/Order';
+import { grantDefaultStoreAdmin } from './helpers/admin';
 
 const app = createApp();
 
@@ -39,7 +40,7 @@ async function adminToken(): Promise<string> {
     phone: '09121112222',
     email: 'admin-orders@luxora.ir',
   });
-  await User.findByIdAndUpdate(userId, { role: 'admin' });
+  await grantDefaultStoreAdmin(userId);
   const login = await request(app).post('/api/v1/auth/login').send({
     identifier: 'admin-orders@luxora.ir',
     password: 'demo1234a',

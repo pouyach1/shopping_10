@@ -38,7 +38,9 @@ export async function getPaymentProvider(
     privateConfig.payment.provider,
     privateConfig.payment.credentialsConfigured,
   );
-  const provider = createPaymentProvider(providerId);
+  const provider = createPaymentProvider(providerId, {
+    merchantRef: privateConfig.payment.merchantRef,
+  });
   cacheByStore.set(id, provider);
   return provider;
 }
@@ -58,14 +60,17 @@ export function setPaymentProvider(
 
 export function createPaymentProvider(
   providerId: PaymentProviderId,
-  overrides?: { http?: HttpJsonClient },
+  overrides?: { http?: HttpJsonClient; merchantRef?: string },
 ): PaymentProvider {
   switch (providerId) {
     case 'mock':
       return new MockPaymentProvider(env.PAYMENT_WEBHOOK_SECRET);
     case 'zarinpal':
       return new ZarinpalPaymentProvider({
-        merchantId: env.ZARINPAL_MERCHANT_ID ?? '',
+        merchantId:
+          overrides?.merchantRef?.trim() ||
+          env.ZARINPAL_MERCHANT_ID ||
+          '',
         sandbox: env.ZARINPAL_SANDBOX,
         webhookSecret: env.PAYMENT_WEBHOOK_SECRET,
         http: overrides?.http,

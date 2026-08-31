@@ -1,4 +1,4 @@
-import { ACCESS_TOKEN_KEY, API_BASE_URL, isApiEnabled } from '../../config/api';
+import { ACCESS_TOKEN_KEY, API_BASE_URL, isApiEnabled, STORE_SLUG, STORE_SLUG_HEADER } from '../../config/api';
 
 export class ApiError extends Error {
   readonly status: number;
@@ -84,6 +84,7 @@ export async function apiRequest<T>(
 
   const headers: Record<string, string> = {
     Accept: 'application/json',
+    [STORE_SLUG_HEADER]: STORE_SLUG,
     ...options.headers,
   };
 

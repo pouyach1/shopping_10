@@ -5,6 +5,10 @@ Production-oriented Express + TypeScript + MongoDB API for the Luxora e-commerce
 **Phase 1** — foundation + authentication + users.  
 **Phase 2** — catalog engine: products, categories, search, filtering, inventory foundation.
 
+**Phase 8** — multi-store production productization: tenant resolution on all commerce routes, store-scoped webhooks/payments/coupons, store membership admin auth, scheduler lock renewal across stores.
+
+See [docs/architecture/multi-tenancy.md](../docs/architecture/multi-tenancy.md).
+
 ## Requirements
 
 - Node.js 22+

@@ -32,6 +32,8 @@ import {
   resolveStorePaymentBinding,
   writeAuditLog,
 } from '../src/services/tenantCommerce.service';
+import { signMockWebhook } from '../src/services/payments/mock.provider';
+import { env } from '../src/config/env';
 import { runWithTenantContext } from '../src/tenant/TenantContext';
 
 const app = createApp();
@@ -617,6 +619,87 @@ describe('Multi-tenant isolation', () => {
     const docB = await Product.findById(productB.id);
     expect(docA?.stock).toBe(7);
     expect(docB?.stock).toBe(10);
+  });
+
+  it('payment webhooks bootstrap tenant from authority without x-store-slug', async () => {
+    const storeA = await ensureStore({
+      slug: 'wh-a',
+      name: 'Webhook A',
+      orderPrefix: 'WHA',
+    });
+    const storeB = await ensureStore({
+      slug: 'wh-b',
+      name: 'Webhook B',
+      orderPrefix: 'WHB',
+    });
+
+    const authorityA = 'mock.success.wh-a-pay';
+    const authorityB = 'mock.success.wh-b-pay';
+
+    const orderA = await Order.create(
+      isolationOrder(storeA._id, 'WHA-2026-000001', 100_000),
+    );
+    const orderB = await Order.create(
+      isolationOrder(storeB._id, 'WHB-2026-000001', 200_000),
+    );
+
+    await Payment.create({
+      storeId: storeA._id,
+      order: orderA._id,
+      orderNumber: 'WHA-2026-000001',
+      user: storeA._id,
+      provider: 'mock',
+      status: 'redirected',
+      amount: 100_000,
+      currency: 'تومان',
+      authority: authorityA,
+      refundedAmount: 0,
+      needsManualRefund: false,
+    });
+    await Payment.create({
+      storeId: storeB._id,
+      order: orderB._id,
+      orderNumber: 'WHB-2026-000001',
+      user: storeB._id,
+      provider: 'mock',
+      status: 'redirected',
+      amount: 200_000,
+      currency: 'تومان',
+      authority: authorityB,
+      refundedAmount: 0,
+      needsManualRefund: false,
+    });
+
+    const sharedEventId = 'evt-shared-across-stores';
+    const bodyB = {
+      eventId: sharedEventId,
+      authority: authorityB,
+      status: 'paid',
+      amount: 200_000,
+    };
+    const rawB = JSON.stringify(bodyB);
+    const sigB = signMockWebhook(env.PAYMENT_WEBHOOK_SECRET, rawB);
+
+    const res = await request(app)
+      .post('/api/v1/payments/webhooks/mock')
+      .set('Content-Type', 'application/json')
+      .set('x-luxora-webhook-signature', sigB)
+      .send(rawB);
+    expect(res.status).toBe(200);
+
+    const eventB = await PaymentProviderEvent.findOne({
+      storeId: storeB._id,
+      provider: 'mock',
+      eventId: sharedEventId,
+    });
+    expect(eventB).toBeTruthy();
+
+    const eventA = await PaymentProviderEvent.findOne({
+      storeId: storeA._id,
+      provider: 'mock',
+      eventId: sharedEventId,
+    });
+    expect(eventA).toBeNull();
   });
 
   it('GET /api/v1/store returns public config without private secrets', async () => {

@@ -2,6 +2,8 @@ import { describe, expect, it, beforeEach } from 'vitest';
 
 import { createApp } from '../src/app';
 import request from 'supertest';
+import { grantDefaultStoreAdmin } from './helpers/admin';
+import { withDefaultTenant } from './helpers/tenant';
 import { User } from '../src/models/User';
 import { Order } from '../src/models/Order';
 import { Payment } from '../src/models/Payment';
@@ -61,7 +63,7 @@ async function adminToken(): Promise<string> {
     phone: `0912${String(Math.floor(Math.random() * 1e7)).padStart(7, '0')}`,
     email: `admin-${Math.random().toString(36).slice(2)}@luxora.ir`,
   });
-  await User.findByIdAndUpdate(userId, { role: 'admin' });
+  await grantDefaultStoreAdmin(userId);
   const user = await User.findById(userId);
   const login = await request(app).post('/api/v1/auth/login').send({
     identifier: user!.email,
@@ -313,7 +315,7 @@ describe('Phase 6 — callback/webhook races & notifications', () => {
       .send(raw);
     expect(wh2.body.data.duplicate).toBe(true);
 
-    await processPendingNotifications(50);
+    await withDefaultTenant(() => processPendingNotifications(50));
     const sms = await NotificationDelivery.find({
       event: 'PaymentSuccessful',
       channel: 'sms',
@@ -343,7 +345,7 @@ describe('Phase 6 — callback/webhook races & notifications', () => {
     expect(cb.status).toBe(200);
     expect(cb.body.data.payment.status).toBe('paid');
 
-    await processPendingNotifications(20);
+    await withDefaultTenant(() => processPendingNotifications(20));
     const order = await Order.findOne({ orderNumber: payment.orderNumber });
     expect(order?.status).toBe('paid');
   });
@@ -396,7 +398,9 @@ describe('Phase 6 — reservation scheduler & reconciliation', () => {
       { status: 'redirected', authority: payment.authority },
     );
 
-    const report = await reconcilePayment(payment.id, { applySafeFix: true });
+    const report = await withDefaultTenant(() =>
+      reconcilePayment(payment.id, { applySafeFix: true }),
+    );
     expect(report.findings).toContain('provider_paid_local_pending');
     expect(report.appliedFix).toBe(true);
 

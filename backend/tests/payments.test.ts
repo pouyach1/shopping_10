@@ -7,6 +7,8 @@ import { Product } from '../src/models/Product';
 import { Order } from '../src/models/Order';
 import { Payment } from '../src/models/Payment';
 import { Coupon } from '../src/models/Coupon';
+import { grantDefaultStoreAdmin } from './helpers/admin';
+import { withDefaultTenant, getDefaultStoreId } from './helpers/tenant';
 import { signMockWebhook } from '../src/services/payments/mock.provider';
 import { env } from '../src/config/env';
 import * as paymentService from '../src/services/payment.service';
@@ -45,7 +47,7 @@ async function adminToken(): Promise<string> {
     phone: `0912${String(Math.floor(Math.random() * 1e7)).padStart(7, '0')}`,
     email: `admin-${Math.random().toString(36).slice(2)}@luxora.ir`,
   });
-  await User.findByIdAndUpdate(userId, { role: 'admin' });
+  await grantDefaultStoreAdmin(userId);
   const user = await User.findById(userId);
   const login = await request(app).post('/api/v1/auth/login').send({
     identifier: user!.email,
@@ -463,7 +465,9 @@ describe('Phase 5 — Payments', () => {
       { inventoryReservedUntil: new Date(Date.now() - 1000) },
     );
 
-    const released = await paymentService.releaseExpiredReservations(10);
+    const released = await withDefaultTenant(() =>
+      paymentService.releaseExpiredReservations(10),
+    );
     expect(released.released).toBeGreaterThanOrEqual(1);
 
     const order = await Order.findOne({ orderNumber });
@@ -616,7 +620,9 @@ describe('Phase 5 — Coupons', () => {
 
     // Direct redeem race for per-user is covered via usage counter unit path
     const coupon = await Coupon.findOne({ code: 'ONLYA' });
+    const storeId = await getDefaultStoreId();
     const orderDoc = await Order.create({
+      storeId,
       orderNumber: `LUX-2099-${String(Math.floor(Math.random() * 1e6)).padStart(6, '0')}`,
       user: user.userId,
       status: 'awaiting_payment',
@@ -657,17 +663,20 @@ describe('Phase 5 — Coupons', () => {
       inventoryDecremented: false,
       idempotencyKey: `test-a-${Math.random().toString(36).slice(2)}`,
     } as never);
-    await redeemCouponForOrder({
-      code: 'ONLYA',
-      userId: user.userId,
-      orderId: String(orderDoc._id),
-      orderNumber: orderDoc.orderNumber,
-      merchandiseSubtotal: 900_000,
-      productIds: [a.productId],
-      categoryIds: [a.categoryId],
-    });
+    await withDefaultTenant(() =>
+      redeemCouponForOrder({
+        code: 'ONLYA',
+        userId: user.userId,
+        orderId: String(orderDoc._id),
+        orderNumber: orderDoc.orderNumber,
+        merchandiseSubtotal: 900_000,
+        productIds: [a.productId],
+        categoryIds: [a.categoryId],
+      }),
+    );
 
     const order2 = await Order.create({
+      storeId,
       orderNumber: `LUX-2099-${String(Math.floor(Math.random() * 1e6)).padStart(6, '0')}`,
       user: user.userId,
       status: 'awaiting_payment',
@@ -691,15 +700,17 @@ describe('Phase 5 — Coupons', () => {
       idempotencyKey: `test-b-${Math.random().toString(36).slice(2)}`,
     } as never);
     await expect(
-      redeemCouponForOrder({
-        code: 'ONLYA',
-        userId: user.userId,
-        orderId: String(order2._id),
-        orderNumber: order2.orderNumber,
-        merchandiseSubtotal: 900_000,
-        productIds: [a.productId],
-        categoryIds: [a.categoryId],
-      }),
+      withDefaultTenant(() =>
+        redeemCouponForOrder({
+          code: 'ONLYA',
+          userId: user.userId,
+          orderId: String(order2._id),
+          orderNumber: order2.orderNumber,
+          merchandiseSubtotal: 900_000,
+          productIds: [a.productId],
+          categoryIds: [a.categoryId],
+        }),
+      ),
     ).rejects.toMatchObject({ code: 'COUPON_USAGE_LIMIT' });
     void coupon;
   });

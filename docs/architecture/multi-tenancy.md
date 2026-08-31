@@ -66,9 +66,17 @@ Middleware order:
 
 ```text
 requestId → helmet/cors/json → /api/v1
-  /health          (no tenant)
-  resolveTenant → auth → requireStoreRole|membership → controller
+  /health                    (no tenant)
+  /payments/webhooks/:provider (tenant from payment authority)
+  resolveTenant → rejectClientStoreIdSmuggling → auth → requireStoreRole → controller
 ```
+
+Payment webhooks **never** use request tenant headers. The handler looks up `Payment.authority` globally, bootstraps `TenantContext` from `payment.storeId`, then verifies the signature with that store's provider configuration.
+
+## Frontend contract
+
+When the storefront and API share one host, the SPA sends `x-store-slug` (from `VITE_STORE_SLUG`, default `luxora`) on every API request. Domain/subdomain routing can omit the header when DNS already identifies the store.
+
 
 ## Membership & authorization
 
